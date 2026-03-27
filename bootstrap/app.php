@@ -1,8 +1,13 @@
 <?php
 
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Http\Request;
+use Spatie\Permission\Exceptions\UnauthorizedException;
+use Symfony\Component\HttpFoundation\Response;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -23,5 +28,41 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        $exceptions->render(function (AuthenticationException $exception, Request $request): Response {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => 'Authentication required.',
+                    'redirect_to' => route('login'),
+                    'reauth_to' => route('auth.sso.redirect'),
+                ], 401);
+            }
+
+            return redirect()
+                ->guest(route('login'))
+                ->with('error', 'A munkamenet hianyzik vagy lejart. Jelentkezz be ujra.');
+        });
+
+        $exceptions->render(function (AuthorizationException $exception, Request $request): Response {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => 'Forbidden.',
+                ], 403);
+            }
+
+            return redirect()
+                ->back()
+                ->with('error', 'Nincs jogosultsagod a kert oldal megtekintesehez.');
+        });
+
+        $exceptions->render(function (UnauthorizedException $exception, Request $request): Response {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => 'Forbidden.',
+                ], 403);
+            }
+
+            return redirect()
+                ->back()
+                ->with('error', 'Nincs jogosultsagod a kert oldal megtekintesehez.');
+        });
     })->create();

@@ -5,6 +5,7 @@ namespace Tests\Feature\Auth;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 class SsoAuthenticationTest extends TestCase
@@ -158,6 +159,53 @@ class SsoAuthenticationTest extends TestCase
         $this->assertAuthenticatedAs($user);
     }
 
+    public function test_successful_callback_creates_a_persistent_session_for_protected_pages(): void
+    {
+        Http::fake([
+            'https://sso-server.test/api/oauth/token' => Http::response([
+                'message' => 'OAuth token issued successfully.',
+                'data' => ['access_token' => 'access-token'],
+            ], 200),
+            'https://sso-server.test/api/oauth/userinfo' => Http::response([
+                'message' => 'User info retrieved successfully.',
+                'data' => [
+                    'sub' => 'user-123',
+                    'email' => 'sso.user@example.test',
+                    'name' => 'SSO User',
+                ],
+            ], 200),
+        ]);
+
+        $this
+            ->withSession([
+                config('sso.state_session_key') => 'valid-state',
+                config('sso.pkce_verifier_session_key') => 'verifier-value',
+            ])
+            ->get('/auth/sso/callback?code=valid-code&state=valid-state')
+            ->assertRedirect(route('dashboard', absolute: false));
+
+        $dashboardResponse = $this->get('/dashboard');
+
+        $dashboardResponse
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('auth.isAuthenticated', true)
+                ->where('auth.isGuest', false)
+                ->where('auth.user.email', 'sso.user@example.test')
+            );
+    }
+
+    public function test_guest_user_is_redirected_to_login_from_a_protected_page(): void
+    {
+        $response = $this->get('/dashboard');
+
+        $response
+            ->assertRedirect(route('login'))
+            ->assertSessionHas('error', 'A munkamenet hianyzik vagy lejart. Jelentkezz be ujra.');
+
+        $this->assertGuest();
+    }
+
     public function test_callback_handles_json_token_response_without_access_token(): void
     {
         Http::fake([
@@ -203,6 +251,21 @@ class SsoAuthenticationTest extends TestCase
         $this->assertGuest();
     }
 
+    public function test_callback_with_missing_pkce_verifier_is_handled_gracefully(): void
+    {
+        $response = $this
+            ->withSession([
+                config('sso.state_session_key') => 'valid-state',
+            ])
+            ->get('/auth/sso/callback?code=valid-code&state=valid-state');
+
+        $response
+            ->assertRedirect(route('login'))
+            ->assertSessionHas('error', 'Hianyzo PKCE verifier miatt nem folytathato a bejelentkezes. Inditsd ujra a login folyamatot.');
+
+        $this->assertGuest();
+    }
+
     public function test_logout_clears_the_authenticated_session(): void
     {
         $user = User::factory()->create();
@@ -211,5 +274,29 @@ class SsoAuthenticationTest extends TestCase
 
         $response->assertRedirect('/');
         $this->assertGuest();
+    }
+
+    public function test_logout_prevents_access_to_protected_pages_until_reauthenticated(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->post('/auth/logout')
+            ->assertRedirect('/');
+
+        $this->get('/dashboard')
+            ->assertRedirect(route('login'))
+            ->assertSessionHas('error', 'A munkamenet hianyzik vagy lejart. Jelentkezz be ujra.');
+    }
+
+    public function test_json_requests_receive_a_consistent_401_reauth_payload(): void
+    {
+        $this->getJson('/dashboard')
+            ->assertUnauthorized()
+            ->assertJson([
+                'message' => 'Authentication required.',
+                'redirect_to' => route('login'),
+                'reauth_to' => route('auth.sso.redirect'),
+            ]);
     }
 }

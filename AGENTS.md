@@ -179,11 +179,37 @@ Must cover:
 - token exchange failure
 - successful authentication
 - logout
+- protected route access
+- permission / authorization failures
+- session expiry or missing-session handling
+- 401 re-auth behavior for protected requests
 
-### Frontend (optional but preferred)
+### Frontend
+
+Must use:
+
+- Vitest
+- Vue Test Utils
+
+Must cover where relevant:
 
 - basic auth UI behavior
 - login / logout states
+- guest vs authenticated rendering
+- permission-aware navigation or action visibility
+- important interactive behavior after meaningful UI changes
+
+### Enforcement
+
+- Any change to auth, authorization, CRUD behavior, routing, validation, or shared frontend state MUST update or add tests.
+- Security-sensitive flows are not complete without explicit backend test coverage.
+- Frontend interaction changes are not complete without Vitest coverage where the behavior can be tested locally.
+- CRUD work must include happy path, validation, and authorization coverage.
+- When behavior changes, existing tests MUST be updated to match the new contract.
+- Broken tests must be fixed, never ignored or deleted just to get green output.
+- After meaningful backend changes, run the relevant Laravel test suite.
+- After meaningful frontend changes, run the Vitest suite.
+- A feature is not considered complete if the required tests were not created, updated, and executed.
 
 ---
 

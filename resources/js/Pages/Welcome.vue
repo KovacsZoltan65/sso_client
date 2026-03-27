@@ -9,7 +9,7 @@ defineProps({
     canRegister: { type: Boolean, default: false },
 });
 
-const { isAuthenticated } = useAuth();
+const { isAuthenticated, user, loginUrl, logoutUrl } = useAuth();
 </script>
 
 <template>
@@ -26,7 +26,10 @@ const { isAuthenticated } = useAuth();
                     <Link v-if="isAuthenticated" :href="route('dashboard')">
                         <Button label="Dashboard" severity="secondary" outlined />
                     </Link>
-                    <Link v-else-if="canLogin" :href="route('login')">
+                    <Link v-if="isAuthenticated" :href="logoutUrl" method="post" as="button">
+                        <Button label="Kijelentkezes" severity="secondary" text />
+                    </Link>
+                    <Link v-else-if="canLogin" :href="loginUrl">
                         <Button label="SSO bejelentkezes" severity="secondary" outlined />
                     </Link>
                 </div>
@@ -58,6 +61,9 @@ const { isAuthenticated } = useAuth();
                         <p class="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">Auth viselkedes</p>
                         <p class="mt-3 text-sm leading-7 text-slate-600">
                             A vedett oldalak session nelkul a bejelentkezesi oldalra kerulnek, ahonnan egyetlen gomb inditja el az SSO redirect flow-t.
+                        </p>
+                        <p v-if="isAuthenticated" class="mt-4 rounded-3xl bg-emerald-50 px-4 py-4 text-sm text-emerald-700">
+                            Aktiv session: {{ user?.name }} ({{ user?.email }})
                         </p>
                     </div>
                 </section>
