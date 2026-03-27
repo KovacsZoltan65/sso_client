@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
+use PHPUnit\Framework\Attributes\Group;
 use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
@@ -12,6 +13,7 @@ class AppAccessTest extends TestCase
 {
     use RefreshDatabase;
 
+    #[Group('security')]
     public function test_welcome_page_exposes_guest_auth_state(): void
     {
         $this->get('/')
@@ -40,6 +42,7 @@ class AppAccessTest extends TestCase
             );
     }
 
+    #[Group('security')]
     public function test_permission_protected_page_redirects_back_with_flash_message_when_permission_is_missing(): void
     {
         $user = User::factory()->create();
@@ -67,6 +70,7 @@ class AppAccessTest extends TestCase
             );
     }
 
+    #[Group('security')]
     public function test_json_permission_failure_returns_consistent_forbidden_payload(): void
     {
         $user = User::factory()->create();

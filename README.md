@@ -7,6 +7,25 @@
 <a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
 </p>
 
+## Security Regression Suite
+
+The `sso_client` project has a dedicated auth/security regression gate for the SSO client flow. The suite is intentionally narrow and protects redirect/callback validation, token exchange compatibility, session lifecycle, protected-route access, guest/authenticated UI exposure, and the test-environment guard that prevents accidental use of a non-test database.
+
+Run the full gate locally with:
+
+```bash
+composer test:security
+```
+
+Run only one side when needed:
+
+```bash
+composer test:security:backend
+npm run test:security
+```
+
+Backend tests enter the suite through the PHPUnit `security` group. Frontend tests enter through the curated include list in `vitest.security.config.js`. Add a test to this gate only when it protects auth, authorization, redirect/callback validation, session handling, re-auth behavior, or another security-critical client guarantee. Any auth flow, authorization, shared auth state, routing, validation, or logout change must update or add the corresponding security regression test before merge.
+
 ## About Laravel
 
 Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:

@@ -5,7 +5,9 @@ namespace Tests\Feature\Auth;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Inertia\Testing\AssertableInertia as Assert;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 
 class SsoAuthenticationTest extends TestCase
@@ -33,6 +35,7 @@ class SsoAuthenticationTest extends TestCase
         $response->assertOk();
     }
 
+    #[Group('security')]
     public function test_redirect_endpoint_builds_the_expected_authorize_redirect(): void
     {
         $response = $this->get('/auth/sso/redirect');
@@ -50,6 +53,7 @@ class SsoAuthenticationTest extends TestCase
         $this->assertTrue(session()->has(config('sso.pkce_verifier_session_key')));
     }
 
+    #[Group('security')]
     public function test_callback_with_invalid_state_does_not_authenticate_the_user(): void
     {
         $response = $this
@@ -63,6 +67,7 @@ class SsoAuthenticationTest extends TestCase
         $this->assertGuest();
     }
 
+    #[Group('security')]
     public function test_callback_with_missing_code_is_handled_gracefully(): void
     {
         $response = $this
@@ -76,6 +81,24 @@ class SsoAuthenticationTest extends TestCase
         $this->assertGuest();
     }
 
+    #[Group('security')]
+    public function test_callback_with_missing_state_is_handled_gracefully(): void
+    {
+        $response = $this
+            ->withSession([
+                config('sso.state_session_key') => 'valid-state',
+                config('sso.pkce_verifier_session_key') => 'verifier-value',
+            ])
+            ->get('/auth/sso/callback?code=valid-code');
+
+        $response
+            ->assertRedirect(route('login'))
+            ->assertSessionHas('error', 'Hianyzik a state ertek a callbackbol.');
+
+        $this->assertGuest();
+    }
+
+    #[Group('security')]
     public function test_callback_handles_token_exchange_failure(): void
     {
         Http::fake([
@@ -99,6 +122,38 @@ class SsoAuthenticationTest extends TestCase
         $this->assertGuest();
     }
 
+    #[Group('security')]
+    public function test_callback_handles_oauth_error_response_from_provider(): void
+    {
+        Log::spy();
+
+        $response = $this
+            ->withSession([
+                config('sso.state_session_key') => 'valid-state',
+                config('sso.pkce_verifier_session_key') => 'verifier-value',
+            ])
+            ->get('/auth/sso/callback?state=valid-state&error=access_denied');
+
+        $response
+            ->assertRedirect(route('login'))
+            ->assertSessionHas('error', 'Az SSO szerver hibaval terjen vissza a bejelentkezesbol.');
+
+        Log::shouldHaveReceived('warning')->once()->withArgs(function (string $message, array $context): bool {
+            $serializedContext = json_encode($context);
+
+            return $message === 'SSO authentication callback failed.'
+                && ($context['provider_error'] ?? null) === 'access_denied'
+                && ! array_key_exists('access_token', $context)
+                && ! array_key_exists('client_secret', $context)
+                && is_string($serializedContext)
+                && ! str_contains($serializedContext, 'access-token')
+                && ! str_contains($serializedContext, 'secret-value');
+        });
+
+        $this->assertGuest();
+    }
+
+    #[Group('security')]
     public function test_callback_handles_userinfo_failure(): void
     {
         Http::fake([
@@ -125,6 +180,7 @@ class SsoAuthenticationTest extends TestCase
         $this->assertGuest();
     }
 
+    #[Group('security')]
     public function test_successful_callback_authenticates_the_user_and_provisions_locally(): void
     {
         Http::fake([
@@ -159,6 +215,36 @@ class SsoAuthenticationTest extends TestCase
         $this->assertAuthenticatedAs($user);
     }
 
+    #[Group('security')]
+    public function test_successful_callback_accepts_top_level_token_and_userinfo_payloads(): void
+    {
+        Http::fake([
+            'https://sso-server.test/api/oauth/token' => Http::response([
+                'access_token' => 'access-token',
+            ], 200),
+            'https://sso-server.test/api/oauth/userinfo' => Http::response([
+                'sub' => 'user-123',
+                'email' => 'top.level@example.test',
+                'name' => 'Top Level User',
+            ], 200),
+        ]);
+
+        $response = $this
+            ->withSession([
+                config('sso.state_session_key') => 'valid-state',
+                config('sso.pkce_verifier_session_key') => 'verifier-value',
+            ])
+            ->get('/auth/sso/callback?code=valid-code&state=valid-state');
+
+        $response->assertRedirect(route('dashboard', absolute: false));
+        $this->assertAuthenticated();
+        $this->assertDatabaseHas('users', [
+            'email' => 'top.level@example.test',
+            'name' => 'Top Level User',
+        ]);
+    }
+
+    #[Group('security')]
     public function test_successful_callback_creates_a_persistent_session_for_protected_pages(): void
     {
         Http::fake([
@@ -195,6 +281,7 @@ class SsoAuthenticationTest extends TestCase
             );
     }
 
+    #[Group('security')]
     public function test_guest_user_is_redirected_to_login_from_a_protected_page(): void
     {
         $response = $this->get('/dashboard');
@@ -206,6 +293,7 @@ class SsoAuthenticationTest extends TestCase
         $this->assertGuest();
     }
 
+    #[Group('security')]
     public function test_callback_handles_json_token_response_without_access_token(): void
     {
         Http::fake([
@@ -229,6 +317,7 @@ class SsoAuthenticationTest extends TestCase
         $this->assertGuest();
     }
 
+    #[Group('security')]
     public function test_callback_handles_non_json_token_response(): void
     {
         Http::fake([
@@ -251,6 +340,7 @@ class SsoAuthenticationTest extends TestCase
         $this->assertGuest();
     }
 
+    #[Group('security')]
     public function test_callback_with_missing_pkce_verifier_is_handled_gracefully(): void
     {
         $response = $this
@@ -266,6 +356,7 @@ class SsoAuthenticationTest extends TestCase
         $this->assertGuest();
     }
 
+    #[Group('security')]
     public function test_logout_clears_the_authenticated_session(): void
     {
         $user = User::factory()->create();
@@ -276,6 +367,7 @@ class SsoAuthenticationTest extends TestCase
         $this->assertGuest();
     }
 
+    #[Group('security')]
     public function test_logout_prevents_access_to_protected_pages_until_reauthenticated(): void
     {
         $user = User::factory()->create();
@@ -289,6 +381,7 @@ class SsoAuthenticationTest extends TestCase
             ->assertSessionHas('error', 'A munkamenet hianyzik vagy lejart. Jelentkezz be ujra.');
     }
 
+    #[Group('security')]
     public function test_json_requests_receive_a_consistent_401_reauth_payload(): void
     {
         $this->getJson('/dashboard')
