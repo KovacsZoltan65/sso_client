@@ -58,6 +58,26 @@ class SsoClientService
         return $this->configuredEndpoint('authorize_endpoint');
     }
 
+    /**
+     * @return array<string, mixed>
+     */
+    public function selfServiceProfileApi(): array
+    {
+        $serverBaseUrl = $this->serverBaseUrl();
+
+        return [
+            'enabled' => $serverBaseUrl !== null,
+            'baseUrl' => $serverBaseUrl,
+            'endpoints' => [
+                'show' => $serverBaseUrl ? $serverBaseUrl.'/api/profile' : null,
+                'update' => $serverBaseUrl ? $serverBaseUrl.'/api/profile' : null,
+                'updatePassword' => $serverBaseUrl ? $serverBaseUrl.'/api/profile/password' : null,
+            ],
+            'editableFields' => ['name'],
+            'readOnlyFields' => ['email'],
+        ];
+    }
+
     public function buildAuthorizationUrl(Request $request): string
     {
         $this->ensureConfigured();

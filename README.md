@@ -32,6 +32,27 @@ Server-client OAuth/SSO integration contract is defined in:
 
 - [`docs/integration-contract.md`](/c:/wamp64/www/sso/sso_client/docs/integration-contract.md)
 
+## Self-Service Profile UI
+
+`/profile` is now a client-side orchestration surface on top of the upstream `sso_server` self-service profile API.
+
+Current boundary:
+
+- the client renders profile and password UI
+- the client performs only UX validation and state orchestration
+- the server owns final validation, password checks, hashing, persistence, and audit logging
+- the client updates its shared auth user after successful remote profile fetch/update so the visible session state does not go stale
+
+Current editable self-service fields:
+
+- `name`
+
+Current read-only self-service fields:
+
+- `email`
+
+Email stays read-only because the client still resolves its local session user by the authoritative upstream email claim.
+
 ## Browser Auth E2E
 
 The client now ships with a Playwright auth-flow suite that drives a real browser through the `sso_client` -> `sso_server` redirect, login, callback, session, protected-route, and logout flow.

@@ -11,6 +11,20 @@ export function useAuth() {
     const loginUrl = computed(() => auth.value.loginUrl ?? route('login'));
     const reauthUrl = computed(() => auth.value.reauthUrl ?? route('auth.sso.redirect'));
     const logoutUrl = computed(() => auth.value.logoutUrl ?? route('logout'));
+    const updateUserProfile = (profile) => {
+        if (!user.value || !profile) {
+            return;
+        }
+
+        page.props.auth = {
+            ...auth.value,
+            user: {
+                ...user.value,
+                name: profile.name ?? user.value.name,
+                email: profile.email ?? user.value.email,
+            },
+        };
+    };
 
     return {
         auth,
@@ -20,5 +34,6 @@ export function useAuth() {
         loginUrl,
         reauthUrl,
         logoutUrl,
+        updateUserProfile,
     };
 }

@@ -1,6 +1,7 @@
 import { config } from '@vue/test-utils';
 import { afterEach, beforeEach, vi } from 'vitest';
 import { defineComponent, h } from 'vue';
+import { axiosMock, resetAxiosMock } from './mocks/axios';
 import { getPage, resetInertiaMocks } from './mocks/inertia';
 
 const ButtonStub = defineComponent({
@@ -66,6 +67,80 @@ vi.mock('@inertiajs/vue3', () => ({
 }));
 
 vi.mock('primevue/button', () => ({ default: ButtonStub }));
+vi.mock('primevue/inputtext', () => ({ default: defineComponent({
+    inheritAttrs: false,
+    props: {
+        modelValue: {
+            type: String,
+            default: '',
+        },
+        disabled: {
+            type: Boolean,
+            default: false,
+        },
+        readonly: {
+            type: Boolean,
+            default: false,
+        },
+    },
+    emits: ['update:modelValue'],
+    setup(props, { attrs, emit }) {
+        return () => h('input', {
+            ...attrs,
+            value: props.modelValue,
+            disabled: props.disabled,
+            readonly: props.readonly,
+            onInput: (event) => emit('update:modelValue', event.target.value),
+        });
+    },
+}) }));
+vi.mock('primevue/password', () => ({ default: defineComponent({
+    inheritAttrs: false,
+    props: {
+        modelValue: {
+            type: String,
+            default: '',
+        },
+        disabled: {
+            type: Boolean,
+            default: false,
+        },
+    },
+    emits: ['update:modelValue'],
+    setup(props, { attrs, emit }) {
+        return () => h('input', {
+            ...attrs,
+            type: 'password',
+            value: props.modelValue,
+            disabled: props.disabled,
+            onInput: (event) => emit('update:modelValue', event.target.value),
+        });
+    },
+}) }));
+vi.mock('primevue/message', () => ({ default: defineComponent({
+    setup(_props, { slots }) {
+        return () => h('div', { 'data-message': 'true' }, slots.default?.());
+    },
+}) }));
+vi.mock('primevue/progressspinner', () => ({ default: defineComponent({
+    setup() {
+        return () => h('div', { 'data-spinner': 'true' });
+    },
+}) }));
+vi.mock('primevue/toast', () => ({ default: defineComponent({
+    setup() {
+        return () => h('div', { 'data-toast': 'true' });
+    },
+}) }));
+export const toastAddMock = vi.fn();
+vi.mock('primevue/usetoast', () => ({
+    useToast: () => ({
+        add: toastAddMock,
+    }),
+}));
+vi.mock('axios', () => ({
+    default: axiosMock,
+}));
 
 global.route = vi.fn((name) => `/${String(name).replace(/\./g, '/')}`);
 global.ResizeObserver = class {
@@ -84,6 +159,8 @@ config.global.mocks = {
 
 beforeEach(() => {
     resetInertiaMocks();
+    resetAxiosMock();
+    toastAddMock.mockReset();
 });
 
 afterEach(() => {

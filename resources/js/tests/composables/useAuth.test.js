@@ -11,10 +11,14 @@ const AuthProbe = defineComponent({
         <div>
             <span data-test="is-authenticated">{{ String(isAuthenticated) }}</span>
             <span data-test="is-guest">{{ String(isGuest) }}</span>
+            <span data-test="user-name">{{ user?.name ?? '' }}</span>
             <span data-test="user-email">{{ user?.email ?? '' }}</span>
             <span data-test="login-url">{{ loginUrl }}</span>
             <span data-test="reauth-url">{{ reauthUrl }}</span>
             <span data-test="logout-url">{{ logoutUrl }}</span>
+            <button data-test="sync-profile" @click="updateUserProfile({ name: 'Updated Name', email: 'updated@example.test' })">
+                Sync
+            </button>
         </div>
     `,
 });
@@ -69,6 +73,34 @@ describe('useAuth', () => {
 
         expect(wrapper.get('[data-test="is-authenticated"]').text()).toBe('true');
         expect(wrapper.get('[data-test="is-guest"]').text()).toBe('false');
+        expect(wrapper.get('[data-test="user-name"]').text()).toBe('SSO User');
         expect(wrapper.get('[data-test="user-email"]').text()).toBe('sso.user@example.test');
+    });
+
+    it('can sync the shared auth user after a remote profile update', async () => {
+        setPageProps({
+            auth: {
+                isAuthenticated: true,
+                isGuest: false,
+                user: {
+                    name: 'SSO User',
+                    email: 'sso.user@example.test',
+                },
+                loginUrl: '/login',
+                reauthUrl: '/auth/sso/redirect',
+                logoutUrl: '/auth/logout',
+            },
+            flash: {},
+            sso: {
+                status: {},
+            },
+        });
+
+        const wrapper = mount(AuthProbe);
+
+        await wrapper.get('[data-test="sync-profile"]').trigger('click');
+
+        expect(wrapper.get('[data-test="user-name"]').text()).toBe('Updated Name');
+        expect(wrapper.get('[data-test="user-email"]').text()).toBe('updated@example.test');
     });
 });

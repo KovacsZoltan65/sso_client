@@ -5,6 +5,7 @@ import { useNavigation } from '@/Composables/useNavigation';
 import { Link, usePage } from '@inertiajs/vue3';
 import Button from 'primevue/button';
 import Tag from 'primevue/tag';
+import Toast from 'primevue/toast';
 import { computed, ref } from 'vue';
 
 const page = usePage();
@@ -17,6 +18,8 @@ const ssoStatus = computed(() => page.props.sso.status);
 
 <template>
     <div class="app-shell lg:flex">
+        <Toast position="top-right" />
+
         <aside
             :class="drawerOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'"
             class="shell-gradient fixed inset-y-0 left-0 z-40 flex w-80 flex-col px-6 py-6 text-white transition-transform duration-200 lg:sticky lg:top-0 lg:h-screen"

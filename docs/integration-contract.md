@@ -120,7 +120,32 @@ Current explicit contract:
 - Session is fully cleared locally.
 - No single logout handshake with server is active in current contract.
 
-## 6. Session/Auth State Contract (Client)
+## 6. Self-Service Profile Contract
+Client profile page:
+- `GET /profile`
+
+Upstream API used directly by the browser:
+- `GET {SSO_SERVER_BASE_URL}/api/profile`
+- `PATCH {SSO_SERVER_BASE_URL}/api/profile`
+- `PATCH {SSO_SERVER_BASE_URL}/api/profile/password`
+
+Boundary:
+- `sso_client` is UI/orchestration only
+- `sso_server` remains the identity mutation authority
+- no local profile persistence route exists on `sso_client` for self-service identity changes
+
+Editable fields in current contract:
+- `name`
+
+Read-only fields in current contract:
+- `email`
+
+Client state behavior:
+- page loads canonical profile from `sso_server`
+- successful profile update synchronizes local shared auth user name/email in-place
+- password change does not require logout/login to keep the visible profile current
+
+## 7. Session/Auth State Contract (Client)
 Local authenticated state is created only after:
 1. valid callback validation
 2. successful token exchange
@@ -132,7 +157,7 @@ Client becomes guest when:
 - local logout is called, or
 - protected route is accessed without valid session (`401` JSON for API-style request, redirect to login for browser).
 
-## 7. Error Contract Matrix
+## 8. Error Contract Matrix
 | Case | Server status/body | Transport | Client handling |
 |---|---|---|---|
 | invalid client (authorize) | 302 + validation session errors (`client_id`) | redirect on server side | not callback-based, user remains on server flow |
@@ -146,9 +171,10 @@ Client becomes guest when:
 | token endpoint failure/network | n/a | transport failure | client rejects token exchange |
 | userinfo unauthorized | 401 JSON envelope | JSON | client rejects userinfo phase |
 | userinfo forbidden | 403 JSON envelope | JSON | client rejects userinfo phase |
+| forbidden self-service profile field | 422 JSON envelope with per-field errors | JSON | client renders section-level/field-level errors |
 | unauthorized protected route (client app) | 302 to login (HTML) / 401 JSON (`reauth_to`) | redirect or JSON | explicit re-auth behavior |
 
-## 8. Config Contract
+## 9. Config Contract
 Client configuration must define:
 - `SSO_SERVER_BASE_URL`
 - `SSO_AUTHORIZE_ENDPOINT`
@@ -164,14 +190,18 @@ Server configuration/data must align:
 - allowed `redirect_uri` includes `SSO_REDIRECT_URI` exactly
 - allowed scopes include client-requested scopes
 - token policy PKCE settings are compatible with client request
+- server CORS allows the exact `sso_client` browser origin for direct profile API calls
 
-## 9. Contract Test Coverage
+## 10. Contract Test Coverage
 Server:
 - `tests/Feature/OAuth/OAuthAuthorizationCodeFlowTest.php`
 - `tests/Feature/OAuth/OAuthUserInfoTest.php`
+- `tests/Feature/Api/SelfServiceProfileApiTest.php`
 
 Client:
 - `tests/Feature/Auth/SsoAuthenticationTest.php`
+- `tests/Feature/ProfileTest.php`
+- `resources/js/tests/services/profileApi.test.js`
+- `resources/js/tests/pages/ProfileEdit.test.js`
 
 These tests are the regression guard for this contract.
-
