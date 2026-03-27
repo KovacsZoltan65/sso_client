@@ -16,7 +16,7 @@ defineProps({
         <template #header>
             <PageHeader
                 title="SSO Status"
-                description="This is the explicit handoff point for future redirect and callback integration with the central sso_server."
+                description="Ez az oldal a jelenlegi, mar mukodo SSO redirect, callback es session flow konfiguracios allapotat mutatja."
             />
         </template>
 
@@ -38,6 +38,26 @@ defineProps({
                     <div>
                         <dt class="font-semibold text-slate-900">Local auth enabled</dt>
                         <dd class="mt-1 text-slate-600">{{ status.localAuthEnabled ? 'Yes' : 'No' }}</dd>
+                    </div>
+                    <div>
+                        <dt class="font-semibold text-slate-900">Authorize endpoint</dt>
+                        <dd class="mt-1 break-all text-slate-600">{{ status.authorizeEndpoint || 'Not configured' }}</dd>
+                    </div>
+                    <div>
+                        <dt class="font-semibold text-slate-900">Token endpoint</dt>
+                        <dd class="mt-1 break-all text-slate-600">{{ status.tokenEndpoint || 'Not configured' }}</dd>
+                    </div>
+                    <div>
+                        <dt class="font-semibold text-slate-900">Userinfo endpoint</dt>
+                        <dd class="mt-1 break-all text-slate-600">{{ status.userinfoEndpoint || 'Not configured' }}</dd>
+                    </div>
+                    <div>
+                        <dt class="font-semibold text-slate-900">Redirect URI</dt>
+                        <dd class="mt-1 break-all text-slate-600">{{ status.redirectUri || 'Not configured' }}</dd>
+                    </div>
+                    <div>
+                        <dt class="font-semibold text-slate-900">Scopes</dt>
+                        <dd class="mt-1 text-slate-600">{{ status.scopes?.join(', ') || 'Not configured' }}</dd>
                     </div>
                 </dl>
             </section>

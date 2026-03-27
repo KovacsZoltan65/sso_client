@@ -1,5 +1,6 @@
 <script setup>
 import AppBrand from '@/Components/AppBrand.vue';
+import { useAuth } from '@/Composables/useAuth';
 import { useNavigation } from '@/Composables/useNavigation';
 import { Link, usePage } from '@inertiajs/vue3';
 import Button from 'primevue/button';
@@ -9,8 +10,8 @@ import { computed, ref } from 'vue';
 const page = usePage();
 const drawerOpen = ref(false);
 const { items } = useNavigation();
+const { user, logoutUrl } = useAuth();
 
-const user = computed(() => page.props.auth.user);
 const ssoStatus = computed(() => page.props.sso.status);
 </script>
 
@@ -23,7 +24,7 @@ const ssoStatus = computed(() => page.props.sso.status);
             <AppBrand />
 
             <div class="glass-panel mt-8 rounded-3xl p-4 text-sm text-white/80">
-                <p class="text-xs uppercase tracking-[0.25em] text-white/60">SSO readiness</p>
+                <p class="text-xs uppercase tracking-[0.25em] text-white/60">SSO allapot</p>
                 <p class="mt-3 font-medium">{{ ssoStatus.message }}</p>
             </div>
 
@@ -42,7 +43,7 @@ const ssoStatus = computed(() => page.props.sso.status);
             </nav>
 
             <div class="glass-panel rounded-3xl p-4">
-                <p class="text-xs uppercase tracking-[0.25em] text-white/60">Signed in as</p>
+                <p class="text-xs uppercase tracking-[0.25em] text-white/60">Bejelentkezve</p>
                 <p class="mt-3 text-lg font-semibold text-white">{{ user?.name }}</p>
                 <p class="mt-1 text-sm text-white/70">{{ user?.email }}</p>
 
@@ -56,12 +57,12 @@ const ssoStatus = computed(() => page.props.sso.status);
                 </div>
 
                 <Link
-                    :href="route('logout')"
+                    :href="logoutUrl"
                     method="post"
                     as="button"
                     class="mt-5 inline-flex w-full items-center justify-center rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
                 >
-                    Sign out
+                    Kijelentkezes
                 </Link>
             </div>
         </aside>

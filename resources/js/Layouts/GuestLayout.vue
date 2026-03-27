@@ -10,21 +10,21 @@ import { Link } from '@inertiajs/vue3';
                 <div>
                     <AppBrand />
                     <p class="mt-10 max-w-lg text-4xl font-semibold leading-tight text-white">
-                        Production-oriented client foundation for a future central SSO login flow.
+                        Letisztult SSO kliens, amely redirect es callback alapu bejelentkezessel dolgozik.
                     </p>
                     <p class="mt-5 max-w-xl text-sm leading-7 text-white/72">
-                        Local Breeze authentication stays available for bootstrap and testing, while the application structure remains ready for redirect and callback based SSO.
+                        A kliens a kozponti `sso_server` identitasara tamaszkodik, mikozben a helyi session csak a minimalisan szukseges alkalmazasallapotot tartja meg.
                     </p>
                 </div>
 
                 <div class="grid gap-4 md:grid-cols-2">
                     <div class="glass-panel rounded-3xl p-5 text-white/82">
-                        <p class="text-xs uppercase tracking-[0.2em] text-white/60">Authorization</p>
-                        <p class="mt-3 text-lg font-semibold text-white">Spatie permission ready</p>
+                        <p class="text-xs uppercase tracking-[0.2em] text-white/60">Session</p>
+                        <p class="mt-3 text-lg font-semibold text-white">Laravel web guard</p>
                     </div>
                     <div class="glass-panel rounded-3xl p-5 text-white/82">
-                        <p class="text-xs uppercase tracking-[0.2em] text-white/60">Observability</p>
-                        <p class="mt-3 text-lg font-semibold text-white">Activity logging enabled</p>
+                        <p class="text-xs uppercase tracking-[0.2em] text-white/60">Jogosultsag</p>
+                        <p class="mt-3 text-lg font-semibold text-white">Spatie permission ready</p>
                     </div>
                 </div>
             </section>

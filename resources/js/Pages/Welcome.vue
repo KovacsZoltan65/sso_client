@@ -1,4 +1,5 @@
 <script setup>
+import { useAuth } from '@/Composables/useAuth';
 import { Head, Link } from '@inertiajs/vue3';
 import Button from 'primevue/button';
 
@@ -7,6 +8,8 @@ defineProps({
     canLogin: { type: Boolean, default: false },
     canRegister: { type: Boolean, default: false },
 });
+
+const { isAuthenticated } = useAuth();
 </script>
 
 <template>
@@ -20,11 +23,11 @@ defineProps({
                     <h1 class="mt-2 text-xl font-semibold text-slate-950">{{ appName }}</h1>
                 </div>
                 <div class="flex items-center gap-3">
-                    <Link v-if="canLogin" :href="route('login')">
-                        <Button label="Sign in" severity="secondary" outlined />
+                    <Link v-if="isAuthenticated" :href="route('dashboard')">
+                        <Button label="Dashboard" severity="secondary" outlined />
                     </Link>
-                    <Link v-if="canRegister" :href="route('register')">
-                        <Button label="Create user" />
+                    <Link v-else-if="canLogin" :href="route('login')">
+                        <Button label="SSO bejelentkezes" severity="secondary" outlined />
                     </Link>
                 </div>
             </header>
@@ -33,10 +36,10 @@ defineProps({
                 <section class="shell-gradient rounded-[2.25rem] p-8 text-white md:p-10">
                     <p class="text-sm font-semibold uppercase tracking-[0.32em] text-white/65">Laravel 13 + Vue 3 + Inertia</p>
                     <h2 class="mt-6 max-w-3xl text-4xl font-semibold leading-tight">
-                        A clean SSO client shell with replaceable authentication boundaries.
+                        Minimalisan mukodo SSO kliens redirect, callback es lokalis session flow-val.
                     </h2>
                     <p class="mt-6 max-w-2xl text-sm leading-8 text-white/78">
-                        This project keeps local Breeze auth available for development while establishing the backend and frontend seams needed for future central SSO redirects, callback handling, RBAC, and audit logging.
+                        A kliens az `sso_server` authorize, token es userinfo foundationre epul, mikozben a vedett oldalak tovabbra is a Laravel session + `auth` guard mogott maradnak.
                     </p>
                 </section>
 
@@ -52,9 +55,9 @@ defineProps({
                     </div>
 
                     <div class="shell-card p-6">
-                        <p class="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">Development bootstrap</p>
+                        <p class="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">Auth viselkedes</p>
                         <p class="mt-3 text-sm leading-7 text-slate-600">
-                            Seeded local accounts make it possible to start building protected client features immediately without coupling the rest of the application to Breeze-specific assumptions.
+                            A vedett oldalak session nelkul a bejelentkezesi oldalra kerulnek, ahonnan egyetlen gomb inditja el az SSO redirect flow-t.
                         </p>
                     </div>
                 </section>

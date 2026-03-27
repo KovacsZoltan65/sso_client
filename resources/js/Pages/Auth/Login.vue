@@ -1,70 +1,78 @@
 <script setup>
 import GuestLayout from '@/Layouts/GuestLayout.vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head } from '@inertiajs/vue3';
 import Button from 'primevue/button';
-import Checkbox from 'primevue/checkbox';
-import InputText from 'primevue/inputtext';
-import Password from 'primevue/password';
+import { ref } from 'vue';
 
-defineProps({
-    canResetPassword: { type: Boolean, default: false },
+const props = defineProps({
+    loginUrl: { type: String, required: true },
     status: { type: String, default: null },
+    ssoStatus: { type: Object, required: true },
 });
 
-const form = useForm({
-    email: 'superadmin@sso-client.test',
-    password: 'password',
-    remember: false,
-});
+const loading = ref(false);
+
+function startSsoLogin() {
+    loading.value = true;
+    window.location.assign(props.loginUrl);
+}
 </script>
 
 <template>
-    <Head title="Sign in" />
+    <Head title="Bejelentkezes" />
 
     <GuestLayout>
         <div>
-            <p class="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">Local bootstrap auth</p>
-            <h1 class="mt-3 text-3xl font-semibold text-slate-950">Sign in to the client</h1>
+            <p class="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">Central SSO login</p>
+            <h1 class="mt-3 text-3xl font-semibold text-slate-950">Bejelentkezes az SSO szerveren keresztul</h1>
             <p class="mt-3 text-sm leading-7 text-slate-600">
-                This login is intentionally local and replaceable. It exists to support development until centralized SSO is connected.
+                A kliens nem tarol sajat hitelesitesi logikat. A bejelentkezes az `sso_server` authorize, token es userinfo vegpontjain keresztul tortenik.
             </p>
         </div>
 
         <div v-if="status" class="mt-6 rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{{ status }}</div>
+        <div v-if="$page.props.flash.error" class="mt-6 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">
+            {{ $page.props.flash.error }}
+        </div>
 
-        <form class="mt-8 space-y-5" @submit.prevent="form.post(route('login'))">
-            <div class="space-y-2">
-                <label class="text-sm font-medium text-slate-700">Email</label>
-                <InputText v-model="form.email" class="w-full" autofocus />
-                <small class="text-red-600">{{ form.errors.email }}</small>
-            </div>
-
-            <div class="space-y-2">
-                <div class="flex items-center justify-between gap-3">
-                    <label class="text-sm font-medium text-slate-700">Password</label>
-                    <Link
-                        v-if="canResetPassword"
-                        :href="route('password.request')"
-                        class="text-sm text-blue-600 transition hover:text-blue-700"
-                    >
-                        Forgot password?
-                    </Link>
+        <div class="mt-8 rounded-[1.75rem] border border-slate-200/70 bg-slate-50 p-5">
+            <p class="text-sm font-semibold text-slate-900">Aktiv kapcsolat</p>
+            <dl class="mt-4 space-y-3 text-sm text-slate-600">
+                <div class="flex items-start justify-between gap-4">
+                    <dt>SSO szerver</dt>
+                    <dd class="text-right">{{ ssoStatus.serverBaseUrl || 'Nincs beallitva' }}</dd>
                 </div>
-                <Password v-model="form.password" :feedback="false" toggle-mask class="w-full" input-class="w-full" />
-                <small class="text-red-600">{{ form.errors.password }}</small>
-            </div>
+                <div class="flex items-start justify-between gap-4">
+                    <dt>Redirect URI</dt>
+                    <dd class="text-right">{{ ssoStatus.redirectUri || 'Nincs beallitva' }}</dd>
+                </div>
+                <div class="flex items-start justify-between gap-4">
+                    <dt>Scope-ok</dt>
+                    <dd class="text-right">{{ ssoStatus.scopes?.join(', ') || 'Nincsenek beallitva' }}</dd>
+                </div>
+            </dl>
+        </div>
 
-            <div class="flex items-center gap-3">
-                <Checkbox v-model="form.remember" binary input-id="remember" />
-                <label for="remember" class="text-sm text-slate-600">Remember me</label>
-            </div>
+        <div class="mt-8 space-y-4">
+            <Button
+                type="button"
+                label="SSO bejelentkezes inditasa"
+                icon="pi pi-sign-in"
+                class="w-full"
+                :loading="loading"
+                @click="startSsoLogin"
+            />
 
-            <Button type="submit" label="Sign in" icon="pi pi-arrow-right" icon-pos="right" class="w-full" :loading="form.processing" />
-        </form>
+            <p class="text-sm leading-7 text-slate-500">
+                Ha a session lejart, a vedett oldalak ide iranyitanak vissza, innen pedig ujraindithato a redirect alapu bejelentkezes.
+            </p>
+        </div>
 
-        <p class="mt-6 text-sm text-slate-500">
-            Need a seeded local account?
-            <span class="font-medium text-slate-700">superadmin@sso-client.test / password</span>
-        </p>
+        <div class="mt-8 rounded-[1.75rem] border border-dashed border-slate-300 px-5 py-4 text-sm leading-7 text-slate-600">
+            <p class="font-semibold text-slate-900">Hibakezeles</p>
+            <p class="mt-2">
+                Ervenytelen state, hianyzo code, token csere hiba vagy userinfo hiba eseten nem jon letre lokalis session, es a rendszer visszahoz erre az oldalra.
+            </p>
+        </div>
     </GuestLayout>
 </template>

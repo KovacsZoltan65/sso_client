@@ -20,7 +20,7 @@ defineProps({
         <template #header>
             <PageHeader
                 title="Dashboard"
-                description="This base client is ready for protected pages, modular authorization, activity logging, and future SSO redirect/callback integration."
+                description="A vedett kliens oldalak most mar mukodo SSO redirect, callback es session alapu bejelentkezessel erhetok el."
             />
         </template>
 
@@ -37,7 +37,7 @@ defineProps({
                     <p class="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">Current access context</p>
                     <h2 class="mt-3 text-2xl font-semibold text-slate-950">Welcome back, {{ userContext.name }}</h2>
                     <p class="mt-2 text-sm leading-7 text-slate-600">
-                        Your current role set is designed to stay local to the client app even after centralized SSO authentication is introduced.
+                        A kozponti identitas az SSO szerverrol jon, a helyi szerepkorok es jogosultsagok viszont tovabbra is ebben a kliens alkalmazasban maradnak.
                     </p>
 
                     <div class="mt-5 flex flex-wrap gap-2">
@@ -52,12 +52,12 @@ defineProps({
 
                     <div class="mt-8 grid gap-4 lg:grid-cols-2">
                         <div class="rounded-3xl bg-slate-50 p-5">
-                            <p class="text-sm font-semibold text-slate-900">SSO mode</p>
+                            <p class="text-sm font-semibold text-slate-900">SSO mod</p>
                             <p class="mt-2 text-sm text-slate-600">{{ ssoStatus.mode }}</p>
                         </div>
                         <div class="rounded-3xl bg-slate-50 p-5">
-                            <p class="text-sm font-semibold text-slate-900">Local auth fallback</p>
-                            <p class="mt-2 text-sm text-slate-600">{{ ssoStatus.localAuthEnabled ? 'Enabled' : 'Disabled' }}</p>
+                            <p class="text-sm font-semibold text-slate-900">Lokalis auth fallback</p>
+                            <p class="mt-2 text-sm text-slate-600">{{ ssoStatus.localAuthEnabled ? 'Engedelyezve' : 'Kikapcsolva' }}</p>
                         </div>
                     </div>
                 </div>

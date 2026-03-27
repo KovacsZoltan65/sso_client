@@ -10,6 +10,11 @@ class SsoStatusData extends Data
         public bool $configured,
         public bool $localAuthEnabled,
         public ?string $serverBaseUrl,
+        public ?string $authorizeEndpoint,
+        public ?string $tokenEndpoint,
+        public ?string $userinfoEndpoint,
+        public ?string $redirectUri,
+        public array $scopes,
         public string $mode,
         public string $message,
     ) {

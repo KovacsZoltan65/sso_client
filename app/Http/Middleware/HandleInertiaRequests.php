@@ -36,7 +36,10 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'auth' => [
+                'isAuthenticated' => $user !== null,
                 'user' => $user ? UserSummaryData::fromModel($user)->toArray() : null,
+                'loginUrl' => route('login'),
+                'logoutUrl' => route('logout'),
             ],
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
