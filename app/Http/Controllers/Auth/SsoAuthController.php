@@ -38,6 +38,7 @@ class SsoAuthController extends Controller
                 'has_code' => $request->filled('code'),
                 'has_state' => $request->filled('state'),
                 'provider_error' => $request->string('error')->toString() ?: null,
+                ...$exception->context(),
             ]);
 
             return redirect()

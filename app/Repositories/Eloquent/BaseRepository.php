@@ -2,13 +2,23 @@
 
 namespace App\Repositories\Eloquent;
 
-use Prettus\Repository\Criteria\RequestCriteria;
-use Prettus\Repository\Eloquent\BaseRepository as PrettusBaseRepository;
+use Illuminate\Database\Eloquent\Model;
 
-abstract class BaseRepository extends PrettusBaseRepository
+abstract class BaseRepository
 {
-    public function boot(): void
+    protected Model $model;
+
+    public function __construct()
     {
-        $this->pushCriteria(app(RequestCriteria::class));
+        $modelClass = $this->model();
+        $model = app($modelClass);
+
+        if (! $model instanceof Model) {
+            throw new \RuntimeException("Repository model [{$modelClass}] must be an Eloquent model.");
+        }
+
+        $this->model = $model;
     }
+
+    abstract public function model(): string;
 }

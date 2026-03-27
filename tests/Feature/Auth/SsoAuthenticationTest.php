@@ -78,7 +78,10 @@ class SsoAuthenticationTest extends TestCase
     public function test_callback_handles_token_exchange_failure(): void
     {
         Http::fake([
-            'https://sso-server.test/api/oauth/token' => Http::response(['error' => 'invalid_grant'], 400),
+            'https://sso-server.test/api/oauth/token' => Http::response([
+                'message' => 'OAuth token request failed.',
+                'error' => 'invalid_grant',
+            ], 400),
         ]);
 
         $response = $this
@@ -90,7 +93,7 @@ class SsoAuthenticationTest extends TestCase
 
         $response
             ->assertRedirect(route('login'))
-            ->assertSessionHas('error', 'Nem sikerult tokenre valtani a kapott kodot.');
+            ->assertSessionHas('error', 'Az SSO token csere OAuth hibaval meghiusult.');
 
         $this->assertGuest();
     }
@@ -98,8 +101,13 @@ class SsoAuthenticationTest extends TestCase
     public function test_callback_handles_userinfo_failure(): void
     {
         Http::fake([
-            'https://sso-server.test/api/oauth/token' => Http::response(['access_token' => 'access-token'], 200),
-            'https://sso-server.test/api/oauth/userinfo' => Http::response(['message' => 'forbidden'], 403),
+            'https://sso-server.test/api/oauth/token' => Http::response([
+                'message' => 'OAuth token issued successfully.',
+                'data' => ['access_token' => 'access-token'],
+            ], 200),
+            'https://sso-server.test/api/oauth/userinfo' => Http::response([
+                'message' => 'User info request forbidden.',
+            ], 403),
         ]);
 
         $response = $this
@@ -111,7 +119,7 @@ class SsoAuthenticationTest extends TestCase
 
         $response
             ->assertRedirect(route('login'))
-            ->assertSessionHas('error', 'Nem sikerult lekerdezni a felhasznaloi adatokat az SSO szervertol.');
+            ->assertSessionHas('error', 'Az SSO userinfo vegpont hibaval valaszolt.');
 
         $this->assertGuest();
     }
@@ -119,11 +127,17 @@ class SsoAuthenticationTest extends TestCase
     public function test_successful_callback_authenticates_the_user_and_provisions_locally(): void
     {
         Http::fake([
-            'https://sso-server.test/api/oauth/token' => Http::response(['access_token' => 'access-token'], 200),
+            'https://sso-server.test/api/oauth/token' => Http::response([
+                'message' => 'OAuth token issued successfully.',
+                'data' => ['access_token' => 'access-token'],
+            ], 200),
             'https://sso-server.test/api/oauth/userinfo' => Http::response([
-                'sub' => 'user-123',
-                'email' => 'sso.user@example.test',
-                'name' => 'SSO User',
+                'message' => 'User info retrieved successfully.',
+                'data' => [
+                    'sub' => 'user-123',
+                    'email' => 'sso.user@example.test',
+                    'name' => 'SSO User',
+                ],
             ], 200),
         ]);
 
@@ -142,6 +156,51 @@ class SsoAuthenticationTest extends TestCase
         $this->assertNotNull($user);
         $this->assertSame('SSO User', $user->name);
         $this->assertAuthenticatedAs($user);
+    }
+
+    public function test_callback_handles_json_token_response_without_access_token(): void
+    {
+        Http::fake([
+            'https://sso-server.test/api/oauth/token' => Http::response([
+                'message' => 'OAuth token issued successfully.',
+                'data' => ['token_type' => 'Bearer'],
+            ], 200),
+        ]);
+
+        $response = $this
+            ->withSession([
+                config('sso.state_session_key') => 'valid-state',
+                config('sso.pkce_verifier_session_key') => 'verifier-value',
+            ])
+            ->get('/auth/sso/callback?code=valid-code&state=valid-state');
+
+        $response
+            ->assertRedirect(route('login'))
+            ->assertSessionHas('error', 'Az SSO token valasz nem tartalmaz ervenyes access tokent.');
+
+        $this->assertGuest();
+    }
+
+    public function test_callback_handles_non_json_token_response(): void
+    {
+        Http::fake([
+            'https://sso-server.test/api/oauth/token' => Http::response('<html><body>Server error</body></html>', 200, [
+                'Content-Type' => 'text/html; charset=UTF-8',
+            ]),
+        ]);
+
+        $response = $this
+            ->withSession([
+                config('sso.state_session_key') => 'valid-state',
+                config('sso.pkce_verifier_session_key') => 'verifier-value',
+            ])
+            ->get('/auth/sso/callback?code=valid-code&state=valid-state');
+
+        $response
+            ->assertRedirect(route('login'))
+            ->assertSessionHas('error', 'Az SSO token vegpont ervenytelen, nem JSON valaszt adott.');
+
+        $this->assertGuest();
     }
 
     public function test_logout_clears_the_authenticated_session(): void

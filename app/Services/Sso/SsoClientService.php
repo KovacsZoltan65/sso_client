@@ -5,8 +5,9 @@ namespace App\Services\Sso;
 use App\Data\SsoStatusData;
 use App\Exceptions\SsoAuthenticationException;
 use App\Models\User;
-use Illuminate\Http\Client\RequestException;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Request;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
@@ -126,27 +127,78 @@ class SsoClientService
 
     private function exchangeCodeForAccessToken(string $code, string $codeVerifier): string
     {
+        $endpoint = $this->configuredEndpoint('token_endpoint');
+
         try {
             $response = Http::asForm()
                 ->acceptJson()
                 ->timeout((int) config('sso.timeout', 10))
-                ->post($this->configuredEndpoint('token_endpoint'), array_filter([
+                ->post($endpoint, array_filter([
                     'grant_type' => 'authorization_code',
                     'client_id' => (string) config('sso.client_id'),
                     'client_secret' => config('sso.client_secret'),
                     'redirect_uri' => $this->redirectUri(),
                     'code' => $code,
                     'code_verifier' => $codeVerifier,
-                ], fn (mixed $value) => filled($value)))
-                ->throw();
-        } catch (RequestException $exception) {
-            throw new SsoAuthenticationException('Nem sikerult tokenre valtani a kapott kodot.', 502, $exception);
+                ], fn (mixed $value) => filled($value)));
+        } catch (ConnectionException $exception) {
+            throw new SsoAuthenticationException(
+                'Az SSO token vegpont nem erheto el.',
+                502,
+                $exception,
+                [
+                    'sso_phase' => 'token_exchange',
+                    'sso_endpoint' => $endpoint,
+                    'http_status' => null,
+                    'is_json_response' => false,
+                ],
+            );
         }
 
-        $accessToken = (string) $response->json('access_token');
+        $payload = $this->decodeJsonResponse($response);
+        $accessToken = trim((string) (data_get($payload, 'access_token') ?: data_get($payload, 'data.access_token')));
+        $oauthError = trim((string) (data_get($payload, 'error') ?: data_get($payload, 'data.error')));
+        $responseMessage = trim((string) data_get($payload, 'message'));
+        $diagnostics = $this->buildResponseDiagnostics(
+            phase: 'token_exchange',
+            endpoint: $endpoint,
+            response: $response,
+            payload: $payload,
+            hasAccessToken: $accessToken !== '',
+            responseMessage: $responseMessage,
+            oauthError: $oauthError,
+        );
+
+        if ($payload === null) {
+            throw new SsoAuthenticationException(
+                'Az SSO token vegpont ervenytelen, nem JSON valaszt adott.',
+                502,
+                context: $diagnostics,
+            );
+        }
+
+        if (! $response->successful()) {
+            if ($oauthError !== '') {
+                throw new SsoAuthenticationException(
+                    'Az SSO token csere OAuth hibaval meghiusult.',
+                    502,
+                    context: $diagnostics,
+                );
+            }
+
+            throw new SsoAuthenticationException(
+                'Az SSO token vegpont hibaval valaszolt.',
+                502,
+                context: $diagnostics,
+            );
+        }
 
         if ($accessToken === '') {
-            throw new SsoAuthenticationException('Az SSO token valasz nem tartalmaz ervenyes access tokent.', 502);
+            throw new SsoAuthenticationException(
+                'Az SSO token valasz nem tartalmaz ervenyes access tokent.',
+                502,
+                context: $diagnostics,
+            );
         }
 
         return $accessToken;
@@ -157,20 +209,67 @@ class SsoClientService
      */
     private function fetchUserInfo(string $accessToken): array
     {
+        $endpoint = $this->configuredEndpoint('userinfo_endpoint');
+
         try {
             $response = Http::acceptJson()
                 ->timeout((int) config('sso.timeout', 10))
                 ->withToken($accessToken)
-                ->get($this->configuredEndpoint('userinfo_endpoint'))
-                ->throw();
-        } catch (RequestException $exception) {
-            throw new SsoAuthenticationException('Nem sikerult lekerdezni a felhasznaloi adatokat az SSO szervertol.', 502, $exception);
+                ->get($endpoint);
+        } catch (ConnectionException $exception) {
+            throw new SsoAuthenticationException(
+                'Az SSO userinfo vegpont nem erheto el.',
+                502,
+                $exception,
+                [
+                    'sso_phase' => 'userinfo',
+                    'sso_endpoint' => $endpoint,
+                    'http_status' => null,
+                    'is_json_response' => false,
+                ],
+            );
         }
 
-        $userInfo = $response->json();
+        $payload = $this->decodeJsonResponse($response);
+        $responseMessage = trim((string) data_get($payload, 'message'));
+        $diagnostics = $this->buildResponseDiagnostics(
+            phase: 'userinfo',
+            endpoint: $endpoint,
+            response: $response,
+            payload: $payload,
+            hasAccessToken: false,
+            responseMessage: $responseMessage,
+            oauthError: null,
+        );
+
+        if ($payload === null) {
+            throw new SsoAuthenticationException(
+                'Az SSO userinfo vegpont ervenytelen, nem JSON valaszt adott.',
+                502,
+                context: $diagnostics,
+            );
+        }
+
+        if (! $response->successful()) {
+            throw new SsoAuthenticationException(
+                'Az SSO userinfo vegpont hibaval valaszolt.',
+                502,
+                context: $diagnostics,
+            );
+        }
+
+        $userInfo = data_get($payload, 'data');
 
         if (! is_array($userInfo)) {
-            throw new SsoAuthenticationException('Ervenytelen userinfo valasz erkezett az SSO szervertol.', 502);
+            $userInfo = $payload;
+        }
+
+        if (! is_array($userInfo)) {
+            throw new SsoAuthenticationException(
+                'Ervenytelen userinfo valasz erkezett az SSO szervertol.',
+                502,
+                context: $diagnostics,
+            );
         }
 
         return $userInfo;
@@ -278,5 +377,39 @@ class SsoClientService
         }
 
         return rtrim(strtr($encoded, '+/', '-_'), '=');
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function decodeJsonResponse(Response $response): ?array
+    {
+        $decoded = $response->json();
+
+        return is_array($decoded) ? $decoded : null;
+    }
+
+    /**
+     * @param array<string, mixed>|null $payload
+     * @return array<string, mixed>
+     */
+    private function buildResponseDiagnostics(
+        string $phase,
+        ?string $endpoint,
+        Response $response,
+        ?array $payload,
+        bool $hasAccessToken,
+        ?string $responseMessage,
+        ?string $oauthError,
+    ): array {
+        return [
+            'sso_phase' => $phase,
+            'sso_endpoint' => $endpoint,
+            'http_status' => $response->status(),
+            'is_json_response' => $payload !== null,
+            'has_access_token' => $hasAccessToken,
+            'oauth_error' => filled($oauthError) ? $oauthError : null,
+            'response_message' => filled($responseMessage) ? Str::limit($responseMessage, 160) : null,
+        ];
     }
 }

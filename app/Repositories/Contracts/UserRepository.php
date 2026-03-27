@@ -3,9 +3,8 @@
 namespace App\Repositories\Contracts;
 
 use Illuminate\Support\Collection;
-use Prettus\Repository\Contracts\RepositoryInterface;
 
-interface UserRepository extends RepositoryInterface
+interface UserRepository
 {
     public function countAll(): int;
 
