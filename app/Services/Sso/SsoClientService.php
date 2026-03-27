@@ -23,13 +23,19 @@ class SsoClientService
         $userinfoEndpoint = $this->configuredEndpoint('userinfo_endpoint');
         $redirectUri = $this->redirectUri();
         $scopes = config('sso.scopes', []);
+        $requiredScopesConfigured = collect($scopes)
+            ->map(static fn (mixed $scope): string => trim((string) $scope))
+            ->filter()
+            ->intersect(['openid', 'email'])
+            ->count() === 2;
         $localAuthEnabled = (bool) config('sso.local_auth_enabled');
         $configured = filled($serverBaseUrl)
             && filled(config('sso.client_id'))
             && filled($authorizeEndpoint)
             && filled($tokenEndpoint)
             && filled($userinfoEndpoint)
-            && filled($redirectUri);
+            && filled($redirectUri)
+            && $requiredScopesConfigured;
 
         return new SsoStatusData(
             configured: $configured,
@@ -156,8 +162,7 @@ class SsoClientService
         }
 
         $payload = $this->decodeJsonResponse($response);
-        $accessToken = trim((string) (data_get($payload, 'access_token') ?: data_get($payload, 'data.access_token')));
-        $oauthError = trim((string) (data_get($payload, 'error') ?: data_get($payload, 'data.error')));
+        $accessToken = trim((string) data_get($payload, 'data.access_token'));
         $responseMessage = trim((string) data_get($payload, 'message'));
         $diagnostics = $this->buildResponseDiagnostics(
             phase: 'token_exchange',
@@ -166,7 +171,7 @@ class SsoClientService
             payload: $payload,
             hasAccessToken: $accessToken !== '',
             responseMessage: $responseMessage,
-            oauthError: $oauthError,
+            oauthError: null,
         );
 
         if ($payload === null) {
@@ -178,14 +183,6 @@ class SsoClientService
         }
 
         if (! $response->successful()) {
-            if ($oauthError !== '') {
-                throw new SsoAuthenticationException(
-                    'Az SSO token csere OAuth hibaval meghiusult.',
-                    502,
-                    context: $diagnostics,
-                );
-            }
-
             throw new SsoAuthenticationException(
                 'Az SSO token vegpont hibaval valaszolt.',
                 502,
@@ -261,10 +258,6 @@ class SsoClientService
         $userInfo = data_get($payload, 'data');
 
         if (! is_array($userInfo)) {
-            $userInfo = $payload;
-        }
-
-        if (! is_array($userInfo)) {
             throw new SsoAuthenticationException(
                 'Ervenytelen userinfo valasz erkezett az SSO szervertol.',
                 502,
@@ -323,6 +316,20 @@ class SsoClientService
 
     private function ensureConfigured(): void
     {
+        $configuredScopes = collect(config('sso.scopes', []))
+            ->map(static fn (mixed $scope): string => trim((string) $scope))
+            ->filter()
+            ->values();
+
+        foreach (['openid', 'email'] as $requiredScope) {
+            if (! $configuredScopes->contains($requiredScope)) {
+                throw new SsoAuthenticationException(
+                    sprintf('Az SSO kliens konfiguracioja hianyos: a "%s" scope kotelezo ehhez a kliens flow-hoz.', $requiredScope),
+                    500,
+                );
+            }
+        }
+
         if (! $this->status()->configured) {
             throw new SsoAuthenticationException('Az SSO kliens konfiguracioja hianyos.', 500);
         }

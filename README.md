@@ -26,6 +26,39 @@ npm run test:security
 
 Backend tests enter the suite through the PHPUnit `security` group. Frontend tests enter through the curated include list in `vitest.security.config.js`. Add a test to this gate only when it protects auth, authorization, redirect/callback validation, session handling, re-auth behavior, or another security-critical client guarantee. Any auth flow, authorization, shared auth state, routing, validation, or logout change must update or add the corresponding security regression test before merge.
 
+## Integration Contract
+
+Server-client OAuth/SSO integration contract is defined in:
+
+- [`docs/integration-contract.md`](/c:/wamp64/www/sso/sso_client/docs/integration-contract.md)
+
+## Browser Auth E2E
+
+The client now ships with a Playwright auth-flow suite that drives a real browser through the `sso_client` -> `sso_server` redirect, login, callback, session, protected-route, and logout flow.
+
+Local prerequisites:
+
+```bash
+cd ../sso_server && composer install && npm ci
+cd ../sso_client && composer install && npm ci
+npx playwright install chromium
+```
+
+Run the auth-focused suite from the client repository:
+
+```bash
+npm run e2e:auth
+```
+
+Useful overrides:
+
+```bash
+SSO_E2E_SERVER_PATH=../custom_server_clone npm run e2e:auth
+E2E_BUILD=1 npm run e2e:auth
+```
+
+The setup prepares dedicated SQLite databases under [`.e2e-runtime`](/c:/wamp64/www/sso/sso_client/.e2e-runtime), reseeds the server with the seeded `superadmin@sso.test` operator, rewrites the `portal-client` secret to a deterministic E2E-only value, then starts both Laravel apps on `127.0.0.1:8010` and `127.0.0.1:8020`.
+
 ## About Laravel
 
 Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:

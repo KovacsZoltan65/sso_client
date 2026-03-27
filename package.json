@@ -5,12 +5,16 @@
     "scripts": {
         "build": "vite build",
         "dev": "vite",
+        "e2e:auth": "node tests/e2e/scripts/prepare-auth-e2e.mjs && playwright test tests/e2e/auth-flow.spec.ts",
+        "e2e:auth:headed": "node tests/e2e/scripts/prepare-auth-e2e.mjs && playwright test tests/e2e/auth-flow.spec.ts --headed",
+        "e2e:auth:prepare": "node tests/e2e/scripts/prepare-auth-e2e.mjs",
         "test": "vitest run",
         "test:security": "vitest run --config vitest.security.config.js",
         "test:watch": "vitest"
     },
     "devDependencies": {
         "@inertiajs/vue3": "^2.0.0",
+        "@playwright/test": "^1.54.2",
         "@tailwindcss/forms": "^0.5.3",
         "@tailwindcss/vite": "^4.0.0",
         "@vitejs/plugin-vue": "^6.0.0",

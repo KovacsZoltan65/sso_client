@@ -104,8 +104,12 @@ class SsoAuthenticationTest extends TestCase
         Http::fake([
             'https://sso-server.test/api/oauth/token' => Http::response([
                 'message' => 'OAuth token request failed.',
-                'error' => 'invalid_grant',
-            ], 400),
+                'data' => [],
+                'meta' => [],
+                'errors' => [
+                    'code' => ['The provided authorization code is invalid.'],
+                ],
+            ], 422),
         ]);
 
         $response = $this
@@ -117,7 +121,7 @@ class SsoAuthenticationTest extends TestCase
 
         $response
             ->assertRedirect(route('login'))
-            ->assertSessionHas('error', 'Az SSO token csere OAuth hibaval meghiusult.');
+            ->assertSessionHas('error', 'Az SSO token vegpont hibaval valaszolt.');
 
         $this->assertGuest();
     }
@@ -216,11 +220,35 @@ class SsoAuthenticationTest extends TestCase
     }
 
     #[Group('security')]
-    public function test_successful_callback_accepts_top_level_token_and_userinfo_payloads(): void
+    public function test_callback_rejects_top_level_token_payload_without_envelope_data(): void
     {
         Http::fake([
             'https://sso-server.test/api/oauth/token' => Http::response([
                 'access_token' => 'access-token',
+            ], 200),
+        ]);
+
+        $response = $this
+            ->withSession([
+                config('sso.state_session_key') => 'valid-state',
+                config('sso.pkce_verifier_session_key') => 'verifier-value',
+            ])
+            ->get('/auth/sso/callback?code=valid-code&state=valid-state');
+
+        $response
+            ->assertRedirect(route('login'))
+            ->assertSessionHas('error', 'Az SSO token valasz nem tartalmaz ervenyes access tokent.');
+
+        $this->assertGuest();
+    }
+
+    #[Group('security')]
+    public function test_callback_rejects_top_level_userinfo_payload_without_envelope_data(): void
+    {
+        Http::fake([
+            'https://sso-server.test/api/oauth/token' => Http::response([
+                'message' => 'OAuth token issued successfully.',
+                'data' => ['access_token' => 'access-token'],
             ], 200),
             'https://sso-server.test/api/oauth/userinfo' => Http::response([
                 'sub' => 'user-123',
@@ -236,12 +264,11 @@ class SsoAuthenticationTest extends TestCase
             ])
             ->get('/auth/sso/callback?code=valid-code&state=valid-state');
 
-        $response->assertRedirect(route('dashboard', absolute: false));
-        $this->assertAuthenticated();
-        $this->assertDatabaseHas('users', [
-            'email' => 'top.level@example.test',
-            'name' => 'Top Level User',
-        ]);
+        $response
+            ->assertRedirect(route('login'))
+            ->assertSessionHas('error', 'Ervenytelen userinfo valasz erkezett az SSO szervertol.');
+
+        $this->assertGuest();
     }
 
     #[Group('security')]
@@ -354,6 +381,16 @@ class SsoAuthenticationTest extends TestCase
             ->assertSessionHas('error', 'Hianyzo PKCE verifier miatt nem folytathato a bejelentkezes. Inditsd ujra a login folyamatot.');
 
         $this->assertGuest();
+    }
+
+    #[Group('security')]
+    public function test_redirect_endpoint_fails_fast_when_required_scopes_are_missing_from_configuration(): void
+    {
+        config()->set('sso.scopes', ['profile']);
+
+        $this->get('/auth/sso/redirect')
+            ->assertRedirect(route('login'))
+            ->assertSessionHas('error', 'Az SSO kliens konfiguracioja hianyos: a "openid" scope kotelezo ehhez a kliens flow-hoz.');
     }
 
     #[Group('security')]

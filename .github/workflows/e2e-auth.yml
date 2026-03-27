@@ -1,0 +1,65 @@
+name: Browser Auth E2E
+
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+
+jobs:
+  e2e-auth:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout client repository
+        uses: actions/checkout@v4
+        with:
+          path: sso_client
+
+      - name: Checkout server repository
+        uses: actions/checkout@v4
+        with:
+          repository: KovacsZoltan65/sso_server
+          path: sso_server
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: |
+            sso_client/package-lock.json
+            sso_server/package-lock.json
+
+      - name: Install client Composer dependencies
+        working-directory: sso_client
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Install server Composer dependencies
+        working-directory: sso_server
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Install client npm dependencies
+        working-directory: sso_client
+        run: npm ci
+
+      - name: Install server npm dependencies
+        working-directory: sso_server
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        working-directory: sso_client
+        run: npx playwright install --with-deps chromium
+
+      - name: Run browser auth E2E suite
+        working-directory: sso_client
+        env:
+          SSO_E2E_SERVER_PATH: ../sso_server
+          E2E_BUILD: '1'
+        run: npm run e2e:auth
