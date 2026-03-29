@@ -3,8 +3,11 @@ name: Browser Auth E2E
 on:
   push:
     branches:
-      - '**'
+      - "**"
   pull_request:
+
+permissions:
+  contents: read
 
 jobs:
   e2e-auth:
@@ -21,21 +24,37 @@ jobs:
         with:
           repository: KovacsZoltan65/sso_server
           path: sso_server
+          token: ${{ secrets.SSO_CROSS_REPO_TOKEN }}
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.3'
+          php-version: "8.3"
           coverage: none
+          extensions: |
+            mbstring
+            dom
+            fileinfo
+            sqlite3
+            pdo_sqlite
+          tools: composer:v2
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
-          cache: 'npm'
+          node-version: "22"
+          cache: "npm"
           cache-dependency-path: |
             sso_client/package-lock.json
             sso_server/package-lock.json
+
+      - name: Verify PHP setup
+        run: |
+          echo "=== PHP Version ==="
+          php -v
+          echo ""
+          echo "=== PHP Modules ==="
+          php -m
 
       - name: Install client Composer dependencies
         working-directory: sso_client
@@ -44,6 +63,24 @@ jobs:
       - name: Install server Composer dependencies
         working-directory: sso_server
         run: composer install --no-interaction --prefer-dist
+
+      - name: Client diagnostics
+        working-directory: sso_client
+        run: |
+          echo "=== Client Environment ==="
+          php artisan about
+          echo ""
+          echo "=== Client Storage Permissions ==="
+          ls -lah storage/
+
+      - name: Server diagnostics
+        working-directory: sso_server
+        run: |
+          echo "=== Server Environment ==="
+          php artisan about
+          echo ""
+          echo "=== Server Storage Permissions ==="
+          ls -lah storage/
 
       - name: Install client npm dependencies
         working-directory: sso_client
@@ -61,5 +98,41 @@ jobs:
         working-directory: sso_client
         env:
           SSO_E2E_SERVER_PATH: ../sso_server
-          E2E_BUILD: '1'
+          E2E_BUILD: "1"
         run: npm run e2e:auth
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: sso_client/playwright-report/
+          retention-days: 14
+          if-no-files-found: warn
+
+      - name: Upload client logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-logs
+          path: sso_client/storage/logs/
+          retention-days: 7
+          if-no-files-found: warn
+
+      - name: Upload server logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-logs
+          path: sso_server/storage/logs/
+          retention-days: 7
+          if-no-files-found: warn
+
+      - name: Upload E2E runtime database
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-runtime
+          path: sso_client/.e2e-runtime/
+          retention-days: 7
+          if-no-files-found: warn
