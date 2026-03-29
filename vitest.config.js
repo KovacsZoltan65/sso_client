@@ -1,7 +1,17 @@
-import { defineConfig, mergeConfig } from 'vitest/config';
-import viteConfig from './vite.config.js';
+import { defineConfig } from 'vitest/config';
+import vue from '@vitejs/plugin-vue';
 
-export default mergeConfig(viteConfig, defineConfig({
+export default defineConfig({
+    plugins: [
+        vue({
+            template: {
+                transformAssetUrls: {
+                    base: null,
+                    includeAbsolute: false,
+                },
+            },
+        }),
+    ],
     test: {
         environment: 'jsdom',
         globals: true,
@@ -16,4 +26,4 @@ export default mergeConfig(viteConfig, defineConfig({
             '@': '/resources/js',
         },
     },
-}));
+});

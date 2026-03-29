@@ -19,12 +19,20 @@ jobs:
         with:
           path: sso_client
 
-      - name: Checkout server repository
+      - name: Checkout server repository with token
         uses: actions/checkout@v4
+        if: ${{ secrets.SSO_CROSS_REPO_TOKEN != '' }}
         with:
           repository: KovacsZoltan65/sso_server
           path: sso_server
           token: ${{ secrets.SSO_CROSS_REPO_TOKEN }}
+
+      - name: Checkout server repository without token
+        uses: actions/checkout@v4
+        if: ${{ secrets.SSO_CROSS_REPO_TOKEN == '' }}
+        with:
+          repository: KovacsZoltan65/sso_server
+          path: sso_server
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
