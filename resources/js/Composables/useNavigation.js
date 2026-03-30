@@ -5,6 +5,7 @@ const items = [
     { label: 'Dashboard', icon: 'pi pi-home', route: 'dashboard' },
     { label: 'Profile', icon: 'pi pi-id-card', route: 'profile.edit' },
     { label: 'My Account', icon: 'pi pi-user', route: 'account.show' },
+    { label: 'Companies', icon: 'pi pi-building', route: 'companies.index', permission: 'companies.view' },
     { label: 'Users', icon: 'pi pi-users', route: 'users.index', permission: 'users.view' },
     { label: 'Roles', icon: 'pi pi-shield', route: 'roles.index', permission: 'roles.view' },
     { label: 'Permissions', icon: 'pi pi-lock', route: 'permissions.index', permission: 'permissions.view' },

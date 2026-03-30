@@ -133,16 +133,138 @@ vi.mock('primevue/toast', () => ({ default: defineComponent({
     },
 }) }));
 export const toastAddMock = vi.fn();
+export const confirmRequireMock = vi.fn();
 vi.mock('primevue/usetoast', () => ({
     useToast: () => ({
         add: toastAddMock,
     }),
 }));
+vi.mock('primevue/useconfirm', () => ({
+    useConfirm: () => ({
+        require: confirmRequireMock,
+    }),
+}));
+vi.mock('primevue/dialog', () => ({ default: defineComponent({
+    name: 'DialogStub',
+    props: {
+        visible: {
+            type: Boolean,
+            default: false,
+        },
+    },
+    setup(props, { slots }) {
+        return () => props.visible ? h('div', { 'data-dialog': 'true' }, slots.default?.()) : null;
+    },
+}) }));
+vi.mock('primevue/confirmdialog', () => ({ default: defineComponent({
+    setup() {
+        return () => h('div', { 'data-confirm-dialog': 'true' });
+    },
+}) }));
+vi.mock('primevue/datatable', () => ({ default: defineComponent({
+    name: 'DataTableStub',
+    setup(_props, { slots }) {
+        return () => h('div', { 'data-datatable': 'true' }, slots.default?.());
+    },
+}) }));
+vi.mock('primevue/column', () => ({ default: defineComponent({
+    name: 'ColumnStub',
+    setup() {
+        return () => null;
+    },
+}) }));
+vi.mock('primevue/select', () => ({ default: defineComponent({
+    inheritAttrs: false,
+    props: {
+        modelValue: {
+            default: null,
+        },
+        options: {
+            type: Array,
+            default: () => [],
+        },
+        optionLabel: {
+            type: String,
+            default: 'label',
+        },
+        optionValue: {
+            type: String,
+            default: 'value',
+        },
+    },
+    emits: ['update:modelValue'],
+    setup(props, { attrs, emit }) {
+        return () => h('select', {
+            ...attrs,
+            value: props.modelValue === null ? '' : String(props.modelValue),
+            onChange: (event) => {
+                const selected = props.options.find((option) => String(option[props.optionValue] ?? '') === event.target.value);
+                emit('update:modelValue', selected ? selected[props.optionValue] : null);
+            },
+        }, [
+            h('option', { value: '' }, ''),
+            ...props.options.map((option) => h('option', { value: String(option[props.optionValue] ?? '') }, option[props.optionLabel])),
+        ]);
+    },
+}) }));
+vi.mock('primevue/checkbox', () => ({ default: defineComponent({
+    inheritAttrs: false,
+    props: {
+        modelValue: {
+            default: false,
+        },
+    },
+    emits: ['update:modelValue'],
+    setup(props, { attrs, emit }) {
+        return () => h('input', {
+            ...attrs,
+            type: 'checkbox',
+            checked: Boolean(props.modelValue),
+            onChange: (event) => emit('update:modelValue', event.target.checked),
+        });
+    },
+}) }));
+vi.mock('primevue/textarea', () => ({ default: defineComponent({
+    inheritAttrs: false,
+    props: {
+        modelValue: {
+            type: String,
+            default: '',
+        },
+    },
+    emits: ['update:modelValue'],
+    setup(props, { attrs, emit }) {
+        return () => h('textarea', {
+            ...attrs,
+            value: props.modelValue,
+            onInput: (event) => emit('update:modelValue', event.target.value),
+        });
+    },
+}) }));
+vi.mock('primevue/tag', () => ({ default: defineComponent({
+    props: {
+        value: {
+            type: String,
+            default: '',
+        },
+    },
+    setup(props) {
+        return () => h('span', { 'data-tag': 'true' }, props.value);
+    },
+}) }));
 vi.mock('axios', () => ({
     default: axiosMock,
 }));
 
-global.route = vi.fn((name) => `/${String(name).replace(/\./g, '/')}`);
+global.route = vi.fn((name) => {
+    if (!name) {
+        return {
+            current: () => false,
+        };
+    }
+
+    return `/${String(name).replace(/\./g, '/')}`;
+});
 global.ResizeObserver = class {
     observe() {}
     unobserve() {}

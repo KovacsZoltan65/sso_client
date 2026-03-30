@@ -2,9 +2,14 @@
 
 namespace App\Providers;
 
+use App\Models\Company;
+use App\Policies\CompanyPolicy;
+use App\Repositories\Contracts\CompanyRepository as CompanyRepositoryContract;
 use App\Repositories\Contracts\UserRepository as UserRepositoryContract;
+use App\Repositories\Eloquent\CompanyRepository;
 use App\Repositories\Eloquent\UserRepository;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 
@@ -15,6 +20,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->app->bind(CompanyRepositoryContract::class, CompanyRepository::class);
         $this->app->bind(UserRepositoryContract::class, UserRepository::class);
     }
 
@@ -24,6 +30,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Schema::defaultStringLength(191);
+        Gate::policy(Company::class, CompanyPolicy::class);
         Vite::prefetch(concurrency: 3);
     }
 }

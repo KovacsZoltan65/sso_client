@@ -6,6 +6,7 @@ import PrimeVue from 'primevue/config';
 import Aura from '@primeuix/themes/aura';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createApp, h } from 'vue';
+import ConfirmationService from 'primevue/confirmationservice';
 import ToastService from 'primevue/toastservice';
 import { ZiggyVue } from '../../vendor/tightenco/ziggy';
 import 'primeicons/primeicons.css';
@@ -24,6 +25,7 @@ createInertiaApp({
             .use(plugin)
             .use(ZiggyVue)
             .use(ToastService)
+            .use(ConfirmationService)
             .use(PrimeVue, {
                 theme: {
                     preset: Aura,

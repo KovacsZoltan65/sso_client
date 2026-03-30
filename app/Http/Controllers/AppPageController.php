@@ -36,6 +36,24 @@ class AppPageController extends Controller
         );
     }
 
+    public function companies(Request $request): Response
+    {
+        return Inertia::render('Companies/Index', [
+            'companiesApi' => [
+                'endpoints' => [
+                    'index' => route('api.companies.index'),
+                    'store' => route('api.companies.store'),
+                ],
+            ],
+            'permissions' => [
+                'view' => $request->user()?->can('companies.view') ?? false,
+                'create' => $request->user()?->can('companies.create') ?? false,
+                'update' => $request->user()?->can('companies.update') ?? false,
+                'delete' => $request->user()?->can('companies.delete') ?? false,
+            ],
+        ]);
+    }
+
     public function roles(): Response
     {
         return $this->placeholder(

@@ -39,7 +39,7 @@ describe('useNavigation', () => {
         setPageProps({
             auth: {
                 user: {
-                    permissions: ['users.view', 'sso-status.view'],
+                    permissions: ['companies.view', 'users.view', 'sso-status.view'],
                 },
             },
             flash: {},
@@ -50,6 +50,7 @@ describe('useNavigation', () => {
 
         const wrapper = mount(NavigationProbe);
 
+        expect(wrapper.text()).toContain('Companies');
         expect(wrapper.text()).toContain('Users');
         expect(wrapper.text()).toContain('SSO Status');
         expect(wrapper.text()).not.toContain('Roles');
