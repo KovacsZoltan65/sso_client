@@ -163,8 +163,35 @@ vi.mock('primevue/confirmdialog', () => ({ default: defineComponent({
 }) }));
 vi.mock('primevue/datatable', () => ({ default: defineComponent({
     name: 'DataTableStub',
-    setup(_props, { slots }) {
-        return () => h('div', { 'data-datatable': 'true' }, slots.default?.());
+    props: {
+        scrollable: {
+            type: Boolean,
+            default: false,
+        },
+        scrollHeight: {
+            type: String,
+            default: null,
+        },
+        value: {
+            type: Array,
+            default: () => [],
+        },
+        rows: {
+            type: Number,
+            default: 0,
+        },
+        totalRecords: {
+            type: Number,
+            default: 0,
+        },
+    },
+    setup(props, { attrs, slots }) {
+        return () => h('div', {
+            ...attrs,
+            'data-datatable': 'true',
+            'data-scrollable': props.scrollable ? 'true' : 'false',
+            'data-scroll-height': props.scrollHeight ?? '',
+        }, slots.default?.());
     },
 }) }));
 vi.mock('primevue/column', () => ({ default: defineComponent({

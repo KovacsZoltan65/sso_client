@@ -1,6 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils';
 import UsersIndex from '@/Pages/Users/Index.vue';
 import UserEditDialog from '@/Pages/Users/Partials/UserEditDialog.vue';
+import DataTable from 'primevue/datatable';
 import Select from 'primevue/select';
 import { toastAddMock } from '../setup';
 import { setPageProps } from '../mocks/inertia';
@@ -253,5 +254,21 @@ describe('Users/Index', () => {
 
         expect(wrapper.text()).toContain('Megtekintes');
         expect(wrapper.text()).not.toContain('Szerkesztes');
+    });
+
+    it('uses the shared full-height scrollable datatable layout on desktop', async () => {
+        listUsersMock.mockResolvedValueOnce(makeEnvelope([makeUser()]));
+
+        const wrapper = mountPage();
+        await flushPromises();
+
+        const dataTable = wrapper.findComponent(DataTable);
+
+        expect(wrapper.find('.admin-table-page').exists()).toBe(true);
+        expect(wrapper.find('.admin-table-shell').exists()).toBe(true);
+        expect(dataTable.exists()).toBe(true);
+        expect(dataTable.props('scrollable')).toBe(true);
+        expect(dataTable.props('scrollHeight')).toBe('flex');
+        expect(dataTable.classes()).toContain('admin-datatable');
     });
 });

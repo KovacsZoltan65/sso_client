@@ -2,6 +2,7 @@ import { flushPromises, mount } from '@vue/test-utils';
 import CompaniesIndex from '@/Pages/Companies/Index.vue';
 import CreateCompanyDialog from '@/Pages/Companies/Partials/CreateCompanyDialog.vue';
 import EditCompanyDialog from '@/Pages/Companies/Partials/EditCompanyDialog.vue';
+import DataTable from 'primevue/datatable';
 import { confirmRequireMock, toastAddMock } from '../setup';
 import { setPageProps } from '../mocks/inertia';
 
@@ -239,5 +240,23 @@ describe('Companies/Index', () => {
         expect(wrapper.text()).not.toContain('Uj ceg');
         expect(wrapper.text()).not.toContain('Szerkesztes');
         expect(wrapper.text()).not.toContain('Torles');
+    });
+
+    it('uses the shared full-height scrollable datatable layout on desktop', async () => {
+        listCompaniesMock.mockResolvedValueOnce(makeEnvelope([
+            { id: 1, name: 'Acme Kft.', code: 'ACME', is_active: true, created_at: '2026-03-29 12:00:00' },
+        ]));
+
+        const wrapper = mountPage();
+        await flushPromises();
+
+        const dataTable = wrapper.findComponent(DataTable);
+
+        expect(wrapper.find('.admin-table-page').exists()).toBe(true);
+        expect(wrapper.find('.admin-table-shell').exists()).toBe(true);
+        expect(dataTable.exists()).toBe(true);
+        expect(dataTable.props('scrollable')).toBe(true);
+        expect(dataTable.props('scrollHeight')).toBe('flex');
+        expect(dataTable.classes()).toContain('admin-datatable');
     });
 });

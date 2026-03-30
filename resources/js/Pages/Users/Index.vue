@@ -354,81 +354,85 @@ onMounted(loadUsers);
             </PageHeader>
         </template>
 
-        <section class="shell-card overflow-hidden">
-            <div
-                class="flex flex-col gap-4 border-b border-slate-200/70 px-6 py-5 lg:flex-row lg:items-end lg:justify-between"
-            >
-                <div>
-                    <p
-                        class="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400"
-                    >
-                        Admin lista
-                    </p>
-                    <h2 class="mt-2 text-xl font-semibold text-slate-950">
-                        Felhasznalo kezeles
-                    </h2>
-                    <p class="mt-2 text-sm text-slate-600">
-                        Kereses helyi azonosito, SSO user ID, nev vagy e-mail alapjan,
-                        valamint lokalis statusz es SSO kapcsolat szerinti szures.
-                    </p>
-                </div>
-
-                <div class="grid gap-3 xl:min-w-[48rem] xl:grid-cols-[1fr_12rem_12rem]">
-                    <div class="relative">
-                        <i
-                            class="pi pi-search pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-sm text-slate-400"
-                        />
-                        <InputText
-                            v-model="filters.search"
-                            fluid
-                            class="h-11 w-full pl-10"
-                            placeholder="Kereses..."
-                        />
+        <div class="admin-table-page">
+            <section class="shell-card admin-table-shell">
+                <div
+                    class="flex flex-col gap-4 border-b border-slate-200/70 px-6 py-5 lg:flex-row lg:items-end lg:justify-between"
+                >
+                    <div>
+                        <p
+                            class="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400"
+                        >
+                            Admin lista
+                        </p>
+                        <h2 class="mt-2 text-xl font-semibold text-slate-950">
+                            Felhasznalo kezeles
+                        </h2>
+                        <p class="mt-2 text-sm text-slate-600">
+                            Kereses helyi azonosito, SSO user ID, nev vagy e-mail alapjan,
+                            valamint lokalis statusz es SSO kapcsolat szerinti szures.
+                        </p>
                     </div>
 
-                    <Select
-                        v-model="filters.local_status"
-                        :options="localStatusOptions"
-                        :pt="compactSelectPt"
-                        class="w-full"
-                        option-label="label"
-                        option-value="value"
-                        placeholder="Lokalis statusz"
-                        show-clear
-                    />
+                    <div class="grid gap-3 xl:min-w-[48rem] xl:grid-cols-[1fr_12rem_12rem]">
+                        <div class="relative">
+                            <i
+                                class="pi pi-search pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-sm text-slate-400"
+                            />
+                            <InputText
+                                v-model="filters.search"
+                                fluid
+                                class="h-11 w-full pl-10"
+                                placeholder="Kereses..."
+                            />
+                        </div>
 
-                    <Select
-                        v-model="filters.has_sso_link"
-                        :options="linkOptions"
-                        :pt="compactSelectPt"
-                        class="w-full"
-                        option-label="label"
-                        option-value="value"
-                        placeholder="SSO kapcsolat"
-                        show-clear
-                    />
+                        <Select
+                            v-model="filters.local_status"
+                            :options="localStatusOptions"
+                            :pt="compactSelectPt"
+                            class="w-full"
+                            option-label="label"
+                            option-value="value"
+                            placeholder="Lokalis statusz"
+                            show-clear
+                        />
+
+                        <Select
+                            v-model="filters.has_sso_link"
+                            :options="linkOptions"
+                            :pt="compactSelectPt"
+                            class="w-full"
+                            option-label="label"
+                            option-value="value"
+                            placeholder="SSO kapcsolat"
+                            show-clear
+                        />
+                    </div>
                 </div>
-            </div>
 
-            <div class="hidden lg:block">
-                <DataTable
-                    :value="users"
-                    :loading="loading"
-                    lazy
-                    paginator
-                    removable-sort
-                    data-key="id"
-                    :rows="tableState.perPage"
-                    :first="firstRecordIndex"
-                    :total-records="tableState.total"
-                    :sort-field="tableState.sortField"
-                    :sort-order="tableState.sortOrder === 'asc' ? 1 : -1"
-                    paginator-template="RowsPerPageDropdown FirstPageLink PrevPageLink CurrentPageReport NextPageLink LastPageLink"
-                    current-page-report-template="{first} - {last} / {totalRecords}"
-                    :rows-per-page-options="[10, 25, 50]"
-                    @page="handleTablePage"
-                    @sort="handleTableSort"
-                >
+                <div class="hidden min-h-0 flex-1 lg:flex">
+                    <DataTable
+                        :value="users"
+                        :loading="loading"
+                        class="admin-datatable"
+                        scrollable
+                        scroll-height="flex"
+                        lazy
+                        paginator
+                        removable-sort
+                        data-key="id"
+                        :rows="tableState.perPage"
+                        :first="firstRecordIndex"
+                        :total-records="tableState.total"
+                        :sort-field="tableState.sortField"
+                        :sort-order="tableState.sortOrder === 'asc' ? 1 : -1"
+                        paginator-template="RowsPerPageDropdown FirstPageLink PrevPageLink CurrentPageReport NextPageLink LastPageLink"
+                        current-page-report-template="{first} - {last} / {totalRecords}"
+                        :rows-per-page-options="[10, 25, 50]"
+                        @page="handleTablePage"
+                        @sort="handleTableSort"
+                    >
                     <template #empty>
                         <div class="px-6 py-10">
                             <EmptyStatePanel
@@ -483,82 +487,83 @@ onMounted(loadUsers);
                             <RowActionMenu :items="userActionItems(data)" />
                         </template>
                     </Column>
-                </DataTable>
-            </div>
-
-            <div class="space-y-4 p-6 lg:hidden">
-                <div
-                    v-if="loading"
-                    class="rounded-2xl border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-500"
-                >
-                    Betoltes folyamatban...
+                    </DataTable>
                 </div>
 
-                <template v-else-if="users.length > 0">
-                    <article
-                        v-for="user in users"
-                        :key="user.id"
-                        class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"
+                <div class="space-y-4 p-6 lg:hidden">
+                    <div
+                        v-if="loading"
+                        class="rounded-2xl border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-500"
                     >
-                        <div class="flex items-start justify-between gap-3">
-                            <div>
-                                <h3 class="text-lg font-semibold text-slate-950">
-                                    {{ user.name || "-" }}
-                                </h3>
-                                <p class="mt-1 text-sm text-slate-500">
-                                    {{ user.email || "-" }}
-                                </p>
-                            </div>
-                            <Tag
-                                :value="statusLabel(user.local_status)"
-                                :severity="statusSeverity(user.local_status)"
-                            />
-                        </div>
+                        Betoltes folyamatban...
+                    </div>
 
-                        <dl class="mt-4 grid gap-3 text-sm text-slate-600">
-                            <div>
-                                <dt class="font-semibold text-slate-900">Local ID</dt>
-                                <dd>{{ user.id }}</dd>
+                    <template v-else-if="users.length > 0">
+                        <article
+                            v-for="user in users"
+                            :key="user.id"
+                            class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"
+                        >
+                            <div class="flex items-start justify-between gap-3">
+                                <div>
+                                    <h3 class="text-lg font-semibold text-slate-950">
+                                        {{ user.name || "-" }}
+                                    </h3>
+                                    <p class="mt-1 text-sm text-slate-500">
+                                        {{ user.email || "-" }}
+                                    </p>
+                                </div>
+                                <Tag
+                                    :value="statusLabel(user.local_status)"
+                                    :severity="statusSeverity(user.local_status)"
+                                />
                             </div>
-                            <div>
-                                <dt class="font-semibold text-slate-900">SSO user ID</dt>
-                                <dd>{{ user.sso_user_id || "-" }}</dd>
-                            </div>
-                            <div>
-                                <dt class="font-semibold text-slate-900">Kapcsolat</dt>
-                                <dd>
-                                    <Tag
-                                        :value="ssoLinkLabel(user)"
-                                        :severity="ssoLinkSeverity(user)"
-                                    />
-                                </dd>
-                            </div>
-                            <div>
-                                <dt class="font-semibold text-slate-900">
-                                    Utolso hitelesites
-                                </dt>
-                                <dd>{{ formatDate(user.last_authenticated_at) }}</dd>
-                            </div>
-                            <div>
-                                <dt class="font-semibold text-slate-900">Frissitve</dt>
-                                <dd>{{ formatDate(user.updated_at) }}</dd>
-                            </div>
-                        </dl>
 
-                        <div class="mt-5 flex justify-end">
-                            <RowActionMenu :items="userActionItems(user)" />
-                        </div>
-                    </article>
-                </template>
+                            <dl class="mt-4 grid gap-3 text-sm text-slate-600">
+                                <div>
+                                    <dt class="font-semibold text-slate-900">Local ID</dt>
+                                    <dd>{{ user.id }}</dd>
+                                </div>
+                                <div>
+                                    <dt class="font-semibold text-slate-900">SSO user ID</dt>
+                                    <dd>{{ user.sso_user_id || "-" }}</dd>
+                                </div>
+                                <div>
+                                    <dt class="font-semibold text-slate-900">Kapcsolat</dt>
+                                    <dd>
+                                        <Tag
+                                            :value="ssoLinkLabel(user)"
+                                            :severity="ssoLinkSeverity(user)"
+                                        />
+                                    </dd>
+                                </div>
+                                <div>
+                                    <dt class="font-semibold text-slate-900">
+                                        Utolso hitelesites
+                                    </dt>
+                                    <dd>{{ formatDate(user.last_authenticated_at) }}</dd>
+                                </div>
+                                <div>
+                                    <dt class="font-semibold text-slate-900">Frissitve</dt>
+                                    <dd>{{ formatDate(user.updated_at) }}</dd>
+                                </div>
+                            </dl>
 
-                <EmptyStatePanel
-                    v-else
-                    title="Nincs megjelenitheto felhasznalo"
-                    description="A jelenlegi szurok mellett nincs talalat. Modositsd a keresest vagy a szuresi felteteleket."
-                    :tags="['Users', 'SSO projection']"
-                />
-            </div>
-        </section>
+                            <div class="mt-5 flex justify-end">
+                                <RowActionMenu :items="userActionItems(user)" />
+                            </div>
+                        </article>
+                    </template>
+
+                    <EmptyStatePanel
+                        v-else
+                        title="Nincs megjelenitheto felhasznalo"
+                        description="A jelenlegi szurok mellett nincs talalat. Modositsd a keresest vagy a szuresi felteteleket."
+                        :tags="['Users', 'SSO projection']"
+                    />
+                </div>
+            </section>
+        </div>
 
         <UserViewDialog
             :visible="showViewDialog"

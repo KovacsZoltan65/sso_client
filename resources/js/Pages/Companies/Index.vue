@@ -333,68 +333,72 @@ onMounted(loadCompanies);
 
         <ConfirmDialog />
 
-        <section class="shell-card overflow-hidden">
-            <div
-                class="flex flex-col gap-4 border-b border-slate-200/70 px-6 py-5 lg:flex-row lg:items-end lg:justify-between"
-            >
-                <div>
-                    <p
-                        class="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400"
-                    >
-                        Admin lista
-                    </p>
-                    <h2 class="mt-2 text-xl font-semibold text-slate-950">Ceg kezeles</h2>
-                    <p class="mt-2 text-sm text-slate-600">
-                        Kereses nev, kod es e-mail alapjan, valamint aktiv statusz
-                        szerinti szures.
-                    </p>
-                </div>
-
-                <div class="grid gap-3 md:min-w-[28rem] md:grid-cols-[1fr_12rem]">
-                    <div class="relative">
-                        <i
-                            class="pi pi-search pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-sm text-slate-400"
-                        />
-                        <InputText
-                            v-model="filters.search"
-                            fluid
-                            class="h-11 w-full pl-10"
-                            placeholder="Kereses nev, kod vagy e-mail alapjan"
-                        />
+        <div class="admin-table-page">
+            <section class="shell-card admin-table-shell">
+                <div
+                    class="flex flex-col gap-4 border-b border-slate-200/70 px-6 py-5 lg:flex-row lg:items-end lg:justify-between"
+                >
+                    <div>
+                        <p
+                            class="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400"
+                        >
+                            Admin lista
+                        </p>
+                        <h2 class="mt-2 text-xl font-semibold text-slate-950">Ceg kezeles</h2>
+                        <p class="mt-2 text-sm text-slate-600">
+                            Kereses nev, kod es e-mail alapjan, valamint aktiv statusz
+                            szerinti szures.
+                        </p>
                     </div>
 
-                    <Select
-                        v-model="filters.is_active"
-                        :options="statusOptions"
-                        :pt="compactSelectPt"
-                        class="w-full"
-                        option-label="label"
-                        option-value="value"
-                        placeholder="Statusz"
-                        show-clear
-                    />
-                </div>
-            </div>
+                    <div class="grid gap-3 md:min-w-[28rem] md:grid-cols-[1fr_12rem]">
+                        <div class="relative">
+                            <i
+                                class="pi pi-search pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-sm text-slate-400"
+                            />
+                            <InputText
+                                v-model="filters.search"
+                                fluid
+                                class="h-11 w-full pl-10"
+                                placeholder="Kereses nev, kod vagy e-mail alapjan"
+                            />
+                        </div>
 
-            <div class="hidden lg:block">
-                <DataTable
-                    :value="companies"
-                    :loading="loading"
-                    lazy
-                    paginator
-                    removable-sort
-                    data-key="id"
-                    :rows="tableState.perPage"
-                    :first="firstRecordIndex"
-                    :total-records="tableState.total"
-                    :sort-field="tableState.sortField"
-                    :sort-order="tableState.sortOrder === 'asc' ? 1 : -1"
-                    paginator-template="RowsPerPageDropdown FirstPageLink PrevPageLink CurrentPageReport NextPageLink LastPageLink"
-                    current-page-report-template="{first} - {last} / {totalRecords}"
-                    :rows-per-page-options="[10, 25, 50]"
-                    @page="handleTablePage"
-                    @sort="handleTableSort"
-                >
+                        <Select
+                            v-model="filters.is_active"
+                            :options="statusOptions"
+                            :pt="compactSelectPt"
+                            class="w-full"
+                            option-label="label"
+                            option-value="value"
+                            placeholder="Statusz"
+                            show-clear
+                        />
+                    </div>
+                </div>
+
+                <div class="hidden min-h-0 flex-1 lg:flex">
+                    <DataTable
+                        :value="companies"
+                        :loading="loading"
+                        class="admin-datatable"
+                        scrollable
+                        scroll-height="flex"
+                        lazy
+                        paginator
+                        removable-sort
+                        data-key="id"
+                        :rows="tableState.perPage"
+                        :first="firstRecordIndex"
+                        :total-records="tableState.total"
+                        :sort-field="tableState.sortField"
+                        :sort-order="tableState.sortOrder === 'asc' ? 1 : -1"
+                        paginator-template="RowsPerPageDropdown FirstPageLink PrevPageLink CurrentPageReport NextPageLink LastPageLink"
+                        current-page-report-template="{first} - {last} / {totalRecords}"
+                        :rows-per-page-options="[10, 25, 50]"
+                        @page="handleTablePage"
+                        @sort="handleTableSort"
+                    >
                     <template #empty>
                         <div class="px-6 py-10">
                             <EmptyStatePanel
@@ -444,80 +448,81 @@ onMounted(loadCompanies);
                             />
                         </template>
                     </Column>
-                </DataTable>
-            </div>
-
-            <div class="space-y-4 p-6 lg:hidden">
-                <div
-                    v-if="loading"
-                    class="rounded-2xl border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-500"
-                >
-                    Betoltes folyamatban...
+                    </DataTable>
                 </div>
 
-                <template v-else-if="companies.length > 0">
-                    <article
-                        v-for="company in companies"
-                        :key="company.id"
-                        class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"
+                <div class="space-y-4 p-6 lg:hidden">
+                    <div
+                        v-if="loading"
+                        class="rounded-2xl border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-500"
                     >
-                        <div class="flex items-start justify-between gap-3">
-                            <div>
-                                <h3 class="text-lg font-semibold text-slate-950">
-                                    {{ company.name }}
-                                </h3>
-                                <p class="mt-1 text-sm text-slate-500">
-                                    {{ company.code }}
-                                </p>
-                            </div>
-                            <Tag
-                                :value="statusLabel(company.is_active)"
-                                :severity="statusSeverity(company.is_active)"
-                            />
-                        </div>
+                        Betoltes folyamatban...
+                    </div>
 
-                        <dl class="mt-4 grid gap-3 text-sm text-slate-600">
-                            <div>
-                                <dt class="font-semibold text-slate-900">E-mail</dt>
-                                <dd>{{ company.email || "-" }}</dd>
+                    <template v-else-if="companies.length > 0">
+                        <article
+                            v-for="company in companies"
+                            :key="company.id"
+                            class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"
+                        >
+                            <div class="flex items-start justify-between gap-3">
+                                <div>
+                                    <h3 class="text-lg font-semibold text-slate-950">
+                                        {{ company.name }}
+                                    </h3>
+                                    <p class="mt-1 text-sm text-slate-500">
+                                        {{ company.code }}
+                                    </p>
+                                </div>
+                                <Tag
+                                    :value="statusLabel(company.is_active)"
+                                    :severity="statusSeverity(company.is_active)"
+                                />
                             </div>
-                            <div>
-                                <dt class="font-semibold text-slate-900">Telefonszam</dt>
-                                <dd>{{ company.phone || "-" }}</dd>
-                            </div>
-                            <div>
-                                <dt class="font-semibold text-slate-900">Letrehozva</dt>
-                                <dd>{{ formatDate(company.created_at) }}</dd>
-                            </div>
-                        </dl>
 
-                        <div class="mt-5 flex gap-3">
-                            <Button
-                                v-if="permissions.update"
-                                label="Szerkesztes"
-                                severity="secondary"
-                                text
-                                @click="openEditDialog(company)"
-                            />
-                            <Button
-                                v-if="permissions.delete"
-                                label="Torles"
-                                severity="danger"
-                                text
-                                @click="confirmDelete(company)"
-                            />
-                        </div>
-                    </article>
-                </template>
+                            <dl class="mt-4 grid gap-3 text-sm text-slate-600">
+                                <div>
+                                    <dt class="font-semibold text-slate-900">E-mail</dt>
+                                    <dd>{{ company.email || "-" }}</dd>
+                                </div>
+                                <div>
+                                    <dt class="font-semibold text-slate-900">Telefonszam</dt>
+                                    <dd>{{ company.phone || "-" }}</dd>
+                                </div>
+                                <div>
+                                    <dt class="font-semibold text-slate-900">Letrehozva</dt>
+                                    <dd>{{ formatDate(company.created_at) }}</dd>
+                                </div>
+                            </dl>
 
-                <EmptyStatePanel
-                    v-else
-                    title="Nincs megjelenitheto ceg"
-                    description="A jelenlegi szurok mellett nincs talalat. Modositsd a keresest vagy hozz letre uj ceget."
-                    :tags="['Companies', 'Admin CRUD']"
-                />
-            </div>
-        </section>
+                            <div class="mt-5 flex gap-3">
+                                <Button
+                                    v-if="permissions.update"
+                                    label="Szerkesztes"
+                                    severity="secondary"
+                                    text
+                                    @click="openEditDialog(company)"
+                                />
+                                <Button
+                                    v-if="permissions.delete"
+                                    label="Torles"
+                                    severity="danger"
+                                    text
+                                    @click="confirmDelete(company)"
+                                />
+                            </div>
+                        </article>
+                    </template>
+
+                    <EmptyStatePanel
+                        v-else
+                        title="Nincs megjelenitheto ceg"
+                        description="A jelenlegi szurok mellett nincs talalat. Modositsd a keresest vagy hozz letre uj ceget."
+                        :tags="['Companies', 'Admin CRUD']"
+                    />
+                </div>
+            </section>
+        </div>
 
         <CreateCompanyDialog
             :visible="showCreateDialog"
