@@ -12,6 +12,18 @@ permissions:
 jobs:
   e2e-auth:
     runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
 
     steps:
       - name: Checkout client repository
@@ -43,8 +55,7 @@ jobs:
             mbstring
             dom
             fileinfo
-            sqlite3
-            pdo_sqlite
+            pdo_mysql
           tools: composer:v2
 
       - name: Setup Node.js
@@ -102,10 +113,19 @@ jobs:
         working-directory: sso_client
         run: npx playwright install --with-deps chromium
 
+      - name: Create dedicated E2E MySQL databases
+        run: |
+          mysql -h 127.0.0.1 -uroot -proot -e "CREATE DATABASE IF NOT EXISTS sso_client_e2e CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+          mysql -h 127.0.0.1 -uroot -proot -e "CREATE DATABASE IF NOT EXISTS sso_server_e2e CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+
       - name: Run browser auth E2E suite
         working-directory: sso_client
         env:
           SSO_E2E_SERVER_PATH: ../sso_server
+          SSO_E2E_DB_HOST: 127.0.0.1
+          SSO_E2E_DB_PORT: 3306
+          SSO_E2E_DB_USERNAME: root
+          SSO_E2E_DB_PASSWORD: root
           E2E_BUILD: "1"
         run: npm run e2e:auth
 

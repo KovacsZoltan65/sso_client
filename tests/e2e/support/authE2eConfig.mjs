@@ -18,8 +18,12 @@ const clientBaseUrl =
 const serverBaseUrl =
     process.env.SSO_E2E_SERVER_BASE_URL ?? `http://127.0.0.1:${serverPort}`;
 
-const clientDatabase = path.join(runtimeDir, "client-e2e.sqlite");
-const serverDatabase = path.join(runtimeDir, "server-e2e.sqlite");
+const databaseHost = process.env.SSO_E2E_DB_HOST ?? "127.0.0.1";
+const databasePort = process.env.SSO_E2E_DB_PORT ?? "3306";
+const databaseUsername = process.env.SSO_E2E_DB_USERNAME ?? "root";
+const databasePassword = process.env.SSO_E2E_DB_PASSWORD ?? "";
+const clientDatabase = process.env.SSO_E2E_CLIENT_DB_DATABASE ?? "sso_client_e2e";
+const serverDatabase = process.env.SSO_E2E_SERVER_DB_DATABASE ?? "sso_server_e2e";
 const sharedClientSecret =
     process.env.SSO_E2E_CLIENT_SECRET ?? "e2e-client-secret";
 const clientAppKey =
@@ -37,6 +41,10 @@ export const authE2eConfig = {
     serverPort,
     clientBaseUrl,
     serverBaseUrl,
+    databaseHost,
+    databasePort,
+    databaseUsername,
+    databasePassword,
     clientDatabase,
     serverDatabase,
     sharedClientSecret,
@@ -53,8 +61,12 @@ export function clientLaravelEnv() {
         APP_DEBUG: "true",
         APP_KEY: clientAppKey,
         APP_URL: authE2eConfig.clientBaseUrl,
-        DB_CONNECTION: "sqlite",
+        DB_CONNECTION: "mysql",
+        DB_HOST: authE2eConfig.databaseHost,
+        DB_PORT: authE2eConfig.databasePort,
         DB_DATABASE: authE2eConfig.clientDatabase,
+        DB_USERNAME: authE2eConfig.databaseUsername,
+        DB_PASSWORD: authE2eConfig.databasePassword,
         SESSION_DRIVER: "file",
         SESSION_COOKIE: "sso_client_e2e_session",
         CACHE_STORE: "array",
@@ -78,8 +90,12 @@ export function serverLaravelEnv() {
         APP_DEBUG: "true",
         APP_KEY: serverAppKey,
         APP_URL: authE2eConfig.serverBaseUrl,
-        DB_CONNECTION: "sqlite",
+        DB_CONNECTION: "mysql",
+        DB_HOST: authE2eConfig.databaseHost,
+        DB_PORT: authE2eConfig.databasePort,
         DB_DATABASE: authE2eConfig.serverDatabase,
+        DB_USERNAME: authE2eConfig.databaseUsername,
+        DB_PASSWORD: authE2eConfig.databasePassword,
         SESSION_DRIVER: "file",
         SESSION_COOKIE: "sso_server_e2e_session",
         CACHE_STORE: "array",

@@ -22,18 +22,13 @@ abstract class TestCase extends BaseTestCase
 
         $defaultConnection = (string) config('database.default');
         $databaseName = (string) config("database.connections.{$defaultConnection}.database");
-        $normalizedDatabaseName = str_replace('\\', '/', strtolower($databaseName));
 
-        if ($defaultConnection === 'sqlite') {
-            if (! str_ends_with($normalizedDatabaseName, 'database/testing.sqlite')) {
-                throw new RuntimeException("Testing must use the dedicated SQLite database file [database/testing.sqlite]. Current database: [{$databaseName}].");
-            }
-
-            return;
+        if ($defaultConnection !== 'mysql') {
+            throw new RuntimeException("Testing must use the mysql connection. Current connection: [{$defaultConnection}].");
         }
 
-        if ($databaseName === '' || ! str_contains(strtolower($databaseName), 'test')) {
-            throw new RuntimeException("Testing must use a dedicated test database. Current connection [{$defaultConnection}] is configured with [{$databaseName}].");
+        if ($databaseName !== 'sso_client_test') {
+            throw new RuntimeException("Testing must use the dedicated MySQL test database [sso_client_test]. Current database: [{$databaseName}].");
         }
     }
 }

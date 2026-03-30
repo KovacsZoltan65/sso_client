@@ -1,6 +1,5 @@
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
-import path from 'node:path';
 import { authE2eConfig, clientLaravelEnv, serverLaravelEnv } from '../support/authE2eConfig.mjs';
 
 function run(command, args, options = {}) {
@@ -8,14 +7,6 @@ function run(command, args, options = {}) {
         stdio: 'inherit',
         ...options,
     });
-}
-
-function ensureRuntimeFile(filePath) {
-    fs.mkdirSync(path.dirname(filePath), { recursive: true });
-
-    if (! fs.existsSync(filePath)) {
-        fs.writeFileSync(filePath, '');
-    }
 }
 
 function ensureLaravelStorage(appRoot) {
@@ -52,8 +43,6 @@ function ensureBuild(appRoot) {
 }
 
 function migrateClient() {
-    ensureRuntimeFile(authE2eConfig.clientDatabase);
-
     run('php', ['artisan', 'migrate:fresh', '--seed', '--force'], {
         cwd: authE2eConfig.clientRoot,
         env: {
@@ -64,8 +53,6 @@ function migrateClient() {
 }
 
 function migrateServer() {
-    ensureRuntimeFile(authE2eConfig.serverDatabase);
-
     run('php', ['artisan', 'migrate:fresh', '--seed', '--force'], {
         cwd: authE2eConfig.serverRoot,
         env: {
