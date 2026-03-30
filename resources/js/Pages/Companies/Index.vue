@@ -62,6 +62,11 @@ const statusOptions = [
 ];
 
 const firstRecordIndex = computed(() => (tableState.page - 1) * tableState.perPage);
+const compactSelectPt = {
+    root: { class: "min-h-11" },
+    label: { class: "flex min-h-11 items-center py-0" },
+    dropdown: { class: "w-11" },
+};
 
 let searchDebounceId = null;
 
@@ -346,18 +351,23 @@ onMounted(loadCompanies);
                 </div>
 
                 <div class="grid gap-3 md:min-w-[28rem] md:grid-cols-[1fr_12rem]">
-                    <span class="p-input-icon-left">
-                        <i class="pi pi-search text-slate-400" />
+                    <div class="relative">
+                        <i
+                            class="pi pi-search pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-sm text-slate-400"
+                        />
                         <InputText
                             v-model="filters.search"
                             fluid
+                            class="h-11 w-full pl-10"
                             placeholder="Kereses nev, kod vagy e-mail alapjan"
                         />
-                    </span>
+                    </div>
 
                     <Select
                         v-model="filters.is_active"
                         :options="statusOptions"
+                        :pt="compactSelectPt"
+                        class="w-full"
                         option-label="label"
                         option-value="value"
                         placeholder="Statusz"

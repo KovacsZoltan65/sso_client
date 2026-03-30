@@ -14,6 +14,7 @@ import Select from "primevue/select";
 import Tag from "primevue/tag";
 import { useToast } from "primevue/usetoast";
 import { computed, onMounted, reactive, ref, watch } from "vue";
+import { IconField } from "primevue";
 
 const props = defineProps({
     usersApi: { type: Object, required: true },
@@ -60,6 +61,11 @@ const linkOptions = [
 ];
 
 const firstRecordIndex = computed(() => (tableState.page - 1) * tableState.perPage);
+const compactSelectPt = {
+    root: { class: "min-h-11" },
+    label: { class: "flex min-h-11 items-center py-0" },
+    dropdown: { class: "w-11" },
+};
 
 let searchDebounceId = null;
 
@@ -368,18 +374,23 @@ onMounted(loadUsers);
                 </div>
 
                 <div class="grid gap-3 xl:min-w-[48rem] xl:grid-cols-[1fr_12rem_12rem]">
-                    <span class="p-input-icon-left">
-                        <i class="pi pi-search text-slate-400" />
+                    <div class="relative">
+                        <i
+                            class="pi pi-search pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-sm text-slate-400"
+                        />
                         <InputText
                             v-model="filters.search"
                             fluid
-                            placeholder="Kereses ID, SSO ID, nev vagy e-mail alapjan"
+                            class="h-11 w-full pl-10"
+                            placeholder="Kereses..."
                         />
-                    </span>
+                    </div>
 
                     <Select
                         v-model="filters.local_status"
                         :options="localStatusOptions"
+                        :pt="compactSelectPt"
+                        class="w-full"
                         option-label="label"
                         option-value="value"
                         placeholder="Lokalis statusz"
@@ -389,6 +400,8 @@ onMounted(loadUsers);
                     <Select
                         v-model="filters.has_sso_link"
                         :options="linkOptions"
+                        :pt="compactSelectPt"
+                        class="w-full"
                         option-label="label"
                         option-value="value"
                         placeholder="SSO kapcsolat"
