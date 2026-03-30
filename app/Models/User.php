@@ -13,7 +13,16 @@ use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Permission\Traits\HasRoles;
 
-#[Fillable(['name', 'email', 'password', 'email_verified_at'])]
+#[Fillable([
+    'sso_user_id',
+    'name',
+    'email',
+    'password',
+    'email_verified_at',
+    'local_status',
+    'notes',
+    'last_authenticated_at',
+])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -34,6 +43,7 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'last_authenticated_at' => 'datetime',
             'password' => 'hashed',
         ];
     }
@@ -42,7 +52,7 @@ class User extends Authenticatable
     {
         return LogOptions::defaults()
             ->useLogName('user')
-            ->logOnly(['name', 'email'])
+            ->logOnly(['name', 'email', 'local_status', 'notes'])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();
     }

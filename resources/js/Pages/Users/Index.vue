@@ -1,15 +1,13 @@
 <script setup>
 import EmptyStatePanel from "@/Components/EmptyStatePanel.vue";
-import RowActionMenu from "@/Components/Admin/RowActionMenu.vue";
 import PageHeader from "@/Components/PageHeader.vue";
+import RowActionMenu from "@/Components/Admin/RowActionMenu.vue";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import UserEditDialog from "@/Pages/Users/Partials/UserEditDialog.vue";
 import UserViewDialog from "@/Pages/Users/Partials/UserViewDialog.vue";
 import { UserApiError, listUsers, showUser, updateUser } from "@/Services/userService";
 import { Head } from "@inertiajs/vue3";
-import Button from "primevue/button";
 import Column from "primevue/column";
-import ConfirmDialog from "primevue/confirmdialog";
 import DataTable from "primevue/datatable";
 import InputText from "primevue/inputtext";
 import Select from "primevue/select";
@@ -33,7 +31,7 @@ const showEditDialog = ref(false);
 const selectedUser = ref(null);
 
 const filters = reactive({
-    global: "",
+    search: "",
     local_status: null,
     has_sso_link: null,
 });
@@ -106,7 +104,7 @@ function getRequestParams() {
         per_page: tableState.perPage,
         sort_field: tableState.sortField,
         sort_order: tableState.sortOrder,
-        global: filters.global || undefined,
+        global: filters.search || undefined,
         local_status: filters.local_status,
         has_sso_link: filters.has_sso_link,
     };
@@ -165,11 +163,6 @@ async function openEditDialog(user) {
     selectedUser.value = details;
     resetForm(details);
     showEditDialog.value = true;
-}
-
-function closeViewDialog() {
-    showViewDialog.value = false;
-    selectedUser.value = null;
 }
 
 function closeEditDialog() {
@@ -282,6 +275,14 @@ function statusSeverity(status) {
     return status === "inactive" ? "secondary" : "success";
 }
 
+function ssoLinkLabel(user) {
+    return user.sso_user_id ? "SSO kapcsolt" : "Kapcsolat nelkul";
+}
+
+function ssoLinkSeverity(user) {
+    return user.sso_user_id ? "info" : "warning";
+}
+
 function userActionItems(user) {
     return [
         {
@@ -316,7 +317,7 @@ watch(
 );
 
 watch(
-    () => filters.global,
+    () => filters.search,
     () => {
         if (searchDebounceId) {
             window.clearTimeout(searchDebounceId);
@@ -347,8 +348,6 @@ onMounted(loadUsers);
             </PageHeader>
         </template>
 
-        <ConfirmDialog />
-
         <section class="shell-card overflow-hidden">
             <div
                 class="flex flex-col gap-4 border-b border-slate-200/70 px-6 py-5 lg:flex-row lg:items-end lg:justify-between"
@@ -357,14 +356,14 @@ onMounted(loadUsers);
                     <p
                         class="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400"
                     >
-                        SSO projection directory
+                        Admin lista
                     </p>
                     <h2 class="mt-2 text-xl font-semibold text-slate-950">
-                        Felhasznalo admin lista
+                        Felhasznalo kezeles
                     </h2>
                     <p class="mt-2 text-sm text-slate-600">
-                        Az identity mezok az SSO serverrol jonnek, itt csak a helyi kliens
-                        metaadatok szerkeszthetok.
+                        Kereses helyi azonosito, SSO user ID, nev vagy e-mail alapjan,
+                        valamint lokalis statusz es SSO kapcsolat szerinti szures.
                     </p>
                 </div>
 
@@ -372,7 +371,7 @@ onMounted(loadUsers);
                     <span class="p-input-icon-left">
                         <i class="pi pi-search text-slate-400" />
                         <InputText
-                            v-model="filters.global"
+                            v-model="filters.search"
                             fluid
                             placeholder="Kereses ID, SSO ID, nev vagy e-mail alapjan"
                         />
@@ -427,19 +426,10 @@ onMounted(loadUsers);
                         </div>
                     </template>
 
-                    <!-- ID -->
                     <Column field="id" header="Local ID" sortable />
-
-                    <!-- SSO User ID -->
                     <Column field="sso_user_id" header="SSO User ID" sortable />
-
-                    <!-- Name -->
                     <Column field="name" header="Nev" sortable />
-
-                    <!-- Email -->
                     <Column field="email" header="E-mail" sortable />
-
-                    <!-- Local Status -->
                     <Column field="local_status" header="Statusz" sortable>
                         <template #body="{ data }">
                             <Tag
@@ -448,8 +438,14 @@ onMounted(loadUsers);
                             />
                         </template>
                     </Column>
-
-                    <!-- Last Authenticated At -->
+                    <Column header="Kapcsolat">
+                        <template #body="{ data }">
+                            <Tag
+                                :value="ssoLinkLabel(data)"
+                                :severity="ssoLinkSeverity(data)"
+                            />
+                        </template>
+                    </Column>
                     <Column
                         field="last_authenticated_at"
                         header="Utolso hitelesites"
@@ -459,22 +455,16 @@ onMounted(loadUsers);
                             {{ formatDate(data.last_authenticated_at) }}
                         </template>
                     </Column>
-
-                    <!-- Created At -->
                     <Column field="created_at" header="Letrehozva" sortable>
                         <template #body="{ data }">
                             {{ formatDate(data.created_at) }}
                         </template>
                     </Column>
-
-                    <!-- Updated At -->
                     <Column field="updated_at" header="Frissitve" sortable>
                         <template #body="{ data }">
                             {{ formatDate(data.updated_at) }}
                         </template>
                     </Column>
-
-                    <!-- Műveletek -->
                     <Column header="Muveletek" :style="{ width: '120px' }">
                         <template #body="{ data }">
                             <RowActionMenu :items="userActionItems(data)" />
@@ -500,10 +490,10 @@ onMounted(loadUsers);
                         <div class="flex items-start justify-between gap-3">
                             <div>
                                 <h3 class="text-lg font-semibold text-slate-950">
-                                    {{ user.name }}
+                                    {{ user.name || "-" }}
                                 </h3>
                                 <p class="mt-1 text-sm text-slate-500">
-                                    {{ user.email }}
+                                    {{ user.email || "-" }}
                                 </p>
                             </div>
                             <Tag
@@ -520,6 +510,15 @@ onMounted(loadUsers);
                             <div>
                                 <dt class="font-semibold text-slate-900">SSO user ID</dt>
                                 <dd>{{ user.sso_user_id || "-" }}</dd>
+                            </div>
+                            <div>
+                                <dt class="font-semibold text-slate-900">Kapcsolat</dt>
+                                <dd>
+                                    <Tag
+                                        :value="ssoLinkLabel(user)"
+                                        :severity="ssoLinkSeverity(user)"
+                                    />
+                                </dd>
                             </div>
                             <div>
                                 <dt class="font-semibold text-slate-900">

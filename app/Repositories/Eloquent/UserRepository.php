@@ -14,10 +14,14 @@ class UserRepository extends BaseRepository implements UserRepositoryInterface
      * @var array<string, string>
      */
     private array $sortableFields = [
+        'id' => 'id',
+        'sso_user_id' => 'sso_user_id',
         'name' => 'name',
         'email' => 'email',
-        'createdAt' => 'created_at',
-        'emailVerifiedAt' => 'email_verified_at',
+        'local_status' => 'local_status',
+        'last_authenticated_at' => 'last_authenticated_at',
+        'created_at' => 'created_at',
+        'updated_at' => 'updated_at',
     ];
 
     public function model(): string
@@ -28,35 +32,48 @@ class UserRepository extends BaseRepository implements UserRepositoryInterface
     public function paginateForAdminIndex(
         array $filters,
         ?string $sortField,
-        ?int $sortOrder,
+        ?string $sortOrder,
         int $perPage = 10,
         int $page = 1,
     ): LengthAwarePaginator {
         $global = trim((string) ($filters['global'] ?? ''));
-        $name = trim((string) ($filters['name'] ?? ''));
-        $email = trim((string) ($filters['email'] ?? ''));
-        $verified = $filters['verified'] ?? null;
+        $localStatus = $filters['local_status'] ?? null;
+        $hasSsoLink = $filters['has_sso_link'] ?? null;
 
-        $column = $this->sortableFields[$sortField ?? ''] ?? 'name';
-        $direction = $sortOrder === -1 ? 'desc' : 'asc';
+        $column = $this->sortableFields[$sortField ?? ''] ?? 'created_at';
+        $direction = $sortOrder === 'asc' ? 'asc' : 'desc';
 
         return $this->model
             ->newQuery()
-            ->with('roles')
             ->when($global !== '', function ($query) use ($global): void {
                 $query->where(function ($innerQuery) use ($global): void {
                     $innerQuery
-                        ->where('name', 'like', "%{$global}%")
+                        ->where('id', 'like', "%{$global}%")
+                        ->orWhere('sso_user_id', 'like', "%{$global}%")
+                        ->orWhere('name', 'like', "%{$global}%")
                         ->orWhere('email', 'like', "%{$global}%");
                 });
             })
-            ->when($name !== '', fn ($query) => $query->where('name', 'like', "%{$name}%"))
-            ->when($email !== '', fn ($query) => $query->where('email', 'like', "%{$email}%"))
-            ->when($verified === 'verified', fn ($query) => $query->whereNotNull('email_verified_at'))
-            ->when($verified === 'pending', fn ($query) => $query->whereNull('email_verified_at'))
+            ->when($localStatus !== null, fn ($query) => $query->where('local_status', $localStatus))
+            ->when($hasSsoLink !== null, function ($query) use ($hasSsoLink): void {
+                if ((bool) $hasSsoLink) {
+                    $query->whereNotNull('sso_user_id');
+                    return;
+                }
+
+                $query->whereNull('sso_user_id');
+            })
             ->orderBy($column, $direction)
             ->paginate($perPage, ['*'], 'page', $page)
             ->withQueryString();
+    }
+
+    public function findForAdmin(int $id): User
+    {
+        /** @var User $user */
+        $user = $this->model->newQuery()->findOrFail($id);
+
+        return $user;
     }
 
     public function countAll(): int
@@ -100,6 +117,17 @@ class UserRepository extends BaseRepository implements UserRepositoryInterface
     public function updateProfile(User $user, array $attributes): User
     {
         $user->fill($attributes);
+        $user->save();
+
+        return $user->refresh();
+    }
+
+    public function updateLocalMetadata(User $user, array $attributes): User
+    {
+        $user->fill([
+            'local_status' => $attributes['local_status'] ?? $user->local_status,
+            'notes' => $attributes['notes'] ?? $user->notes,
+        ]);
         $user->save();
 
         return $user->refresh();

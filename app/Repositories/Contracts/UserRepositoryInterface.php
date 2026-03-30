@@ -14,10 +14,12 @@ interface UserRepositoryInterface
     public function paginateForAdminIndex(
         array $filters,
         ?string $sortField,
-        ?int $sortOrder,
+        ?string $sortOrder,
         int $perPage = 10,
         int $page = 1,
     ): LengthAwarePaginator;
+
+    public function findForAdmin(int $id): User;
 
     public function countAll(): int;
 
@@ -44,6 +46,11 @@ interface UserRepositoryInterface
      * @param  array<string, mixed>  $attributes
      */
     public function updateProfile(User $user, array $attributes): User;
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     */
+    public function updateLocalMetadata(User $user, array $attributes): User;
 
     public function updatePassword(User $user, string $hashedPassword): User;
 

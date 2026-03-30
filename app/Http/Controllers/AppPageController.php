@@ -27,13 +27,19 @@ class AppPageController extends Controller
         ]);
     }
 
-    public function users(): Response
+    public function users(Request $request): Response
     {
-        return $this->placeholder(
-            title: 'Users',
-            description: 'This module will later use SSO-backed user synchronization and local role-aware administration.',
-            tags: ['Directory', 'Repository ready', 'Permission gated'],
-        );
+        return Inertia::render('Users/Index', [
+            'usersApi' => [
+                'endpoints' => [
+                    'index' => route('api.users.index'),
+                ],
+            ],
+            'permissions' => [
+                'view' => $request->user()?->can('users.view') ?? false,
+                'manage' => $request->user()?->can('users.manage') ?? false,
+            ],
+        ]);
     }
 
     public function companies(Request $request): Response

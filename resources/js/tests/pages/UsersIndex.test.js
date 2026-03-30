@@ -1,6 +1,7 @@
 import { flushPromises, mount } from '@vue/test-utils';
 import UsersIndex from '@/Pages/Users/Index.vue';
 import UserEditDialog from '@/Pages/Users/Partials/UserEditDialog.vue';
+import Select from 'primevue/select';
 import { toastAddMock } from '../setup';
 import { setPageProps } from '../mocks/inertia';
 
@@ -156,6 +157,22 @@ describe('Users/Index', () => {
         expect(listUsersMock).toHaveBeenCalledTimes(2);
         expect(listUsersMock).toHaveBeenLastCalledWith(usersApi, expect.objectContaining({
             global: 'server-7',
+        }));
+    });
+
+    it('refreshes the list when the local status filter changes', async () => {
+        listUsersMock.mockResolvedValue(makeEnvelope());
+
+        const wrapper = mountPage();
+        await flushPromises();
+
+        const selects = wrapper.findAllComponents(Select);
+        await selects[0].vm.$emit('update:modelValue', 'inactive');
+        await flushPromises();
+
+        expect(listUsersMock).toHaveBeenCalledTimes(2);
+        expect(listUsersMock).toHaveBeenLastCalledWith(usersApi, expect.objectContaining({
+            local_status: 'inactive',
         }));
     });
 

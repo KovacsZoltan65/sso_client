@@ -45,6 +45,16 @@ Route::middleware(['auth', 'permission:permissions.view'])->group(function () {
 });
 
 Route::prefix('api')->middleware(['auth'])->group(function () {
+    Route::get('/users', [\App\Http\Controllers\Api\UserController::class, 'index'])
+        ->middleware('permission:users.view')
+        ->name('api.users.index');
+    Route::get('/users/{user}', [\App\Http\Controllers\Api\UserController::class, 'show'])
+        ->middleware('permission:users.view')
+        ->name('api.users.show');
+    Route::put('/users/{user}', [\App\Http\Controllers\Api\UserController::class, 'update'])
+        ->middleware('permission:users.manage')
+        ->name('api.users.update');
+
     Route::get('/companies', [\App\Http\Controllers\Api\CompanyController::class, 'index'])
         ->middleware('permission:companies.view')
         ->name('api.companies.index');
