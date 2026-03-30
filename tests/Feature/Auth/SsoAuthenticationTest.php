@@ -215,8 +215,88 @@ class SsoAuthenticationTest extends TestCase
         $user = User::query()->where('email', 'sso.user@example.test')->first();
 
         $this->assertNotNull($user);
+        $this->assertSame('user-123', $user->sso_user_id);
         $this->assertSame('SSO User', $user->name);
         $this->assertAuthenticatedAs($user);
+    }
+
+    #[Group('security')]
+    public function test_successful_callback_links_a_legacy_local_user_by_email_and_persists_sso_user_id(): void
+    {
+        $legacyUser = User::factory()->create([
+            'sso_user_id' => null,
+            'email' => 'legacy.user@example.test',
+            'name' => 'Legacy User',
+        ]);
+
+        Http::fake([
+            'https://sso-server.test/api/oauth/token' => Http::response([
+                'message' => 'OAuth token issued successfully.',
+                'data' => ['access_token' => 'access-token'],
+            ], 200),
+            'https://sso-server.test/api/oauth/userinfo' => Http::response([
+                'message' => 'User info retrieved successfully.',
+                'data' => [
+                    'id' => 'server-user-77',
+                    'email' => 'legacy.user@example.test',
+                    'name' => 'Linked Legacy User',
+                ],
+            ], 200),
+        ]);
+
+        $this
+            ->withSession([
+                config('sso.state_session_key') => 'valid-state',
+                config('sso.pkce_verifier_session_key') => 'verifier-value',
+            ])
+            ->get('/auth/sso/callback?code=valid-code&state=valid-state')
+            ->assertRedirect(route('dashboard', absolute: false));
+
+        $legacyUser->refresh();
+
+        $this->assertSame('server-user-77', $legacyUser->sso_user_id);
+        $this->assertSame('Linked Legacy User', $legacyUser->name);
+        $this->assertAuthenticatedAs($legacyUser);
+    }
+
+    #[Group('security')]
+    public function test_successful_callback_prefers_existing_sso_user_id_link_over_email_changes(): void
+    {
+        $linkedUser = User::factory()->create([
+            'sso_user_id' => 'server-user-88',
+            'email' => 'old.email@example.test',
+            'name' => 'Previously Linked',
+        ]);
+
+        Http::fake([
+            'https://sso-server.test/api/oauth/token' => Http::response([
+                'message' => 'OAuth token issued successfully.',
+                'data' => ['access_token' => 'access-token'],
+            ], 200),
+            'https://sso-server.test/api/oauth/userinfo' => Http::response([
+                'message' => 'User info retrieved successfully.',
+                'data' => [
+                    'sub' => 'server-user-88',
+                    'email' => 'new.email@example.test',
+                    'name' => 'Renamed Linked User',
+                ],
+            ], 200),
+        ]);
+
+        $this
+            ->withSession([
+                config('sso.state_session_key') => 'valid-state',
+                config('sso.pkce_verifier_session_key') => 'verifier-value',
+            ])
+            ->get('/auth/sso/callback?code=valid-code&state=valid-state')
+            ->assertRedirect(route('dashboard', absolute: false));
+
+        $linkedUser->refresh();
+
+        $this->assertSame('server-user-88', $linkedUser->sso_user_id);
+        $this->assertSame('new.email@example.test', $linkedUser->email);
+        $this->assertSame('Renamed Linked User', $linkedUser->name);
+        $this->assertAuthenticatedAs($linkedUser);
     }
 
     #[Group('security')]
@@ -425,8 +505,10 @@ class SsoAuthenticationTest extends TestCase
             ->assertUnauthorized()
             ->assertJson([
                 'message' => 'Authentication required.',
-                'redirect_to' => route('login'),
-                'reauth_to' => route('auth.sso.redirect'),
+                'meta' => [
+                    'redirect_to' => route('login'),
+                    'reauth_to' => route('auth.sso.redirect'),
+                ],
             ]);
     }
 }

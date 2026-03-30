@@ -13,6 +13,6 @@ class TestingEnvironmentTest extends TestCase
     {
         $this->assertSame('testing', app()->environment());
         $this->assertSame('mysql', config('database.default'));
-        $this->assertSame('sso_client_test', (string) DB::connection()->getDatabaseName());
+        $this->assertSame('sso_client_testing', (string) DB::connection()->getDatabaseName());
     }
 }

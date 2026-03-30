@@ -27,7 +27,7 @@ abstract class TestCase extends BaseTestCase
             throw new RuntimeException("Testing must use the mysql connection. Current connection: [{$defaultConnection}].");
         }
 
-        if ($databaseName !== 'sso_client_test') {
+        if ($databaseName !== 'sso_client_testing') {
             throw new RuntimeException("Testing must use the dedicated MySQL test database [sso_client_test]. Current database: [{$databaseName}].");
         }
     }

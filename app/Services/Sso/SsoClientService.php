@@ -288,38 +288,70 @@ class SsoClientService
         return $userInfo;
     }
 
-    /**
-     * Email alapu mappinget hasznalunk, mert ez illeszkedik a jelenlegi lokalis
-     * users tablahoza a legkisebb schema- es auth-komplexitassal.
-     *
-     * @param  array<string, mixed>  $userInfo
-     */
     private function resolveLocalUser(array $userInfo): User
     {
+        $ssoUserId = $this->resolveSsoUserId($userInfo);
         $email = trim((string) data_get($userInfo, 'email'));
+        $name = $this->resolveDisplayName($userInfo, $email !== '' ? $email : $ssoUserId);
 
-        if ($email === '') {
-            throw new SsoAuthenticationException('Az SSO userinfo valasz nem tartalmaz felhasznalhato email cimet.', 422);
+        if ($ssoUserId === '') {
+            throw new SsoAuthenticationException('Az SSO userinfo valasz nem tartalmaz felhasznalhato user azonositot.', 422);
         }
 
-        $user = User::query()->where('email', $email)->first();
+        $user = User::query()->where('sso_user_id', $ssoUserId)->first();
 
         if ($user) {
-            $name = $this->resolveDisplayName($userInfo, $email);
+            return $this->syncResolvedUser($user, $ssoUserId, $email, $name);
+        }
 
-            if ($user->name !== $name) {
-                $user->forceFill(['name' => $name])->save();
+        if ($email !== '') {
+            $legacyUser = User::query()
+                ->whereNull('sso_user_id')
+                ->where('email', $email)
+                ->first();
+
+            if ($legacyUser) {
+                return $this->syncResolvedUser($legacyUser, $ssoUserId, $email, $name);
             }
-
-            return $user;
         }
 
         return User::query()->create([
-            'name' => $this->resolveDisplayName($userInfo, $email),
+            'sso_user_id' => $ssoUserId,
+            'name' => $name,
             'email' => $email,
             'password' => Str::password(32),
             'email_verified_at' => now(),
+            'last_authenticated_at' => now(),
         ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $userInfo
+     */
+    private function resolveSsoUserId(array $userInfo): string
+    {
+        return trim((string) (data_get($userInfo, 'id') ?: data_get($userInfo, 'sub')));
+    }
+
+    private function syncResolvedUser(User $user, string $ssoUserId, string $email, string $name): User
+    {
+        $attributes = [
+            'sso_user_id' => $ssoUserId,
+            'name' => $name,
+            'last_authenticated_at' => now(),
+        ];
+
+        if ($email !== '') {
+            $attributes['email'] = $email;
+
+            if ($user->email_verified_at === null) {
+                $attributes['email_verified_at'] = now();
+            }
+        }
+
+        $user->forceFill($attributes)->save();
+
+        return $user->refresh();
     }
 
     /**

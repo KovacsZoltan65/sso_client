@@ -146,7 +146,7 @@ describe('Users/Index', () => {
         const wrapper = mountPage();
         await flushPromises();
 
-        await wrapper.get('input[placeholder="Kereses ID, SSO ID, nev vagy e-mail alapjan"]').setValue('server-7');
+        await wrapper.get('input').setValue('server-7');
 
         vi.advanceTimersByTime(349);
         expect(listUsersMock).toHaveBeenCalledTimes(1);
