@@ -1,12 +1,11 @@
 <script setup>
 import AppBrand from '@/Components/AppBrand.vue';
+import AppTopbar from '@/Components/AppTopbar.vue';
 import { useAuth } from '@/Composables/useAuth';
 import { useNavigation } from '@/Composables/useNavigation';
-import { Link, usePage } from '@inertiajs/vue3';
-import Button from 'primevue/button';
-import Tag from 'primevue/tag';
+import { Link, router, usePage } from '@inertiajs/vue3';
 import Toast from 'primevue/toast';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 
 const page = usePage();
 const drawerOpen = ref(false);
@@ -14,15 +13,26 @@ const { items } = useNavigation();
 const { user, logoutUrl } = useAuth();
 
 const ssoStatus = computed(() => page.props.sso.status);
+
+const logout = () => {
+    router.post(logoutUrl.value);
+};
+
+watch(
+    () => page.url,
+    () => {
+        drawerOpen.value = false;
+    },
+);
 </script>
 
 <template>
-    <div class="app-shell lg:flex">
+    <div class="shell-grid">
         <Toast position="top-right" />
 
         <aside
             :class="drawerOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'"
-            class="shell-gradient fixed inset-y-0 left-0 z-40 flex w-80 flex-col px-6 py-6 text-white transition-transform duration-200 lg:sticky lg:top-0 lg:h-screen"
+            class="shell-gradient fixed inset-y-0 left-0 z-50 flex w-[18rem] flex-col px-6 py-6 text-white transition-transform duration-200 lg:sticky lg:top-0 lg:z-auto lg:h-screen"
         >
             <AppBrand />
 
@@ -44,56 +54,29 @@ const ssoStatus = computed(() => page.props.sso.status);
                     <span>{{ item.label }}</span>
                 </Link>
             </nav>
-
-            <div class="glass-panel rounded-3xl p-4">
-                <p class="text-xs uppercase tracking-[0.25em] text-white/60">Bejelentkezve</p>
-                <p class="mt-3 text-lg font-semibold text-white">{{ user?.name }}</p>
-                <p class="mt-1 text-sm text-white/70">{{ user?.email }}</p>
-
-                <div class="mt-4 flex flex-wrap gap-2">
-                    <Tag
-                        v-for="role in user?.roles || []"
-                        :key="role"
-                        :value="role"
-                        severity="contrast"
-                    />
-                </div>
-
-                <Link
-                    :href="logoutUrl"
-                    method="post"
-                    as="button"
-                    class="mt-5 inline-flex w-full items-center justify-center rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
-                >
-                    Kijelentkezes
-                </Link>
-            </div>
         </aside>
 
-        <div class="min-h-screen flex-1 px-4 py-4 lg:px-6 lg:py-6">
-            <div class="mx-auto max-w-7xl">
-                <div class="shell-card mb-6 flex items-center justify-between px-5 py-4 lg:hidden">
-                    <div>
-                        <p class="text-xs uppercase tracking-[0.25em] text-slate-400">Navigation</p>
-                        <p class="text-lg font-semibold text-slate-950">sso_client</p>
-                    </div>
-                    <Button
-                        icon="pi pi-bars"
-                        rounded
-                        text
-                        severity="secondary"
-                        @click="drawerOpen = !drawerOpen"
-                    />
-                </div>
+        <div class="relative flex min-h-0 h-screen flex-col overflow-hidden bg-transparent px-4 py-4 sm:px-6 lg:px-8">
+            <div
+                v-if="drawerOpen"
+                class="fixed inset-0 z-40 bg-slate-950/50 lg:hidden"
+                @click="drawerOpen = false"
+            />
 
-                <div v-if="$slots.header" class="mb-6">
-                    <slot name="header" />
-                </div>
+            <AppTopbar
+                class="flex-none"
+                :user="user"
+                @logout="logout"
+                @toggle-navigation="drawerOpen = !drawerOpen"
+            />
 
-                <main>
-                    <slot />
-                </main>
+            <div v-if="$slots.header" class="mb-6 flex-none">
+                <slot name="header" />
             </div>
+
+            <main class="flex min-h-0 flex-1 flex-col">
+                <slot />
+            </main>
         </div>
     </div>
 </template>
