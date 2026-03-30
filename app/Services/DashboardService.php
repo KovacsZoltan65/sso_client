@@ -4,7 +4,7 @@ namespace App\Services;
 
 use App\Data\DashboardStatsData;
 use App\Models\User;
-use App\Repositories\Contracts\UserRepository;
+use App\Repositories\Contracts\UserRepositoryInterface;
 use App\Services\Sso\SsoClientService;
 use Spatie\Activitylog\Models\Activity;
 use Spatie\Permission\Models\Permission;
@@ -13,7 +13,7 @@ use Spatie\Permission\Models\Role;
 class DashboardService
 {
     public function __construct(
-        private readonly UserRepository $users,
+        private readonly UserRepositoryInterface $users,
         private readonly SsoClientService $ssoClientService,
     ) {
     }

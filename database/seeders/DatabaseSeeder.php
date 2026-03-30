@@ -18,35 +18,50 @@ class DatabaseSeeder extends Seeder
     {
         $this->call(RoleAndPermissionSeeder::class);
 
-        $superAdmin = User::query()->updateOrCreate(
-            ['email' => 'superadmin@sso-client.test'],
+        $seedUsers = [
             [
+                'email' => 'superadmin@sso-client.test',
                 'name' => 'SSO Client Superadmin',
-                'password' => Hash::make('password'),
-                'email_verified_at' => now(),
+                'role' => 'superadmin',
             ],
-        );
-
-        $admin = User::query()->updateOrCreate(
-            ['email' => 'admin@sso-client.test'],
             [
+                'email' => 'admin@sso-client.test',
                 'name' => 'SSO Client Admin',
-                'password' => Hash::make('password'),
-                'email_verified_at' => now(),
+                'role' => 'admin',
             ],
-        );
-
-        $user = User::query()->updateOrCreate(
-            ['email' => 'user@sso-client.test'],
             [
+                'email' => 'user@sso-client.test',
                 'name' => 'SSO Client User',
-                'password' => Hash::make('password'),
-                'email_verified_at' => now(),
+                'role' => 'user',
             ],
-        );
+            [
+                'email' => 'superadmin@sso.test',
+                'name' => 'SSO Superadmin',
+                'role' => 'superadmin',
+            ],
+            [
+                'email' => 'admin@sso.test',
+                'name' => 'SSO Admin',
+                'role' => 'admin',
+            ],
+            [
+                'email' => 'user@sso.test',
+                'name' => 'SSO User',
+                'role' => 'user',
+            ],
+        ];
 
-        $superAdmin->syncRoles(['superadmin']);
-        $admin->syncRoles(['admin']);
-        $user->syncRoles(['user']);
+        foreach ($seedUsers as $seedUser) {
+            $user = User::query()->updateOrCreate(
+                ['email' => $seedUser['email']],
+                [
+                    'name' => $seedUser['name'],
+                    'password' => Hash::make('password'),
+                    'email_verified_at' => now(),
+                ],
+            );
+
+            $user->syncRoles([$seedUser['role']]);
+        }
     }
 }
