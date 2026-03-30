@@ -1,6 +1,6 @@
 <script setup>
-import Dialog from 'primevue/dialog';
-import CompanyForm from './CompanyForm.vue';
+import Dialog from "primevue/dialog";
+import CompanyForm from "./CompanyForm.vue";
 
 const props = defineProps({
     visible: { type: Boolean, default: false },
@@ -9,10 +9,10 @@ const props = defineProps({
     submitting: { type: Boolean, default: false },
 });
 
-const emit = defineEmits(['update:visible', 'submit']);
+const emit = defineEmits(["update:visible", "submit"]);
 
 function closeDialog() {
-    emit('update:visible', false);
+    emit("update:visible", false);
 }
 </script>
 
@@ -26,6 +26,13 @@ function closeDialog() {
         @update:visible="emit('update:visible', $event)"
         @hide="closeDialog"
     >
-        <CompanyForm :form="form" :errors="errors" :submitting="submitting" submit-label="Letrehozas" @submit="emit('submit')" @cancel="closeDialog" />
+        <CompanyForm
+            :form="form"
+            :errors="errors"
+            :submitting="submitting"
+            submit-label="Letrehozas"
+            @submit="emit('submit')"
+            @cancel="closeDialog"
+        />
     </Dialog>
 </template>

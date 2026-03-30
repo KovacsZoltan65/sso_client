@@ -1,21 +1,28 @@
 <script setup>
-import EmptyStatePanel from '@/Components/EmptyStatePanel.vue';
-import PageHeader from '@/Components/PageHeader.vue';
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { CompanyApiError, createCompany, deleteCompany, listCompanies, updateCompany } from '@/Services/companyService';
-import { Head } from '@inertiajs/vue3';
-import Button from 'primevue/button';
-import Column from 'primevue/column';
-import ConfirmDialog from 'primevue/confirmdialog';
-import DataTable from 'primevue/datatable';
-import InputText from 'primevue/inputtext';
-import Select from 'primevue/select';
-import Tag from 'primevue/tag';
-import { useConfirm } from 'primevue/useconfirm';
-import { useToast } from 'primevue/usetoast';
-import { computed, onMounted, reactive, ref, watch } from 'vue';
-import CreateCompanyDialog from './Partials/CreateCompanyDialog.vue';
-import EditCompanyDialog from './Partials/EditCompanyDialog.vue';
+import EmptyStatePanel from "@/Components/EmptyStatePanel.vue";
+import PageHeader from "@/Components/PageHeader.vue";
+import RowActionMenu from "@/Components/Admin/RowActionMenu.vue";
+import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
+import {
+    CompanyApiError,
+    createCompany,
+    deleteCompany,
+    listCompanies,
+    updateCompany,
+} from "@/Services/companyService";
+import { Head } from "@inertiajs/vue3";
+import Button from "primevue/button";
+import Column from "primevue/column";
+import ConfirmDialog from "primevue/confirmdialog";
+import DataTable from "primevue/datatable";
+import InputText from "primevue/inputtext";
+import Select from "primevue/select";
+import Tag from "primevue/tag";
+import { useConfirm } from "primevue/useconfirm";
+import { useToast } from "primevue/usetoast";
+import { computed, onMounted, reactive, ref, watch } from "vue";
+import CreateCompanyDialog from "./Partials/CreateCompanyDialog.vue";
+import EditCompanyDialog from "./Partials/EditCompanyDialog.vue";
 
 const props = defineProps({
     companiesApi: { type: Object, required: true },
@@ -33,7 +40,7 @@ const editingCompany = ref(null);
 const submitting = ref(false);
 
 const filters = reactive({
-    search: '',
+    search: "",
     is_active: null,
 });
 
@@ -41,17 +48,17 @@ const tableState = reactive({
     page: 1,
     perPage: 10,
     total: 0,
-    sortField: 'created_at',
-    sortOrder: 'desc',
+    sortField: "created_at",
+    sortOrder: "desc",
 });
 
 const form = reactive(defaultForm());
 const formErrors = reactive({});
 
 const statusOptions = [
-    { label: 'Minden statusz', value: null },
-    { label: 'Aktiv', value: true },
-    { label: 'Inaktiv', value: false },
+    { label: "Minden statusz", value: null },
+    { label: "Aktiv", value: true },
+    { label: "Inaktiv", value: false },
 ];
 
 const firstRecordIndex = computed(() => (tableState.page - 1) * tableState.perPage);
@@ -60,26 +67,29 @@ let searchDebounceId = null;
 
 function defaultForm() {
     return {
-        name: '',
-        code: '',
-        email: '',
-        phone: '',
-        address: '',
+        name: "",
+        code: "",
+        email: "",
+        phone: "",
+        address: "",
         is_active: true,
     };
 }
 
 function resetForm(company = null) {
-    Object.assign(form, company
-        ? {
-            name: company.name ?? '',
-            code: company.code ?? '',
-            email: company.email ?? '',
-            phone: company.phone ?? '',
-            address: company.address ?? '',
-            is_active: Boolean(company.is_active),
-        }
-        : defaultForm());
+    Object.assign(
+        form,
+        company
+            ? {
+                  name: company.name ?? "",
+                  code: company.code ?? "",
+                  email: company.email ?? "",
+                  phone: company.phone ?? "",
+                  address: company.address ?? "",
+                  is_active: Boolean(company.is_active),
+              }
+            : defaultForm()
+    );
 
     clearFormErrors();
 }
@@ -113,7 +123,7 @@ async function loadCompanies() {
         tableState.page = pagination.current_page ?? tableState.page;
         tableState.perPage = pagination.per_page ?? tableState.perPage;
     } catch (error) {
-        handleApiError(error, 'A cegek betoltese sikertelen volt.');
+        handleApiError(error, "A cegek betoltese sikertelen volt.");
     } finally {
         loading.value = false;
     }
@@ -147,12 +157,17 @@ async function submitCreate() {
 
     try {
         await createCompany(props.companiesApi, form);
-        toast.add({ severity: 'success', summary: 'Sikeres muvelet', detail: 'A ceg letrehozasa sikeres volt.', life: 3000 });
+        toast.add({
+            severity: "success",
+            summary: "Sikeres muvelet",
+            detail: "A ceg letrehozasa sikeres volt.",
+            life: 3000,
+        });
         closeCreateDialog();
         tableState.page = 1;
         await loadCompanies();
     } catch (error) {
-        handleMutationError(error, 'A ceg letrehozasa sikertelen volt.');
+        handleMutationError(error, "A ceg letrehozasa sikertelen volt.");
     } finally {
         submitting.value = false;
     }
@@ -168,11 +183,16 @@ async function submitUpdate() {
 
     try {
         await updateCompany(props.companiesApi, editingCompany.value.id, form);
-        toast.add({ severity: 'success', summary: 'Sikeres muvelet', detail: 'A ceg adatai frissultek.', life: 3000 });
+        toast.add({
+            severity: "success",
+            summary: "Sikeres muvelet",
+            detail: "A ceg adatai frissultek.",
+            life: 3000,
+        });
         closeEditDialog();
         await loadCompanies();
     } catch (error) {
-        handleMutationError(error, 'A ceg modositasa sikertelen volt.');
+        handleMutationError(error, "A ceg modositasa sikertelen volt.");
     } finally {
         submitting.value = false;
     }
@@ -180,15 +200,20 @@ async function submitUpdate() {
 
 function confirmDelete(company) {
     confirm.require({
-        header: 'Torles megerositese',
+        header: "Torles megerositese",
         message: `Biztosan torolni szeretned a(z) ${company.name} ceget?`,
-        acceptLabel: 'Torles',
-        rejectLabel: 'Megse',
-        acceptClass: 'p-button-danger',
+        acceptLabel: "Torles",
+        rejectLabel: "Megse",
+        acceptClass: "p-button-danger",
         accept: async () => {
             try {
                 await deleteCompany(props.companiesApi, company.id);
-                toast.add({ severity: 'success', summary: 'Sikeres muvelet', detail: 'A ceg torlese sikeres volt.', life: 3000 });
+                toast.add({
+                    severity: "success",
+                    summary: "Sikeres muvelet",
+                    detail: "A ceg torlese sikeres volt.",
+                    life: 3000,
+                });
 
                 if (companies.value.length === 1 && tableState.page > 1) {
                     tableState.page -= 1;
@@ -196,7 +221,7 @@ function confirmDelete(company) {
 
                 await loadCompanies();
             } catch (error) {
-                handleApiError(error, 'A ceg torlese sikertelen volt.');
+                handleApiError(error, "A ceg torlese sikertelen volt.");
             }
         },
     });
@@ -209,22 +234,23 @@ function handleTablePage(event) {
 }
 
 function handleTableSort(event) {
-    tableState.sortField = event.sortField ?? 'created_at';
-    tableState.sortOrder = event.sortOrder === 1 ? 'asc' : 'desc';
+    tableState.sortField = event.sortField ?? "created_at";
+    tableState.sortOrder = event.sortOrder === 1 ? "asc" : "desc";
     tableState.page = 1;
     loadCompanies();
 }
 
 function handleApiError(error, fallbackMessage) {
     if (error instanceof CompanyApiError && error.status === 401) {
-        const redirectTarget = error.meta.reauth_to || error.meta.redirect_to || route('login');
+        const redirectTarget =
+            error.meta.reauth_to || error.meta.redirect_to || route("login");
         window.location.assign(redirectTarget);
         return;
     }
 
     toast.add({
-        severity: 'error',
-        summary: 'Hiba tortent',
+        severity: "error",
+        summary: "Hiba tortent",
         detail: error instanceof CompanyApiError ? error.message : fallbackMessage,
         life: 4000,
     });
@@ -240,38 +266,44 @@ function handleMutationError(error, fallbackMessage) {
 }
 
 function statusLabel(isActive) {
-    return isActive ? 'Aktiv' : 'Inaktiv';
+    return isActive ? "Aktiv" : "Inaktiv";
 }
 
 function statusSeverity(isActive) {
-    return isActive ? 'success' : 'secondary';
+    return isActive ? "success" : "secondary";
 }
 
 function formatDate(value) {
     if (!value) {
-        return '-';
+        return "-";
     }
 
-    const date = new Date(value.replace(' ', 'T'));
+    const date = new Date(value.replace(" ", "T"));
 
-    return Number.isNaN(date.getTime()) ? value : date.toLocaleString('hu-HU');
+    return Number.isNaN(date.getTime()) ? value : date.toLocaleString("hu-HU");
 }
 
-watch(() => filters.is_active, () => {
-    tableState.page = 1;
-    loadCompanies();
-});
-
-watch(() => filters.search, () => {
-    if (searchDebounceId) {
-        window.clearTimeout(searchDebounceId);
-    }
-
-    searchDebounceId = window.setTimeout(() => {
+watch(
+    () => filters.is_active,
+    () => {
         tableState.page = 1;
         loadCompanies();
-    }, 350);
-});
+    }
+);
+
+watch(
+    () => filters.search,
+    () => {
+        if (searchDebounceId) {
+            window.clearTimeout(searchDebounceId);
+        }
+
+        searchDebounceId = window.setTimeout(() => {
+            tableState.page = 1;
+            loadCompanies();
+        }, 350);
+    }
+);
 
 onMounted(loadCompanies);
 </script>
@@ -285,24 +317,42 @@ onMounted(loadCompanies);
                 title="Companies"
                 description="A helyi cegtorzs teljes adminisztracioja keresessel, szuressel es jogosultsagkezelessel."
             >
-                <Button v-if="permissions.create" label="Uj ceg" icon="pi pi-plus" @click="openCreateDialog" />
+                <Button
+                    v-if="permissions.create"
+                    label="Uj ceg"
+                    icon="pi pi-plus"
+                    @click="openCreateDialog"
+                />
             </PageHeader>
         </template>
 
         <ConfirmDialog />
 
         <section class="shell-card overflow-hidden">
-            <div class="flex flex-col gap-4 border-b border-slate-200/70 px-6 py-5 lg:flex-row lg:items-end lg:justify-between">
+            <div
+                class="flex flex-col gap-4 border-b border-slate-200/70 px-6 py-5 lg:flex-row lg:items-end lg:justify-between"
+            >
                 <div>
-                    <p class="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">Admin lista</p>
+                    <p
+                        class="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400"
+                    >
+                        Admin lista
+                    </p>
                     <h2 class="mt-2 text-xl font-semibold text-slate-950">Ceg kezeles</h2>
-                    <p class="mt-2 text-sm text-slate-600">Kereses nev, kod es e-mail alapjan, valamint aktiv statusz szerinti szures.</p>
+                    <p class="mt-2 text-sm text-slate-600">
+                        Kereses nev, kod es e-mail alapjan, valamint aktiv statusz
+                        szerinti szures.
+                    </p>
                 </div>
 
                 <div class="grid gap-3 md:min-w-[28rem] md:grid-cols-[1fr_12rem]">
                     <span class="p-input-icon-left">
                         <i class="pi pi-search text-slate-400" />
-                        <InputText v-model="filters.search" fluid placeholder="Kereses nev, kod vagy e-mail alapjan" />
+                        <InputText
+                            v-model="filters.search"
+                            fluid
+                            placeholder="Kereses nev, kod vagy e-mail alapjan"
+                        />
                     </span>
 
                     <Select
@@ -351,7 +401,10 @@ onMounted(loadCompanies);
                     <Column field="phone" header="Telefonszam" />
                     <Column field="is_active" header="Statusz" sortable>
                         <template #body="{ data }">
-                            <Tag :value="statusLabel(data.is_active)" :severity="statusSeverity(data.is_active)" />
+                            <Tag
+                                :value="statusLabel(data.is_active)"
+                                :severity="statusSeverity(data.is_active)"
+                            />
                         </template>
                     </Column>
                     <Column field="created_at" header="Letrehozva" sortable>
@@ -359,19 +412,36 @@ onMounted(loadCompanies);
                             {{ formatDate(data.created_at) }}
                         </template>
                     </Column>
-                    <Column header="Muveletek">
+                    <Column header="Muveletek" :style="{ width: '120px' }">
                         <template #body="{ data }">
-                            <div class="flex justify-end gap-2">
-                                <Button v-if="permissions.update" label="Szerkesztes" severity="secondary" text @click="openEditDialog(data)" />
-                                <Button v-if="permissions.delete" label="Torles" severity="danger" text @click="confirmDelete(data)" />
-                            </div>
+                            <RowActionMenu
+                                :items="[
+                                    permissions.update
+                                        ? {
+                                              label: 'Szerkesztes',
+                                              icon: 'pi pi-pencil',
+                                              command: () => openEditDialog(data),
+                                          }
+                                        : null,
+                                    permissions.delete
+                                        ? {
+                                              label: 'Torles',
+                                              icon: 'pi pi-trash',
+                                              command: () => confirmDelete(data),
+                                          }
+                                        : null,
+                                ]"
+                            />
                         </template>
                     </Column>
                 </DataTable>
             </div>
 
             <div class="space-y-4 p-6 lg:hidden">
-                <div v-if="loading" class="rounded-2xl border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-500">
+                <div
+                    v-if="loading"
+                    class="rounded-2xl border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-500"
+                >
                     Betoltes folyamatban...
                 </div>
 
@@ -383,20 +453,27 @@ onMounted(loadCompanies);
                     >
                         <div class="flex items-start justify-between gap-3">
                             <div>
-                                <h3 class="text-lg font-semibold text-slate-950">{{ company.name }}</h3>
-                                <p class="mt-1 text-sm text-slate-500">{{ company.code }}</p>
+                                <h3 class="text-lg font-semibold text-slate-950">
+                                    {{ company.name }}
+                                </h3>
+                                <p class="mt-1 text-sm text-slate-500">
+                                    {{ company.code }}
+                                </p>
                             </div>
-                            <Tag :value="statusLabel(company.is_active)" :severity="statusSeverity(company.is_active)" />
+                            <Tag
+                                :value="statusLabel(company.is_active)"
+                                :severity="statusSeverity(company.is_active)"
+                            />
                         </div>
 
                         <dl class="mt-4 grid gap-3 text-sm text-slate-600">
                             <div>
                                 <dt class="font-semibold text-slate-900">E-mail</dt>
-                                <dd>{{ company.email || '-' }}</dd>
+                                <dd>{{ company.email || "-" }}</dd>
                             </div>
                             <div>
                                 <dt class="font-semibold text-slate-900">Telefonszam</dt>
-                                <dd>{{ company.phone || '-' }}</dd>
+                                <dd>{{ company.phone || "-" }}</dd>
                             </div>
                             <div>
                                 <dt class="font-semibold text-slate-900">Letrehozva</dt>
@@ -405,8 +482,20 @@ onMounted(loadCompanies);
                         </dl>
 
                         <div class="mt-5 flex gap-3">
-                            <Button v-if="permissions.update" label="Szerkesztes" severity="secondary" text @click="openEditDialog(company)" />
-                            <Button v-if="permissions.delete" label="Torles" severity="danger" text @click="confirmDelete(company)" />
+                            <Button
+                                v-if="permissions.update"
+                                label="Szerkesztes"
+                                severity="secondary"
+                                text
+                                @click="openEditDialog(company)"
+                            />
+                            <Button
+                                v-if="permissions.delete"
+                                label="Torles"
+                                severity="danger"
+                                text
+                                @click="confirmDelete(company)"
+                            />
                         </div>
                     </article>
                 </template>
@@ -420,7 +509,21 @@ onMounted(loadCompanies);
             </div>
         </section>
 
-        <CreateCompanyDialog :visible="showCreateDialog" :form="form" :errors="formErrors" :submitting="submitting" @update:visible="showCreateDialog = $event" @submit="submitCreate" />
-        <EditCompanyDialog :visible="showEditDialog" :form="form" :errors="formErrors" :submitting="submitting" @update:visible="showEditDialog = $event" @submit="submitUpdate" />
+        <CreateCompanyDialog
+            :visible="showCreateDialog"
+            :form="form"
+            :errors="formErrors"
+            :submitting="submitting"
+            @update:visible="showCreateDialog = $event"
+            @submit="submitCreate"
+        />
+        <EditCompanyDialog
+            :visible="showEditDialog"
+            :form="form"
+            :errors="formErrors"
+            :submitting="submitting"
+            @update:visible="showEditDialog = $event"
+            @submit="submitUpdate"
+        />
     </AuthenticatedLayout>
 </template>
