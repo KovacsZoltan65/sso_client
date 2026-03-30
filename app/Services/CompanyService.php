@@ -3,13 +3,13 @@
 namespace App\Services;
 
 use App\Models\Company;
-use App\Repositories\Contracts\CompanyRepository;
+use App\Repositories\Contracts\CompanyRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class CompanyService
 {
     public function __construct(
-        private readonly CompanyRepository $companies,
+        private readonly CompanyRepositoryInterface $companies,
     ) {
     }
 

@@ -3,10 +3,10 @@
 namespace App\Repositories\Eloquent;
 
 use App\Models\User;
-use App\Repositories\Contracts\UserRepository as UserRepositoryContract;
+use App\Repositories\Contracts\UserRepositoryInterface;
 use Illuminate\Support\Collection;
 
-class UserRepository extends BaseRepository implements UserRepositoryContract
+class UserRepository extends BaseRepository implements UserRepositoryInterface
 {
     public function model(): string
     {

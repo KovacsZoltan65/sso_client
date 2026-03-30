@@ -4,8 +4,8 @@ namespace App\Providers;
 
 use App\Models\Company;
 use App\Policies\CompanyPolicy;
-use App\Repositories\Contracts\CompanyRepository as CompanyRepositoryContract;
-use App\Repositories\Contracts\UserRepository as UserRepositoryContract;
+use App\Repositories\Contracts\CompanyRepositoryInterface;
+use App\Repositories\Contracts\UserRepositoryInterface;
 use App\Repositories\Eloquent\CompanyRepository;
 use App\Repositories\Eloquent\UserRepository;
 use Illuminate\Support\Facades\Schema;
@@ -20,8 +20,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        $this->app->bind(CompanyRepositoryContract::class, CompanyRepository::class);
-        $this->app->bind(UserRepositoryContract::class, UserRepository::class);
+        $this->app->bind(CompanyRepositoryInterface::class, CompanyRepository::class);
+        $this->app->bind(UserRepositoryInterface::class, UserRepository::class);
     }
 
     /**

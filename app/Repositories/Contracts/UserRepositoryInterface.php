@@ -4,7 +4,7 @@ namespace App\Repositories\Contracts;
 
 use Illuminate\Support\Collection;
 
-interface UserRepository
+interface UserRepositoryInterface
 {
     public function countAll(): int;
 

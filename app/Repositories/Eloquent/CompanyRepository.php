@@ -3,12 +3,12 @@
 namespace App\Repositories\Eloquent;
 
 use App\Models\Company;
-use App\Repositories\Contracts\CompanyRepository as CompanyRepositoryContract;
+use App\Repositories\Contracts\CompanyRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 
-class CompanyRepository extends BaseRepository implements CompanyRepositoryContract
+class CompanyRepository extends BaseRepository implements CompanyRepositoryInterface
 {
     public function model(): string
     {

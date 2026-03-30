@@ -5,7 +5,7 @@ namespace App\Repositories\Contracts;
 use App\Models\Company;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
-interface CompanyRepository
+interface CompanyRepositoryInterface
 {
     /**
      * @param  array<string, mixed>  $filters
