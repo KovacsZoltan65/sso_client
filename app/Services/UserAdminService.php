@@ -6,6 +6,22 @@ use App\Models\User;
 use App\Repositories\Contracts\UserRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
+/**
+ * @phpstan-type UserAdminFilters array{
+ *     global?: string|null,
+ *     has_sso_link?: bool|int|string|null,
+ *     sort_field?: string|null,
+ *     sort_order?: string|null,
+ *     per_page?: int|string|null,
+ *     page?: int|string|null
+ * }
+ * @phpstan-type UserMetadataPayload array{
+ *     name?: string,
+ *     email?: string,
+ *     local_status?: string|null,
+ *     notes?: string|null
+ * }
+ */
 class UserAdminService
 {
     public function __construct(
@@ -14,7 +30,9 @@ class UserAdminService
     }
 
     /**
-     * @param  array<string, mixed>  $filters
+     * Felhasználói admin lista lekérése szűréssel, rendezéssel és lapozással.
+     *
+     * @param  UserAdminFilters  $filters
      */
     public function list(array $filters): LengthAwarePaginator
     {
@@ -27,13 +45,18 @@ class UserAdminService
         );
     }
 
+    /**
+     * Egy admin felületen szerkeszthető felhasználó betöltése.
+     */
     public function findForAdmin(int $id): User
     {
         return $this->users->findForAdmin($id);
     }
 
     /**
-     * @param  array<string, mixed>  $attributes
+     * Felhasználó helyi metaadatainak frissítése.
+     *
+     * @param  UserMetadataPayload  $attributes
      */
     public function update(User $user, array $attributes): User
     {

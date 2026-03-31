@@ -19,6 +19,8 @@ class Company extends Model
     use HasFactory;
 
     /**
+     * A cég modell típuskonverzióinak meghatározása.
+     *
      * @return array<string, string>
      */
     protected function casts(): array

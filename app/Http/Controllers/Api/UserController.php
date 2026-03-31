@@ -18,6 +18,9 @@ class UserController extends Controller
     ) {
     }
 
+    /**
+     * Felhasználói lista lekérése admin API válaszformátumban.
+     */
     public function index(IndexUserRequest $request): JsonResponse
     {
         $this->authorize('viewAny', User::class);
@@ -52,6 +55,9 @@ class UserController extends Controller
         );
     }
 
+    /**
+     * Egy felhasználó részletes adatainak lekérése.
+     */
     public function show(Request $request, User $user): JsonResponse
     {
         $this->authorize('view', $user);
@@ -64,6 +70,9 @@ class UserController extends Controller
         );
     }
 
+    /**
+     * Felhasználó helyi admin adatainak frissítése.
+     */
     public function update(UpdateUserRequest $request, User $user): JsonResponse
     {
         $this->authorize('update', $user);
@@ -79,6 +88,8 @@ class UserController extends Controller
     }
 
     /**
+     * Az API válaszban használt felhasználói payload felépítése.
+     *
      * @return array<string, mixed>
      */
     private function toArray(User $user, Request $request): array

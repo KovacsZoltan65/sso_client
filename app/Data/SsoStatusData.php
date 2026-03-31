@@ -6,6 +6,11 @@ use Spatie\LaravelData\Data;
 
 class SsoStatusData extends Data
 {
+    /**
+     * Az SSO kliens állapotát leíró DTO.
+     *
+     * @param array<int, string> $scopes
+     */
     public function __construct(
         public bool $configured,
         public bool $localAuthEnabled,

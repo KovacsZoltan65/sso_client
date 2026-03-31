@@ -13,8 +13,34 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use RuntimeException;
 
+/**
+ * @phpstan-type SsoProfileApi array{
+ *     enabled: bool,
+ *     baseUrl: string|null,
+ *     endpoints: array{
+ *         show: string|null,
+ *         update: string|null,
+ *         updatePassword: string|null
+ *     },
+ *     editableFields: array<int, string>,
+ *     readOnlyFields: array<int, string>
+ * }
+ * @phpstan-type SsoUserInfo array<string, mixed>
+ * @phpstan-type SsoDiagnostics array{
+ *     sso_phase: string,
+ *     sso_endpoint: string|null,
+ *     http_status: int,
+ *     is_json_response: bool,
+ *     has_access_token: bool,
+ *     oauth_error: string|null,
+ *     response_message: string|null
+ * }
+ */
 class SsoClientService
 {
+    /**
+     * Az SSO kliens aktuális konfigurációs és működési állapotának összegzése.
+     */
     public function status(): SsoStatusData
     {
         $serverBaseUrl = $this->serverBaseUrl();
@@ -53,13 +79,18 @@ class SsoClientService
         );
     }
 
+    /**
+     * Az authorize végpont teljes URL-jének lekérése konfiguráció alapján.
+     */
     public function authorizationRedirectUrl(): ?string
     {
         return $this->configuredEndpoint('authorize_endpoint');
     }
 
     /**
-     * @return array<string, mixed>
+     * A self-service profil API kliensoldali metaadatai.
+     *
+     * @return SsoProfileApi
      */
     public function selfServiceProfileApi(): array
     {
@@ -78,6 +109,9 @@ class SsoClientService
         ];
     }
 
+    /**
+     * Az SSO bejelentkezés indításához szükséges authorize URL felépítése state és PKCE értékekkel.
+     */
     public function buildAuthorizationUrl(Request $request): string
     {
         $this->ensureConfigured();
@@ -102,6 +136,9 @@ class SsoClientService
         return $this->configuredEndpoint('authorize_endpoint').'?'.$query;
     }
 
+    /**
+     * A callback kérés feldolgozása és a helyi sessionnel rendelkező felhasználó hitelesítése.
+     */
     public function authenticateFromCallback(Request $request): User
     {
         $this->ensureConfigured();
@@ -141,6 +178,9 @@ class SsoClientService
         return $user;
     }
 
+    /**
+     * A lokális session teljes kijelentkeztetése és az ideiglenes SSO állapot törlése.
+     */
     public function logout(Request $request): void
     {
         Auth::guard('web')->logout();
@@ -151,6 +191,9 @@ class SsoClientService
         $request->session()->regenerateToken();
     }
 
+    /**
+     * Authorization code cseréje access tokenre az SSO szervernél.
+     */
     private function exchangeCodeForAccessToken(string $code, string $codeVerifier): string
     {
         $endpoint = $this->configuredEndpoint('token_endpoint');
@@ -222,7 +265,9 @@ class SsoClientService
     }
 
     /**
-     * @return array<string, mixed>
+     * Userinfo adatok lekérése az SSO szervertől access tokennel.
+     *
+     * @return SsoUserInfo
      */
     private function fetchUserInfo(string $accessToken): array
     {
@@ -288,6 +333,11 @@ class SsoClientService
         return $userInfo;
     }
 
+    /**
+     * A userinfo válasz alapján helyi felhasználó feloldása vagy létrehozása.
+     *
+     * @param  SsoUserInfo  $userInfo
+     */
     private function resolveLocalUser(array $userInfo): User
     {
         $ssoUserId = $this->resolveSsoUserId($userInfo);
@@ -326,13 +376,18 @@ class SsoClientService
     }
 
     /**
-     * @param  array<string, mixed>  $userInfo
+     * Az SSO válaszból használható felhasználói azonosító feloldása.
+     *
+     * @param  SsoUserInfo  $userInfo
      */
     private function resolveSsoUserId(array $userInfo): string
     {
         return trim((string) (data_get($userInfo, 'id') ?: data_get($userInfo, 'sub')));
     }
 
+    /**
+     * A feloldott helyi felhasználó adatainak szinkronizálása az SSO adatokkal.
+     */
     private function syncResolvedUser(User $user, string $ssoUserId, string $email, string $name): User
     {
         $attributes = [
@@ -355,7 +410,9 @@ class SsoClientService
     }
 
     /**
-     * @param  array<string, mixed>  $userInfo
+     * Megjelenítendő név feloldása az SSO userinfo válaszból.
+     *
+     * @param  SsoUserInfo  $userInfo
      */
     private function resolveDisplayName(array $userInfo, string $fallbackEmail): string
     {
@@ -366,6 +423,9 @@ class SsoClientService
             ?: 'SSO User';
     }
 
+    /**
+     * A kötelező SSO konfigurációs elemek ellenőrzése.
+     */
     private function ensureConfigured(): void
     {
         $configuredScopes = collect(config('sso.scopes', []))
@@ -387,6 +447,9 @@ class SsoClientService
         }
     }
 
+    /**
+     * Az SSO szerver bázis URL-jének normalizált feloldása.
+     */
     private function serverBaseUrl(): ?string
     {
         $baseUrl = trim((string) config('sso.server_base_url'));
@@ -394,6 +457,9 @@ class SsoClientService
         return $baseUrl === '' ? null : rtrim($baseUrl, '/');
     }
 
+    /**
+     * A callback redirect URI feloldása konfigurációból vagy route-ból.
+     */
     private function redirectUri(): ?string
     {
         $configured = trim((string) config('sso.redirect_uri'));
@@ -405,6 +471,9 @@ class SsoClientService
         return route('auth.sso.callback', absolute: true);
     }
 
+    /**
+     * Egy konfigurált SSO végpont teljes URL-jének feloldása.
+     */
     private function configuredEndpoint(string $key): ?string
     {
         $endpoint = trim((string) config("sso.{$key}"));
@@ -426,6 +495,9 @@ class SsoClientService
         return $baseUrl.'/'.ltrim($endpoint, '/');
     }
 
+    /**
+     * PKCE code verifier alapján S256 challenge előállítása.
+     */
     private function codeChallengeFromVerifier(string $codeVerifier): string
     {
         $hash = hash('sha256', $codeVerifier, true);
@@ -439,7 +511,9 @@ class SsoClientService
     }
 
     /**
-     * @return array<string, mixed>|null
+     * HTTP válasz JSON testének biztonságos dekódolása.
+     *
+     * @return SsoUserInfo|null
      */
     private function decodeJsonResponse(Response $response): ?array
     {
@@ -449,8 +523,10 @@ class SsoClientService
     }
 
     /**
-     * @param array<string, mixed>|null $payload
-     * @return array<string, mixed>
+     * Hibaesetben naplózható, biztonságos diagnosztikai metaadatok felépítése.
+     *
+     * @param SsoUserInfo|null $payload
+     * @return SsoDiagnostics
      */
     private function buildResponseDiagnostics(
         string $phase,

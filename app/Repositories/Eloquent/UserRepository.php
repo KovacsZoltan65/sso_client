@@ -8,6 +8,20 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Spatie\Permission\Models\Role;
 
+/**
+ * @phpstan-type UserAdminFilters array{
+ *     global?: string|null,
+ *     local_status?: string|null,
+ *     has_sso_link?: bool|int|string|null
+ * }
+ * @phpstan-type UserWriteAttributes array{
+ *     name?: string,
+ *     email?: string,
+ *     password?: string,
+ *     local_status?: string|null,
+ *     notes?: string|null
+ * }
+ */
 class UserRepository extends BaseRepository implements UserRepositoryInterface
 {
     /**
@@ -24,11 +38,21 @@ class UserRepository extends BaseRepository implements UserRepositoryInterface
         'updated_at' => 'updated_at',
     ];
 
+    /**
+     * A repositoryhoz tartozó Eloquent modell osztályneve.
+     *
+     * @return class-string<User>
+     */
     public function model(): string
     {
         return User::class;
     }
 
+    /**
+     * Admin felhasználói lista lekérése szűréssel, rendezéssel és lapozással.
+     *
+     * @param UserAdminFilters $filters
+     */
     public function paginateForAdminIndex(
         array $filters,
         ?string $sortField,
@@ -68,6 +92,9 @@ class UserRepository extends BaseRepository implements UserRepositoryInterface
             ->withQueryString();
     }
 
+    /**
+     * Egy admin felületen szerkeszthető felhasználó betöltése.
+     */
     public function findForAdmin(int $id): User
     {
         /** @var User $user */
@@ -76,11 +103,19 @@ class UserRepository extends BaseRepository implements UserRepositoryInterface
         return $user;
     }
 
+    /**
+     * Összes felhasználó darabszámának lekérése.
+     */
     public function countAll(): int
     {
         return $this->model->newQuery()->count();
     }
 
+    /**
+     * Elérhető szerepkörnevek listázása.
+     *
+     * @return Collection<int, string>
+     */
     public function getRoleNames(): Collection
     {
         /** @var Collection<int, string> $roles */
@@ -91,11 +126,22 @@ class UserRepository extends BaseRepository implements UserRepositoryInterface
         return $roles;
     }
 
+    /**
+     * Legutóbb létrehozott felhasználók lekérése.
+     *
+     * @return Collection<int, User>
+     */
     public function recent(int $limit = 5): Collection
     {
         return $this->model->newQuery()->latest()->limit($limit)->get();
     }
 
+    /**
+     * Új felhasználó létrehozása és szerepköreinek szinkronizálása.
+     *
+     * @param UserWriteAttributes $attributes
+     * @param array<int, string> $roles
+     */
     public function createWithRoles(array $attributes, array $roles = []): User
     {
         /** @var User $user */
@@ -105,6 +151,12 @@ class UserRepository extends BaseRepository implements UserRepositoryInterface
         return $user->load('roles');
     }
 
+    /**
+     * Meglévő felhasználó frissítése és szerepköreinek szinkronizálása.
+     *
+     * @param UserWriteAttributes $attributes
+     * @param array<int, string> $roles
+     */
     public function updateWithRoles(User $user, array $attributes, array $roles = []): User
     {
         $user->fill($attributes);
@@ -114,6 +166,11 @@ class UserRepository extends BaseRepository implements UserRepositoryInterface
         return $user->load('roles');
     }
 
+    /**
+     * Profil adatok frissítése.
+     *
+     * @param UserWriteAttributes $attributes
+     */
     public function updateProfile(User $user, array $attributes): User
     {
         $user->fill($attributes);
@@ -122,6 +179,11 @@ class UserRepository extends BaseRepository implements UserRepositoryInterface
         return $user->refresh();
     }
 
+    /**
+     * Helyi admin metaadatok frissítése.
+     *
+     * @param UserWriteAttributes $attributes
+     */
     public function updateLocalMetadata(User $user, array $attributes): User
     {
         $user->fill([
@@ -133,6 +195,9 @@ class UserRepository extends BaseRepository implements UserRepositoryInterface
         return $user->refresh();
     }
 
+    /**
+     * Titkosított jelszó mentése.
+     */
     public function updatePassword(User $user, string $hashedPassword): User
     {
         $user->forceFill([
@@ -142,11 +207,20 @@ class UserRepository extends BaseRepository implements UserRepositoryInterface
         return $user->refresh();
     }
 
+    /**
+     * Felhasználó friss újratöltése az adatbázisból.
+     */
     public function refreshUser(User $user): User
     {
         return $user->refresh();
     }
 
+    /**
+     * Felhasználók lekérése azonosítók alapján.
+     *
+     * @param array<int, int> $ids
+     * @return Collection<int, User>
+     */
     public function getByIds(array $ids): Collection
     {
         /** @var Collection<int, User> $users */
@@ -159,11 +233,19 @@ class UserRepository extends BaseRepository implements UserRepositoryInterface
         return $users;
     }
 
+    /**
+     * Egy felhasználó törlése.
+     */
     public function deleteUser(User $user): void
     {
         $user->delete();
     }
 
+    /**
+     * Több felhasználó törlése azonosítók alapján.
+     *
+     * @param array<int, int> $ids
+     */
     public function deleteByIds(array $ids): void
     {
         $this->model

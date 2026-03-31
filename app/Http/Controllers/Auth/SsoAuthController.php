@@ -16,6 +16,9 @@ class SsoAuthController extends Controller
     ) {
     }
 
+    /**
+     * Az SSO authorize flow indítása és átirányítás az SSO szerverre.
+     */
     public function redirect(Request $request): RedirectResponse
     {
         try {
@@ -27,6 +30,9 @@ class SsoAuthController extends Controller
         }
     }
 
+    /**
+     * Az SSO callback feldolgozása és a helyi session létrehozása.
+     */
     public function callback(Request $request): RedirectResponse
     {
         try {
@@ -50,6 +56,9 @@ class SsoAuthController extends Controller
             ->with('success', 'Sikeres SSO bejelentkezes.');
     }
 
+    /**
+     * A helyi session kijelentkeztetése az SSO kliensben.
+     */
     public function logout(Request $request): RedirectResponse
     {
         $this->ssoClientService->logout($request);

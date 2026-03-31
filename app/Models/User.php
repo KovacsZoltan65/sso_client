@@ -35,7 +35,7 @@ class User extends Authenticatable
     protected string $guard_name = 'web';
 
     /**
-     * Get the attributes that should be cast.
+     * A natív típuskonverziók meghatározása a biztonságos attribútumkezeléshez.
      *
      * @return array<string, string>
      */
@@ -48,6 +48,9 @@ class User extends Authenticatable
         ];
     }
 
+    /**
+     * Az activity log számára naplózható felhasználói mezők konfigurációja.
+     */
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()

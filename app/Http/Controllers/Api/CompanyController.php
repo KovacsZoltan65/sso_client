@@ -18,6 +18,9 @@ class CompanyController extends Controller
     ) {
     }
 
+    /**
+     * Céges lista lekérése admin API válaszformátumban.
+     */
     public function index(IndexCompanyRequest $request): JsonResponse
     {
         $this->authorize('viewAny', Company::class);
@@ -51,6 +54,9 @@ class CompanyController extends Controller
         );
     }
 
+    /**
+     * Új cég létrehozása az admin API-n keresztül.
+     */
     public function store(StoreCompanyRequest $request): JsonResponse
     {
         $this->authorize('create', Company::class);
@@ -66,6 +72,9 @@ class CompanyController extends Controller
         );
     }
 
+    /**
+     * Meglévő cég frissítése az admin API-n keresztül.
+     */
     public function update(UpdateCompanyRequest $request, Company $company): JsonResponse
     {
         $this->authorize('update', $company);
@@ -80,6 +89,9 @@ class CompanyController extends Controller
         );
     }
 
+    /**
+     * Cég törlése az admin API-n keresztül.
+     */
     public function destroy(Company $company): JsonResponse
     {
         $this->authorize('delete', $company);
@@ -90,6 +102,8 @@ class CompanyController extends Controller
     }
 
     /**
+     * Az API válaszban használt cég payload felépítése.
+     *
      * @return array<string, mixed>
      */
     private function toArray(Company $company): array

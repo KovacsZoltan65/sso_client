@@ -20,6 +20,9 @@ class UserSummaryData extends Data
     ) {
     }
 
+    /**
+     * Admin listához és API válaszhoz használható felhasználói összegző DTO létrehozása.
+     */
     public static function fromModel(User $user): self
     {
         return new self(

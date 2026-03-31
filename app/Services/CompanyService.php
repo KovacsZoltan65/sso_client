@@ -6,6 +6,23 @@ use App\Models\Company;
 use App\Repositories\Contracts\CompanyRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
+/**
+ * @phpstan-type CompanyListFilters array{
+ *     per_page?: int|string|null,
+ *     sort_field?: string|null,
+ *     sort_order?: string|null,
+ *     search?: string|null,
+ *     is_active?: bool|int|string|null
+ * }
+ * @phpstan-type CompanyWritePayload array{
+ *     name: string,
+ *     code: string,
+ *     email?: string|null,
+ *     phone?: string|null,
+ *     address?: string|null,
+ *     is_active: bool
+ * }
+ */
 class CompanyService
 {
     public function __construct(
@@ -14,7 +31,9 @@ class CompanyService
     }
 
     /**
-     * @param  array<string, mixed>  $filters
+     * Céges lista lekérése a szűrőkkel és lapozási beállításokkal.
+     *
+     * @param  CompanyListFilters  $filters
      */
     public function list(array $filters): LengthAwarePaginator
     {
@@ -22,7 +41,9 @@ class CompanyService
     }
 
     /**
-     * @param  array<string, mixed>  $payload
+     * Új cég létrehozása validált admin payload alapján.
+     *
+     * @param  CompanyWritePayload  $payload
      */
     public function store(array $payload): Company
     {
@@ -30,7 +51,9 @@ class CompanyService
     }
 
     /**
-     * @param  array<string, mixed>  $payload
+     * Meglévő cég frissítése azonosító alapján.
+     *
+     * @param  CompanyWritePayload  $payload
      */
     public function update(int $companyId, array $payload): Company
     {
@@ -39,6 +62,9 @@ class CompanyService
         return $this->companies->update($company, $payload);
     }
 
+    /**
+     * Cég törlése azonosító alapján.
+     */
     public function delete(int $companyId): void
     {
         $company = $this->companies->findById($companyId);

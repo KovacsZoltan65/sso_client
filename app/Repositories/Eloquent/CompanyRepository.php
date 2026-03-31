@@ -8,13 +8,40 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 
+/**
+ * @phpstan-type CompanyListFilters array{
+ *     per_page?: int|string|null,
+ *     sort_field?: string|null,
+ *     sort_order?: string|null,
+ *     search?: string|null,
+ *     is_active?: bool|int|string|null
+ * }
+ * @phpstan-type CompanyWriteAttributes array{
+ *     name: string,
+ *     code: string,
+ *     email?: string|null,
+ *     phone?: string|null,
+ *     address?: string|null,
+ *     is_active: bool
+ * }
+ */
 class CompanyRepository extends BaseRepository implements CompanyRepositoryInterface
 {
+    /**
+     * A repositoryhoz tartozó Eloquent modell osztályneve.
+     *
+     * @return class-string<Company>
+     */
     public function model(): string
     {
         return Company::class;
     }
 
+    /**
+     * Céges lista lekérése szűréssel, rendezéssel és lapozással.
+     *
+     * @param CompanyListFilters $filters
+     */
     public function paginateForIndex(array $filters): LengthAwarePaginator
     {
         $perPage = (int) ($filters['per_page'] ?? 10);
@@ -43,11 +70,21 @@ class CompanyRepository extends BaseRepository implements CompanyRepositoryInter
             ->withQueryString();
     }
 
+    /**
+     * Új cég létrehozása az átadott attribútumokból.
+     *
+     * @param CompanyWriteAttributes $attributes
+     */
     public function create(array $attributes): Company
     {
         return $this->model->newQuery()->create($attributes);
     }
 
+    /**
+     * Cég frissítése az átadott attribútumokkal.
+     *
+     * @param CompanyWriteAttributes $attributes
+     */
     public function update(Company $company, array $attributes): Company
     {
         $company->fill($attributes);
@@ -56,11 +93,17 @@ class CompanyRepository extends BaseRepository implements CompanyRepositoryInter
         return $company->refresh();
     }
 
+    /**
+     * Cég törlése.
+     */
     public function delete(Company $company): void
     {
         $company->delete();
     }
 
+    /**
+     * Cég keresése elsődleges kulcs alapján, kivétellel ha nem található.
+     */
     public function findById(int $companyId): Company
     {
         $company = $this->model->newQuery()->find($companyId);
