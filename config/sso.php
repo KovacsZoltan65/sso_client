@@ -2,6 +2,7 @@
 
 return [
     'server_base_url' => env('SSO_SERVER_BASE_URL'),
+    'readiness_endpoint' => env('SSO_READINESS_ENDPOINT'),
     'authorize_endpoint' => env('SSO_AUTHORIZE_ENDPOINT', '/oauth/authorize'),
     'token_endpoint' => env('SSO_TOKEN_ENDPOINT', '/api/oauth/token'),
     'userinfo_endpoint' => env('SSO_USERINFO_ENDPOINT', '/api/oauth/userinfo'),
@@ -14,4 +15,13 @@ return [
     'state_session_key' => 'sso.oauth.state',
     'pkce_verifier_session_key' => 'sso.oauth.pkce_verifier',
     'local_auth_enabled' => env('SSO_LOCAL_AUTH_ENABLED', false),
+    'local_auth_allow_degraded' => env('SSO_LOCAL_AUTH_ALLOW_DEGRADED', false),
+    'local_auth_require_sso_unreachable' => env('SSO_LOCAL_AUTH_REQUIRE_SSO_UNREACHABLE', true),
+    'local_auth_check_timeout_ms' => (int) env('SSO_LOCAL_AUTH_CHECK_TIMEOUT_MS', 1500),
+    'local_auth_healthy_cache_seconds' => (int) env('SSO_LOCAL_AUTH_HEALTHY_CACHE_SECONDS', 20),
+    'local_auth_unreachable_cache_seconds' => (int) env('SSO_LOCAL_AUTH_UNREACHABLE_CACHE_SECONDS', 5),
+    'local_auth_failure_threshold' => (int) env('SSO_LOCAL_AUTH_FAILURE_THRESHOLD', 2),
+    'local_auth_incident_id_required' => env('SSO_LOCAL_AUTH_INCIDENT_ID_REQUIRED', true),
+    'local_auth_incident_id' => env('SSO_LOCAL_AUTH_INCIDENT_ID'),
+    'session_mode_session_key' => 'auth.session_mode',
 ];

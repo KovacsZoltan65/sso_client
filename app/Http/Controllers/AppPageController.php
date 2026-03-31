@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Services\Sso\SsoClientService;
+use App\Services\Sso\SsoReachabilityService;
+use App\Services\Auth\LocalFallbackAuthService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -12,17 +14,25 @@ class AppPageController extends Controller
 {
     public function __construct(
         private readonly SsoClientService $ssoClientService,
+        private readonly LocalFallbackAuthService $localFallbackAuthService,
+        private readonly SsoReachabilityService $ssoReachabilityService,
     ) {
     }
 
     public function myAccount(Request $request): Response
     {
+        $fallbackSession = $this->localFallbackAuthService->isFallbackSession($request);
+
         return Inertia::render('Account/Show', [
             'account' => [
                 'name' => $request->user()->name,
                 'email' => $request->user()->email,
-                'roles' => $request->user()->getRoleNames()->values()->all(),
-                'permissions' => $request->user()->getAllPermissions()->pluck('name')->values()->all(),
+                'roles' => $fallbackSession ? ['local_fallback'] : $request->user()->getRoleNames()->values()->all(),
+                'permissions' => $fallbackSession ? [] : $request->user()->getAllPermissions()->pluck('name')->values()->all(),
+                'capabilities' => $fallbackSession ? $this->localFallbackAuthService->fallbackCapabilities() : [],
+                'sessionMode' => $fallbackSession
+                    ? LocalFallbackAuthService::SESSION_MODE_LOCAL_FALLBACK
+                    : LocalFallbackAuthService::SESSION_MODE_SSO,
             ],
         ]);
     }
@@ -82,6 +92,7 @@ class AppPageController extends Controller
     {
         return Inertia::render('Sso/Status', [
             'status' => $this->ssoClientService->status()->toArray(),
+            'reachability' => $this->ssoReachabilityService->current()->toArray(),
             'capabilities' => [
                 'Redirect users to the SSO server',
                 'Handle signed callback state',

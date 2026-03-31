@@ -37,7 +37,12 @@ defineProps({
                     <p class="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">Current access context</p>
                     <h2 class="mt-3 text-2xl font-semibold text-slate-950">Welcome back, {{ userContext.name }}</h2>
                     <p class="mt-2 text-sm leading-7 text-slate-600">
-                        A kozponti identitas az SSO szerverrol jon, a helyi szerepkorok es jogosultsagok viszont tovabbra is ebben a kliens alkalmazasban maradnak.
+                        <span v-if="userContext.sessionMode === 'local_fallback'">
+                            Ez a dashboard korlatozott fallback nezete. Csak a minimalis uzemi informaciok maradnak lathatok.
+                        </span>
+                        <span v-else>
+                            A kozponti identitas az SSO szerverrol jon, a helyi szerepkorok es jogosultsagok viszont tovabbra is ebben a kliens alkalmazasban maradnak.
+                        </span>
                     </p>
 
                     <div class="mt-5 flex flex-wrap gap-2">
@@ -60,9 +65,22 @@ defineProps({
                             <p class="mt-2 text-sm text-slate-600">{{ ssoStatus.localAuthEnabled ? 'Engedelyezve' : 'Kikapcsolva' }}</p>
                         </div>
                     </div>
+
+                    <div v-if="userContext.capabilities?.length" class="mt-6 rounded-3xl border border-amber-200 bg-amber-50 p-5">
+                        <p class="text-sm font-semibold text-slate-900">Fallback session capabilities</p>
+                        <div class="mt-3 flex flex-wrap gap-2">
+                            <span
+                                v-for="capability in userContext.capabilities"
+                                :key="capability"
+                                class="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-amber-700"
+                            >
+                                {{ capability }}
+                            </span>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="shell-card p-6">
+                <div v-if="userContext.sessionMode !== 'local_fallback'" class="shell-card p-6">
                     <p class="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">Recent users</p>
                     <div class="mt-5 space-y-4">
                         <div
@@ -80,7 +98,7 @@ defineProps({
                 </div>
             </section>
 
-            <section class="shell-card p-6">
+            <section v-if="userContext.sessionMode !== 'local_fallback'" class="shell-card p-6">
                 <p class="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">Audit preview</p>
                 <h2 class="mt-2 text-xl font-semibold text-slate-950">Recent activity</h2>
 

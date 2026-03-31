@@ -8,6 +8,10 @@ defineProps({
         type: Object,
         default: null,
     },
+    sessionMode: {
+        type: String,
+        default: 'guest',
+    },
 });
 
 const emit = defineEmits(['logout', 'toggle-navigation']);
@@ -35,12 +39,19 @@ const goToProfile = () => {
         </div>
 
         <div class="ml-auto flex items-center gap-3">
+            <div
+                v-if="sessionMode === 'local_fallback'"
+                class="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-amber-700"
+            >
+                Local fallback
+            </div>
             <div class="hidden text-right sm:block">
                 <div class="text-sm font-semibold">{{ user?.name }}</div>
                 <div class="text-xs text-slate-500">{{ user?.email }}</div>
             </div>
             <Avatar :label="user?.name?.charAt(0) ?? 'U'" shape="circle" class="bg-sky-100 text-sky-700" />
             <Button
+                v-if="sessionMode !== 'local_fallback'"
                 icon="pi pi-user"
                 severity="secondary"
                 text

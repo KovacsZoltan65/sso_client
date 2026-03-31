@@ -16,6 +16,6 @@ class DashboardController extends Controller
 
     public function __invoke(Request $request): Response
     {
-        return Inertia::render('Dashboard', $this->dashboardService->build($request->user()));
+        return Inertia::render('Dashboard', $this->dashboardService->build($request));
     }
 }

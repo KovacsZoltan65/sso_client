@@ -23,7 +23,7 @@ const form = useForm({
         </div>
 
         <p class="mt-4 text-sm leading-7 text-slate-600">
-            This is only for the local fallback auth layer. Once SSO is active, the upstream identity flow can take over recovery.
+            Ez a nezet jelenleg nincs publikusan hasznalatban. A korlatozott fallback auth nem tartalmaz onallo password recovery folyamatot.
         </p>
 
         <div v-if="status" class="mt-6 rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{{ status }}</div>

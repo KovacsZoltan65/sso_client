@@ -10,9 +10,11 @@ import { computed, ref, watch } from 'vue';
 const page = usePage();
 const drawerOpen = ref(false);
 const { items } = useNavigation();
-const { user, logoutUrl } = useAuth();
+const { user, logoutUrl, sessionMode, fallback } = useAuth();
 
-const ssoStatus = computed(() => page.props.sso.status);
+const ssoStatus = computed(() => page.props.sso.details);
+const ssoReachability = computed(() => page.props.sso ?? {});
+const fallbackBanner = computed(() => fallback.value?.banner ?? null);
 
 const logout = () => {
     router.post(logoutUrl.value);
@@ -38,7 +40,14 @@ watch(
 
             <div class="glass-panel mt-8 rounded-3xl p-4 text-sm text-white/80">
                 <p class="text-xs uppercase tracking-[0.25em] text-white/60">SSO allapot</p>
-                <p class="mt-3 font-medium">{{ ssoStatus.message }}</p>
+                <p class="mt-3 font-medium">
+                    <span v-if="ssoReachability.isMaintenance">Az SSO szerver karbantartas alatt van.</span>
+                    <span v-else-if="!ssoReachability.isReachable">Az SSO szerver jelenleg nem erheto el.</span>
+                    <span v-else>{{ ssoStatus.message }}</span>
+                </p>
+                <p v-if="ssoReachability.retryAfter" class="mt-2 text-xs uppercase tracking-[0.18em] text-white/60">
+                    Retry-After: {{ ssoReachability.retryAfter }}
+                </p>
             </div>
 
             <nav class="mt-8 flex-1 space-y-2">
@@ -66,9 +75,24 @@ watch(
             <AppTopbar
                 class="flex-none"
                 :user="user"
+                :session-mode="sessionMode"
                 @logout="logout"
                 @toggle-navigation="drawerOpen = !drawerOpen"
             />
+
+            <div
+                v-if="fallbackBanner?.visible"
+                class="mb-4 flex-none rounded-3xl border border-amber-300 bg-amber-50 px-5 py-4 text-amber-900"
+            >
+                <p class="text-sm font-semibold">{{ fallbackBanner.title }}</p>
+                <p class="mt-1 text-sm">{{ fallbackBanner.message }}</p>
+                <p v-if="fallbackBanner.fallbackReason" class="mt-2 text-xs uppercase tracking-[0.18em] text-amber-700">
+                    Fallback reason: {{ fallbackBanner.fallbackReason }}
+                </p>
+                <p v-if="fallbackBanner.incidentId" class="mt-2 text-xs uppercase tracking-[0.18em] text-amber-700">
+                    Incident: {{ fallbackBanner.incidentId }}
+                </p>
+            </div>
 
             <div v-if="$slots.header" class="mb-6 flex-none">
                 <slot name="header" />

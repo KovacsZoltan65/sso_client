@@ -6,6 +6,7 @@ use App\Data\SsoStatusData;
 use App\Exceptions\SsoAuthenticationException;
 use App\Models\User;
 use App\Services\Audit\AuditLogService;
+use App\Services\Auth\LocalFallbackAuthService;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Request;
 use Illuminate\Http\Client\Response;
@@ -249,6 +250,7 @@ class SsoClientService
 
         Auth::login($user, remember: false);
         $request->session()->regenerate();
+        $request->session()->put(config('sso.session_mode_session_key'), LocalFallbackAuthService::SESSION_MODE_SSO);
 
         $this->auditLogService->logSuccess(
             logName: AuditLogService::LOG_CLIENT_AUTH,
@@ -300,6 +302,7 @@ class SsoClientService
 
         $request->session()->forget(config('sso.state_session_key'));
         $request->session()->forget(config('sso.pkce_verifier_session_key'));
+        $request->session()->forget(config('sso.session_mode_session_key'));
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 

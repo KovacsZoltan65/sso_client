@@ -8,6 +8,9 @@ export function useAuth() {
     const user = computed(() => auth.value.user ?? null);
     const isAuthenticated = computed(() => Boolean(auth.value.isAuthenticated && user.value));
     const isGuest = computed(() => Boolean(auth.value.isGuest ?? !isAuthenticated.value));
+    const sessionMode = computed(() => auth.value.sessionMode ?? 'guest');
+    const fallback = computed(() => page.props.fallback ?? {});
+    const isFallbackSession = computed(() => sessionMode.value === 'local_fallback');
     const loginUrl = computed(() => auth.value.loginUrl ?? route('login'));
     const reauthUrl = computed(() => auth.value.reauthUrl ?? route('auth.sso.redirect'));
     const logoutUrl = computed(() => auth.value.logoutUrl ?? route('logout'));
@@ -31,6 +34,9 @@ export function useAuth() {
         user,
         isAuthenticated,
         isGuest,
+        sessionMode,
+        fallback,
+        isFallbackSession,
         loginUrl,
         reauthUrl,
         logoutUrl,

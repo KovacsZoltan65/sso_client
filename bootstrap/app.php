@@ -21,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [
             \App\Http\Middleware\HandleInertiaRequests::class,
+            \App\Http\Middleware\RestrictFallbackSessionAccess::class,
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
         ]);
 
@@ -28,6 +29,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
             'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
             'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
+            'local_fallback_page' => \App\Http\Middleware\EnsureLocalFallbackPageAllowed::class,
+            'local_fallback_submit' => \App\Http\Middleware\EnsureLocalFallbackSubmitAllowed::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

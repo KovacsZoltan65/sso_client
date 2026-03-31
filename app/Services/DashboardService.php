@@ -5,7 +5,9 @@ namespace App\Services;
 use App\Data\DashboardStatsData;
 use App\Models\User;
 use App\Repositories\Contracts\UserRepositoryInterface;
+use App\Services\Auth\LocalFallbackAuthService;
 use App\Services\Sso\SsoClientService;
+use Illuminate\Http\Request;
 use Spatie\Activitylog\Models\Activity;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -15,11 +17,36 @@ class DashboardService
     public function __construct(
         private readonly UserRepositoryInterface $users,
         private readonly SsoClientService $ssoClientService,
+        private readonly LocalFallbackAuthService $localFallbackAuthService,
     ) {
     }
 
-    public function build(User $user): array
+    public function build(Request $request): array
     {
+        /** @var User $user */
+        $user = $request->user();
+        $fallbackSession = $this->localFallbackAuthService->isFallbackSession($request);
+
+        if ($fallbackSession) {
+            return [
+                'stats' => new DashboardStatsData(
+                    users: 0,
+                    roles: 0,
+                    permissions: 0,
+                    activityEntries: 0,
+                ),
+                'recentUsers' => [],
+                'recentActivity' => [],
+                'ssoStatus' => $this->ssoClientService->status()->toArray(),
+                'userContext' => [
+                    'name' => $user->name,
+                    'roles' => ['local_fallback'],
+                    'sessionMode' => LocalFallbackAuthService::SESSION_MODE_LOCAL_FALLBACK,
+                    'capabilities' => $this->localFallbackAuthService->fallbackCapabilities(),
+                ],
+            ];
+        }
+
         return [
             'stats' => new DashboardStatsData(
                 users: $this->users->countAll(),
@@ -48,6 +75,8 @@ class DashboardService
             'userContext' => [
                 'name' => $user->name,
                 'roles' => $user->getRoleNames()->values()->all(),
+                'sessionMode' => LocalFallbackAuthService::SESSION_MODE_SSO,
+                'capabilities' => [],
             ],
         ];
     }

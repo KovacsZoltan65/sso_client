@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Exceptions\SsoAuthenticationException;
 use App\Http\Controllers\Controller;
+use App\Services\Auth\LocalFallbackAuthService;
 use App\Services\Sso\SsoClientService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -13,6 +14,7 @@ class SsoAuthController extends Controller
 {
     public function __construct(
         private readonly SsoClientService $ssoClientService,
+        private readonly LocalFallbackAuthService $localFallbackAuthService,
     ) {
     }
 
@@ -61,7 +63,14 @@ class SsoAuthController extends Controller
      */
     public function logout(Request $request): RedirectResponse
     {
+        $fallbackSession = $this->localFallbackAuthService->isFallbackSession($request);
+        $user = $request->user();
+
         $this->ssoClientService->logout($request);
+
+        if ($fallbackSession) {
+            $this->localFallbackAuthService->logout($request, $user);
+        }
 
         return redirect('/')
             ->with('success', 'Sikeres kijelentkezes.');

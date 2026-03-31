@@ -15,9 +15,14 @@ const items = [
 
 export function useNavigation() {
     const page = usePage();
+    const isFallbackSession = computed(() => page.props.auth?.sessionMode === 'local_fallback');
 
     const allowedItems = computed(() =>
         items.filter((item) => {
+            if (isFallbackSession.value) {
+                return ['dashboard', 'account.show'].includes(item.route);
+            }
+
             if (!item.permission) {
                 return true;
             }

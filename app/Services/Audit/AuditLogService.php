@@ -47,6 +47,13 @@ class AuditLogService
         'api_endpoint',
         'http_status',
         'reauth_reason',
+        'fallback_mode',
+        'reachability_state',
+        'incident_id',
+        'failure_count',
+        'session_mode',
+        'fallback_reason',
+        'allow_degraded_enabled',
     ];
 
     /**

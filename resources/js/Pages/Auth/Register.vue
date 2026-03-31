@@ -21,7 +21,7 @@ const form = useForm({
             <p class="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">Development only</p>
             <h1 class="mt-3 text-3xl font-semibold text-slate-950">Create a local user</h1>
             <p class="mt-3 text-sm leading-7 text-slate-600">
-                Registration remains available for bootstrap scenarios. Later, account creation can be delegated entirely to the central SSO server.
+                Ez a legacy fejlesztoi nezet nincs resze a production fallback auth modellnek, es nem nyithat onallo account lifecycle-t.
             </p>
         </div>
 

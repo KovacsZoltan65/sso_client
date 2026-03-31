@@ -18,6 +18,7 @@ use Spatie\Permission\Traits\HasRoles;
     'password',
     'email_verified_at',
     'local_status',
+    'fallback_auth_enabled',
     'notes',
     'last_authenticated_at',
 ])]
@@ -42,6 +43,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'last_authenticated_at' => 'datetime',
             'password' => 'hashed',
+            'fallback_auth_enabled' => 'boolean',
         ];
     }
 

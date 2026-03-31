@@ -28,6 +28,12 @@ defineProps({
 
             <section class="shell-card p-6">
                 <p class="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">Authorization summary</p>
+                <div
+                    v-if="account.sessionMode === 'local_fallback'"
+                    class="mt-4 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-900"
+                >
+                    Ez fallback session. A normal RBAC helyett csak minimalis capability keszlet aktiv.
+                </div>
                 <div class="mt-5 flex flex-wrap gap-2">
                     <span
                         v-for="role in account.roles"
@@ -39,10 +45,12 @@ defineProps({
                 </div>
 
                 <div class="mt-8">
-                    <p class="text-sm font-semibold text-slate-900">Granted permissions</p>
+                    <p class="text-sm font-semibold text-slate-900">
+                        {{ account.sessionMode === 'local_fallback' ? 'Granted capabilities' : 'Granted permissions' }}
+                    </p>
                     <div class="mt-4 flex flex-wrap gap-2">
                         <span
-                            v-for="permission in account.permissions"
+                            v-for="permission in (account.sessionMode === 'local_fallback' ? account.capabilities : account.permissions)"
                             :key="permission"
                             class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500"
                         >
