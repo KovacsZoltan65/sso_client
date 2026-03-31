@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use PHPUnit\Framework\Attributes\Group;
+use Spatie\Activitylog\Models\Activity;
 use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
@@ -81,5 +82,18 @@ class AppAccessTest extends TestCase
             ->assertJson([
                 'message' => 'Forbidden.',
             ]);
+
+        $this->assertDatabaseHas('activity_log', [
+            'log_name' => 'client.api',
+            'event' => 'client_api.request.forbidden',
+            'description' => 'Client API request forbidden.',
+        ]);
+
+        $activity = Activity::query()
+            ->where('event', 'client_api.request.forbidden')
+            ->latest()
+            ->firstOrFail();
+
+        $this->assertArrayNotHasKey('access_token', $activity->properties->toArray());
     }
 }

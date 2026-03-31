@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Company;
 use App\Repositories\Contracts\CompanyRepositoryInterface;
+use App\Services\Audit\AuditLogService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 /**
@@ -27,6 +28,7 @@ class CompanyService
 {
     public function __construct(
         private readonly CompanyRepositoryInterface $companies,
+        private readonly AuditLogService $auditLogService,
     ) {
     }
 
@@ -47,7 +49,22 @@ class CompanyService
      */
     public function store(array $payload): Company
     {
-        return $this->companies->create($payload);
+        $company = $this->companies->create($payload);
+
+        $this->auditLogService->logClientAdminCrud(
+            resource: 'company',
+            action: 'created',
+            description: 'Client company created.',
+            subject: $company,
+            causer: auth()->user(),
+            properties: [
+                'target_company_id' => $company->id,
+                'updated_fields' => array_keys($payload),
+                'status' => $company->is_active ? 'active' : 'inactive',
+            ],
+        );
+
+        return $company;
     }
 
     /**
@@ -59,7 +76,22 @@ class CompanyService
     {
         $company = $this->companies->findById($companyId);
 
-        return $this->companies->update($company, $payload);
+        $updatedCompany = $this->companies->update($company, $payload);
+
+        $this->auditLogService->logClientAdminCrud(
+            resource: 'company',
+            action: 'updated',
+            description: 'Client company updated.',
+            subject: $updatedCompany,
+            causer: auth()->user(),
+            properties: [
+                'target_company_id' => $updatedCompany->id,
+                'updated_fields' => array_keys($payload),
+                'status' => $updatedCompany->is_active ? 'active' : 'inactive',
+            ],
+        );
+
+        return $updatedCompany;
     }
 
     /**
@@ -68,6 +100,17 @@ class CompanyService
     public function delete(int $companyId): void
     {
         $company = $this->companies->findById($companyId);
+
+        $this->auditLogService->logClientAdminCrud(
+            resource: 'company',
+            action: 'deleted',
+            description: 'Client company deleted.',
+            subject: $company,
+            causer: auth()->user(),
+            properties: [
+                'target_company_id' => $company->id,
+            ],
+        );
 
         $this->companies->delete($company);
     }

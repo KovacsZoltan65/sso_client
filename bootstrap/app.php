@@ -10,6 +10,7 @@ use Illuminate\Validation\ValidationException;
 use Spatie\Permission\Exceptions\UnauthorizedException;
 use Symfony\Component\HttpFoundation\Response;
 use App\Support\ApiResponse;
+use App\Services\Audit\AuditLogService;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -32,6 +33,19 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(function (AuthenticationException $exception, Request $request): Response {
             if ($request->expectsJson()) {
+                app(AuditLogService::class)->logFailure(
+                    logName: AuditLogService::LOG_CLIENT_API,
+                    event: 'client_api.request.unauthorized',
+                    description: 'Client API request unauthorized.',
+                    causer: $request->user(),
+                    properties: [
+                        'reauth_reason' => 'authentication_required',
+                        'api_endpoint' => $request->path(),
+                        'http_status' => 401,
+                        ...app(AuditLogService::class)->requestContext($request),
+                    ],
+                );
+
                 return ApiResponse::error(
                     'Authentication required.',
                     401,
@@ -42,6 +56,18 @@ return Application::configure(basePath: dirname(__DIR__))
                 );
             }
 
+            app(AuditLogService::class)->logFailure(
+                logName: AuditLogService::LOG_CLIENT_AUTH,
+                event: 'client_auth.reauth.redirected',
+                description: 'Client reauthentication redirect triggered.',
+                causer: $request->user(),
+                properties: [
+                    'reauth_reason' => 'missing_or_expired_session',
+                    'redirect_target' => route('auth.sso.redirect'),
+                    ...app(AuditLogService::class)->requestContext($request),
+                ],
+            );
+
             return redirect()
                 ->guest(route('login'))
                 ->with('error', 'A munkamenet hianyzik vagy lejart. Jelentkezz be ujra.');
@@ -49,6 +75,19 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $exceptions->render(function (AuthorizationException $exception, Request $request): Response {
             if ($request->expectsJson()) {
+                app(AuditLogService::class)->logFailure(
+                    logName: AuditLogService::LOG_CLIENT_API,
+                    event: 'client_api.request.forbidden',
+                    description: 'Client API request forbidden.',
+                    causer: $request->user(),
+                    properties: [
+                        'reason' => 'authorization_denied',
+                        'api_endpoint' => $request->path(),
+                        'http_status' => 403,
+                        ...app(AuditLogService::class)->requestContext($request),
+                    ],
+                );
+
                 return ApiResponse::error('Forbidden.', 403);
             }
 
@@ -59,6 +98,19 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $exceptions->render(function (UnauthorizedException $exception, Request $request): Response {
             if ($request->expectsJson()) {
+                app(AuditLogService::class)->logFailure(
+                    logName: AuditLogService::LOG_CLIENT_API,
+                    event: 'client_api.request.forbidden',
+                    description: 'Client API request forbidden.',
+                    causer: $request->user(),
+                    properties: [
+                        'reason' => 'permission_denied',
+                        'api_endpoint' => $request->path(),
+                        'http_status' => 403,
+                        ...app(AuditLogService::class)->requestContext($request),
+                    ],
+                );
+
                 return ApiResponse::error('Forbidden.', 403);
             }
 

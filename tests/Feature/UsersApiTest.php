@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use PHPUnit\Framework\Attributes\Test;
+use Spatie\Activitylog\Models\Activity;
 use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
@@ -40,6 +41,11 @@ class UsersApiTest extends TestCase
             ->assertJson([
                 'message' => 'Forbidden.',
             ]);
+
+        $this->assertDatabaseHas('activity_log', [
+            'log_name' => 'client.api',
+            'event' => 'client_api.request.forbidden',
+        ]);
     }
 
     #[Test]
@@ -104,6 +110,18 @@ class UsersApiTest extends TestCase
             'local_status' => 'inactive',
             'notes' => 'Needs follow-up review.',
         ]);
+
+        $this->assertDatabaseHas('activity_log', [
+            'log_name' => 'client.admin.user',
+            'event' => 'client_admin.user.updated',
+        ]);
+
+        $activity = Activity::query()
+            ->where('event', 'client_admin.user.updated')
+            ->latest()
+            ->firstOrFail();
+
+        $this->assertArrayNotHasKey('access_token', $activity->properties->toArray());
     }
 
     #[Test]

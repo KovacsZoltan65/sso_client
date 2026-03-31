@@ -6,6 +6,7 @@ use App\Models\Company;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
+use Spatie\Activitylog\Models\Activity;
 use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 
@@ -24,6 +25,11 @@ class CompaniesApiTest extends TestCase
             ->assertJson([
                 'message' => 'Forbidden.',
             ]);
+
+        $this->assertDatabaseHas('activity_log', [
+            'log_name' => 'client.api',
+            'event' => 'client_api.request.forbidden',
+        ]);
     }
 
     #[Test]
@@ -65,6 +71,11 @@ class CompaniesApiTest extends TestCase
             'name' => 'Acme Kft.',
             'code' => 'ACME',
             'is_active' => true,
+        ]);
+
+        $this->assertDatabaseHas('activity_log', [
+            'log_name' => 'client.admin.company',
+            'event' => 'client_admin.company.created',
         ]);
     }
 
@@ -116,6 +127,11 @@ class CompaniesApiTest extends TestCase
             'name' => 'Acme Zrt.',
             'is_active' => false,
         ]);
+
+        $this->assertDatabaseHas('activity_log', [
+            'log_name' => 'client.admin.company',
+            'event' => 'client_admin.company.updated',
+        ]);
     }
 
     #[Test]
@@ -132,6 +148,18 @@ class CompaniesApiTest extends TestCase
         $this->assertDatabaseMissing('companies', [
             'id' => $company->id,
         ]);
+
+        $this->assertDatabaseHas('activity_log', [
+            'log_name' => 'client.admin.company',
+            'event' => 'client_admin.company.deleted',
+        ]);
+
+        $activity = Activity::query()
+            ->where('event', 'client_admin.company.deleted')
+            ->latest()
+            ->firstOrFail();
+
+        $this->assertArrayNotHasKey('client_secret', $activity->properties->toArray());
     }
 
     #[Test]

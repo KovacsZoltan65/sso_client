@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Inertia\Testing\AssertableInertia as Assert;
 use PHPUnit\Framework\Attributes\Group;
+use Spatie\Activitylog\Models\Activity;
 use Tests\TestCase;
 
 class SsoAuthenticationTest extends TestCase
@@ -51,6 +52,12 @@ class SsoAuthenticationTest extends TestCase
         $this->assertStringContainsString(urlencode('http://sso-client.test/auth/sso/callback'), $location);
         $this->assertTrue(session()->has(config('sso.state_session_key')));
         $this->assertTrue(session()->has(config('sso.pkce_verifier_session_key')));
+
+        $this->assertDatabaseHas('activity_log', [
+            'log_name' => 'client.auth',
+            'event' => 'client_auth.login_redirect.started',
+            'description' => 'Client login redirect started.',
+        ]);
     }
 
     #[Group('security')]
@@ -65,6 +72,12 @@ class SsoAuthenticationTest extends TestCase
             ->assertSessionHas('error', 'Ervenytelen vagy lejart SSO allapot. Probald ujra a bejelentkezest.');
 
         $this->assertGuest();
+
+        $this->assertDatabaseHas('activity_log', [
+            'log_name' => 'client.auth',
+            'event' => 'client_auth.callback.failed',
+            'description' => 'Client authentication callback failed.',
+        ]);
     }
 
     #[Group('security')]
@@ -218,6 +231,26 @@ class SsoAuthenticationTest extends TestCase
         $this->assertSame('user-123', $user->sso_user_id);
         $this->assertSame('SSO User', $user->name);
         $this->assertAuthenticatedAs($user);
+
+        $this->assertDatabaseHas('activity_log', [
+            'log_name' => 'client.auth',
+            'event' => 'client_auth.callback.succeeded',
+            'description' => 'Client authentication callback succeeded.',
+        ]);
+
+        $this->assertDatabaseHas('activity_log', [
+            'log_name' => 'client.auth',
+            'event' => 'client_auth.session.established',
+            'description' => 'Client session established.',
+        ]);
+
+        $callbackActivity = Activity::query()
+            ->where('event', 'client_auth.callback.succeeded')
+            ->latest()
+            ->firstOrFail();
+
+        $this->assertArrayNotHasKey('access_token', $callbackActivity->properties->toArray());
+        $this->assertArrayNotHasKey('client_secret', $callbackActivity->properties->toArray());
     }
 
     #[Group('security')]
@@ -398,6 +431,12 @@ class SsoAuthenticationTest extends TestCase
             ->assertSessionHas('error', 'A munkamenet hianyzik vagy lejart. Jelentkezz be ujra.');
 
         $this->assertGuest();
+
+        $this->assertDatabaseHas('activity_log', [
+            'log_name' => 'client.auth',
+            'event' => 'client_auth.reauth.redirected',
+            'description' => 'Client reauthentication redirect triggered.',
+        ]);
     }
 
     #[Group('security')]
@@ -482,6 +521,18 @@ class SsoAuthenticationTest extends TestCase
 
         $response->assertRedirect('/');
         $this->assertGuest();
+
+        $this->assertDatabaseHas('activity_log', [
+            'log_name' => 'client.auth',
+            'event' => 'client_auth.session.cleared',
+            'description' => 'Client session cleared.',
+        ]);
+
+        $this->assertDatabaseHas('activity_log', [
+            'log_name' => 'client.auth',
+            'event' => 'client_auth.logout.completed',
+            'description' => 'Client logout completed.',
+        ]);
     }
 
     #[Group('security')]
@@ -510,5 +561,11 @@ class SsoAuthenticationTest extends TestCase
                     'reauth_to' => route('auth.sso.redirect'),
                 ],
             ]);
+
+        $this->assertDatabaseHas('activity_log', [
+            'log_name' => 'client.api',
+            'event' => 'client_api.request.unauthorized',
+            'description' => 'Client API request unauthorized.',
+        ]);
     }
 }

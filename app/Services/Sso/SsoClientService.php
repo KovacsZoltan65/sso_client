@@ -5,6 +5,7 @@ namespace App\Services\Sso;
 use App\Data\SsoStatusData;
 use App\Exceptions\SsoAuthenticationException;
 use App\Models\User;
+use App\Services\Audit\AuditLogService;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Request;
 use Illuminate\Http\Client\Response;
@@ -38,6 +39,11 @@ use RuntimeException;
  */
 class SsoClientService
 {
+    public function __construct(
+        private readonly AuditLogService $auditLogService,
+    ) {
+    }
+
     /**
      * Az SSO kliens aktuális konfigurációs és működési állapotának összegzése.
      */
@@ -114,7 +120,22 @@ class SsoClientService
      */
     public function buildAuthorizationUrl(Request $request): string
     {
-        $this->ensureConfigured();
+        try {
+            $this->ensureConfigured();
+        } catch (SsoAuthenticationException $exception) {
+            $this->auditLogService->logFailure(
+                logName: AuditLogService::LOG_CLIENT_AUTH,
+                event: 'client_auth.login_redirect.failed',
+                description: 'Client login redirect failed.',
+                properties: [
+                    'reason' => 'missing_configuration',
+                    'redirect_target' => $this->configuredEndpoint('authorize_endpoint'),
+                    ...$this->auditLogService->requestContext($request),
+                ],
+            );
+
+            throw $exception;
+        }
 
         $state = Str::random(64);
         $codeVerifier = Str::random(96);
@@ -133,7 +154,20 @@ class SsoClientService
             'code_challenge_method' => 'S256',
         ]);
 
-        return $this->configuredEndpoint('authorize_endpoint').'?'.$query;
+        $redirectUrl = $this->configuredEndpoint('authorize_endpoint').'?'.$query;
+
+        $this->auditLogService->logSuccess(
+            logName: AuditLogService::LOG_CLIENT_AUTH,
+            event: 'client_auth.login_redirect.started',
+            description: 'Client login redirect started.',
+            causer: $request->user(),
+            properties: [
+                'redirect_target' => $this->configuredEndpoint('authorize_endpoint'),
+                ...$this->auditLogService->requestContext($request),
+            ],
+        );
+
+        return $redirectUrl;
     }
 
     /**
@@ -141,10 +175,31 @@ class SsoClientService
      */
     public function authenticateFromCallback(Request $request): User
     {
-        $this->ensureConfigured();
+        try {
+            $this->ensureConfigured();
+        } catch (SsoAuthenticationException $exception) {
+            $this->auditLogService->logFailure(
+                logName: AuditLogService::LOG_CLIENT_AUTH,
+                event: 'client_auth.callback.failed',
+                description: 'Client authentication callback failed.',
+                properties: [
+                    'callback_result' => 'failure',
+                    'reason' => 'missing_configuration',
+                    'http_status' => $exception->status(),
+                    ...$this->auditLogService->requestContext($request),
+                ],
+            );
+
+            throw $exception;
+        }
 
         if ($request->filled('error')) {
-            throw new SsoAuthenticationException('Az SSO szerver hibaval terjen vissza a bejelentkezesbol.', 401);
+            $this->throwCallbackFailure(
+                request: $request,
+                message: 'Az SSO szerver hibaval terjen vissza a bejelentkezesbol.',
+                status: 401,
+                reason: 'provider_error',
+            );
         }
 
         $code = $request->string('code')->toString();
@@ -153,19 +208,39 @@ class SsoClientService
         $codeVerifier = (string) $request->session()->pull(config('sso.pkce_verifier_session_key'));
 
         if ($code === '') {
-            throw new SsoAuthenticationException('Hianyzik az authorization code a callbackbol.', 422);
+            $this->throwCallbackFailure(
+                request: $request,
+                message: 'Hianyzik az authorization code a callbackbol.',
+                status: 422,
+                reason: 'missing_authorization_code',
+            );
         }
 
         if ($state === '') {
-            throw new SsoAuthenticationException('Hianyzik a state ertek a callbackbol.', 422);
+            $this->throwCallbackFailure(
+                request: $request,
+                message: 'Hianyzik a state ertek a callbackbol.',
+                status: 422,
+                reason: 'missing_state',
+            );
         }
 
         if ($expectedState === '' || ! hash_equals($expectedState, $state)) {
-            throw new SsoAuthenticationException('Ervenytelen vagy lejart SSO allapot. Probald ujra a bejelentkezest.', 401);
+            $this->throwCallbackFailure(
+                request: $request,
+                message: 'Ervenytelen vagy lejart SSO allapot. Probald ujra a bejelentkezest.',
+                status: 401,
+                reason: 'invalid_state',
+            );
         }
 
         if ($codeVerifier === '') {
-            throw new SsoAuthenticationException('Hianyzo PKCE verifier miatt nem folytathato a bejelentkezes. Inditsd ujra a login folyamatot.', 401);
+            $this->throwCallbackFailure(
+                request: $request,
+                message: 'Hianyzo PKCE verifier miatt nem folytathato a bejelentkezes. Inditsd ujra a login folyamatot.',
+                status: 401,
+                reason: 'missing_pkce_verifier',
+            );
         }
 
         $accessToken = $this->exchangeCodeForAccessToken($code, $codeVerifier);
@@ -175,6 +250,30 @@ class SsoClientService
         Auth::login($user, remember: false);
         $request->session()->regenerate();
 
+        $this->auditLogService->logSuccess(
+            logName: AuditLogService::LOG_CLIENT_AUTH,
+            event: 'client_auth.callback.succeeded',
+            description: 'Client authentication callback succeeded.',
+            subject: $user,
+            causer: $user,
+            properties: [
+                'callback_result' => 'success',
+                ...$this->auditLogService->requestContext($request),
+            ],
+        );
+
+        $this->auditLogService->logSuccess(
+            logName: AuditLogService::LOG_CLIENT_AUTH,
+            event: 'client_auth.session.established',
+            description: 'Client session established.',
+            subject: $user,
+            causer: $user,
+            properties: [
+                'status' => 'authenticated',
+                ...$this->auditLogService->requestContext($request),
+            ],
+        );
+
         return $user;
     }
 
@@ -183,12 +282,40 @@ class SsoClientService
      */
     public function logout(Request $request): void
     {
+        /** @var User|null $user */
+        $user = $request->user();
+
+        if ($user instanceof User) {
+            $this->auditLogService->logSuccess(
+                logName: AuditLogService::LOG_CLIENT_AUTH,
+                event: 'client_auth.session.cleared',
+                description: 'Client session cleared.',
+                subject: $user,
+                causer: $user,
+                properties: $this->auditLogService->requestContext($request),
+            );
+        }
+
         Auth::guard('web')->logout();
 
         $request->session()->forget(config('sso.state_session_key'));
         $request->session()->forget(config('sso.pkce_verifier_session_key'));
         $request->session()->invalidate();
         $request->session()->regenerateToken();
+
+        if ($user instanceof User) {
+            $this->auditLogService->logSuccess(
+                logName: AuditLogService::LOG_CLIENT_AUTH,
+                event: 'client_auth.logout.completed',
+                description: 'Client logout completed.',
+                subject: $user,
+                causer: $user,
+                properties: [
+                    'status' => 'logged_out',
+                    ...$this->auditLogService->requestContext($request),
+                ],
+            );
+        }
     }
 
     /**
@@ -211,11 +338,13 @@ class SsoClientService
                     'code_verifier' => $codeVerifier,
                 ], fn (mixed $value) => filled($value)));
         } catch (ConnectionException $exception) {
-            throw new SsoAuthenticationException(
-                'Az SSO token vegpont nem erheto el.',
-                502,
-                $exception,
-                [
+            $this->throwCallbackFailure(
+                request: request(),
+                message: 'Az SSO token vegpont nem erheto el.',
+                status: 502,
+                reason: 'token_endpoint_unreachable',
+                previous: $exception,
+                context: [
                     'sso_phase' => 'token_exchange',
                     'sso_endpoint' => $endpoint,
                     'http_status' => null,
@@ -238,25 +367,31 @@ class SsoClientService
         );
 
         if ($payload === null) {
-            throw new SsoAuthenticationException(
-                'Az SSO token vegpont ervenytelen, nem JSON valaszt adott.',
-                502,
+            $this->throwCallbackFailure(
+                request: request(),
+                message: 'Az SSO token vegpont ervenytelen, nem JSON valaszt adott.',
+                status: 502,
+                reason: 'token_response_invalid_json',
                 context: $diagnostics,
             );
         }
 
         if (! $response->successful()) {
-            throw new SsoAuthenticationException(
-                'Az SSO token vegpont hibaval valaszolt.',
-                502,
+            $this->throwCallbackFailure(
+                request: request(),
+                message: 'Az SSO token vegpont hibaval valaszolt.',
+                status: 502,
+                reason: 'token_endpoint_failed',
                 context: $diagnostics,
             );
         }
 
         if ($accessToken === '') {
-            throw new SsoAuthenticationException(
-                'Az SSO token valasz nem tartalmaz ervenyes access tokent.',
-                502,
+            $this->throwCallbackFailure(
+                request: request(),
+                message: 'Az SSO token valasz nem tartalmaz ervenyes access tokent.',
+                status: 502,
+                reason: 'missing_access_token',
                 context: $diagnostics,
             );
         }
@@ -279,11 +414,13 @@ class SsoClientService
                 ->withToken($accessToken)
                 ->get($endpoint);
         } catch (ConnectionException $exception) {
-            throw new SsoAuthenticationException(
-                'Az SSO userinfo vegpont nem erheto el.',
-                502,
-                $exception,
-                [
+            $this->throwCallbackFailure(
+                request: request(),
+                message: 'Az SSO userinfo vegpont nem erheto el.',
+                status: 502,
+                reason: 'userinfo_endpoint_unreachable',
+                previous: $exception,
+                context: [
                     'sso_phase' => 'userinfo',
                     'sso_endpoint' => $endpoint,
                     'http_status' => null,
@@ -305,17 +442,21 @@ class SsoClientService
         );
 
         if ($payload === null) {
-            throw new SsoAuthenticationException(
-                'Az SSO userinfo vegpont ervenytelen, nem JSON valaszt adott.',
-                502,
+            $this->throwCallbackFailure(
+                request: request(),
+                message: 'Az SSO userinfo vegpont ervenytelen, nem JSON valaszt adott.',
+                status: 502,
+                reason: 'userinfo_response_invalid_json',
                 context: $diagnostics,
             );
         }
 
         if (! $response->successful()) {
-            throw new SsoAuthenticationException(
-                'Az SSO userinfo vegpont hibaval valaszolt.',
-                502,
+            $this->throwCallbackFailure(
+                request: request(),
+                message: 'Az SSO userinfo vegpont hibaval valaszolt.',
+                status: 502,
+                reason: 'userinfo_endpoint_failed',
                 context: $diagnostics,
             );
         }
@@ -323,9 +464,11 @@ class SsoClientService
         $userInfo = data_get($payload, 'data');
 
         if (! is_array($userInfo)) {
-            throw new SsoAuthenticationException(
-                'Ervenytelen userinfo valasz erkezett az SSO szervertol.',
-                502,
+            $this->throwCallbackFailure(
+                request: request(),
+                message: 'Ervenytelen userinfo valasz erkezett az SSO szervertol.',
+                status: 502,
+                reason: 'userinfo_payload_invalid',
                 context: $diagnostics,
             );
         }
@@ -345,7 +488,12 @@ class SsoClientService
         $name = $this->resolveDisplayName($userInfo, $email !== '' ? $email : $ssoUserId);
 
         if ($ssoUserId === '') {
-            throw new SsoAuthenticationException('Az SSO userinfo valasz nem tartalmaz felhasznalhato user azonositot.', 422);
+            $this->throwCallbackFailure(
+                request: request(),
+                message: 'Az SSO userinfo valasz nem tartalmaz felhasznalhato user azonositot.',
+                status: 422,
+                reason: 'missing_subject_identifier',
+            );
         }
 
         $user = User::query()->where('sso_user_id', $ssoUserId)->first();
@@ -445,6 +593,45 @@ class SsoClientService
         if (! $this->status()->configured) {
             throw new SsoAuthenticationException('Az SSO kliens konfiguracioja hianyos.', 500);
         }
+    }
+
+    /**
+     * @param array<string, mixed> $context
+     */
+    private function throwCallbackFailure(
+        ?Request $request,
+        string $message,
+        int $status,
+        string $reason,
+        ?\Throwable $previous = null,
+        array $context = [],
+    ): never {
+        $properties = [
+            'callback_result' => 'failure',
+            'reason' => $reason,
+            'http_status' => $status,
+        ];
+
+        if ($request instanceof Request) {
+            $properties = [
+                ...$properties,
+                ...$this->auditLogService->requestContext($request),
+            ];
+        }
+
+        if (isset($context['sso_endpoint']) && is_string($context['sso_endpoint'])) {
+            $properties['api_endpoint'] = $context['sso_endpoint'];
+        }
+
+        $this->auditLogService->logFailure(
+            logName: AuditLogService::LOG_CLIENT_AUTH,
+            event: 'client_auth.callback.failed',
+            description: 'Client authentication callback failed.',
+            causer: $request?->user(),
+            properties: $properties,
+        );
+
+        throw new SsoAuthenticationException($message, $status, $previous, $context);
     }
 
     /**

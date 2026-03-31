@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\User;
 use App\Repositories\Contracts\UserRepositoryInterface;
+use App\Services\Audit\AuditLogService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 /**
@@ -26,6 +27,7 @@ class UserAdminService
 {
     public function __construct(
         private readonly UserRepositoryInterface $users,
+        private readonly AuditLogService $auditLogService,
     ) {
     }
 
@@ -60,6 +62,21 @@ class UserAdminService
      */
     public function update(User $user, array $attributes): User
     {
-        return $this->users->updateLocalMetadata($user, $attributes);
+        $updatedUser = $this->users->updateLocalMetadata($user, $attributes);
+
+        $this->auditLogService->logClientAdminCrud(
+            resource: 'user',
+            action: 'updated',
+            description: 'Client local user metadata updated.',
+            subject: $updatedUser,
+            causer: auth()->user(),
+            properties: [
+                'target_local_user_id' => $updatedUser->id,
+                'updated_fields' => array_keys($attributes),
+                'status' => (string) ($updatedUser->local_status ?? 'unknown'),
+            ],
+        );
+
+        return $updatedUser;
     }
 }

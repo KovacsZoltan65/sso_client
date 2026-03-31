@@ -9,8 +9,6 @@ use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Spatie\Activitylog\LogOptions;
-use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Permission\Traits\HasRoles;
 
 #[Fillable([
@@ -29,7 +27,6 @@ class User extends Authenticatable
     /** @use HasFactory<UserFactory> */
     use HasFactory;
     use HasRoles;
-    use LogsActivity;
     use Notifiable;
 
     protected string $guard_name = 'web';
@@ -48,15 +45,4 @@ class User extends Authenticatable
         ];
     }
 
-    /**
-     * Az activity log számára naplózható felhasználói mezők konfigurációja.
-     */
-    public function getActivitylogOptions(): LogOptions
-    {
-        return LogOptions::defaults()
-            ->useLogName('user')
-            ->logOnly(['name', 'email', 'local_status', 'notes'])
-            ->logOnlyDirty()
-            ->dontSubmitEmptyLogs();
-    }
 }

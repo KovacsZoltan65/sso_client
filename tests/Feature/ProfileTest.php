@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
+use Spatie\Activitylog\Models\Activity;
 use Tests\TestCase;
 
 class ProfileTest extends TestCase
@@ -35,6 +36,19 @@ class ProfileTest extends TestCase
                 ->where('profileApi.editableFields', ['name'])
                 ->where('profileApi.readOnlyFields', ['email'])
             );
+
+        $this->assertDatabaseHas('activity_log', [
+            'log_name' => 'client.account',
+            'event' => 'client_profile.page.viewed',
+            'description' => 'Client profile page viewed.',
+        ]);
+
+        $activity = Activity::query()
+            ->where('event', 'client_profile.page.viewed')
+            ->latest()
+            ->firstOrFail();
+
+        $this->assertArrayNotHasKey('access_token', $activity->properties->toArray());
     }
 
     public function test_guest_is_redirected_away_from_the_profile_page(): void
