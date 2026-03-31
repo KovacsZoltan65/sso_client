@@ -19,6 +19,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->web(prepend: [
+            \App\Http\Middleware\Emergency\ConfigureEmergencySessionCookie::class,
+        ]);
+
         $middleware->web(append: [
             \App\Http\Middleware\HandleInertiaRequests::class,
             \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
@@ -28,10 +32,19 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
             'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
             'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
+            'emergency.enabled' => \App\Http\Middleware\Emergency\EnsureEmergencyModeEnabled::class,
+            'emergency.active' => \App\Http\Middleware\Emergency\EnsureEmergencyModeActive::class,
+            'emergency.role' => \App\Http\Middleware\Emergency\EnsureEmergencyRole::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(function (AuthenticationException $exception, Request $request): Response {
+            if ($request->is('emergency') || $request->is('emergency/*')) {
+                return redirect()
+                    ->guest(route('emergency.login'))
+                    ->with('error', 'Emergency authentication required.');
+            }
+
             if ($request->expectsJson()) {
                 app(AuditLogService::class)->logFailure(
                     logName: AuditLogService::LOG_CLIENT_API,

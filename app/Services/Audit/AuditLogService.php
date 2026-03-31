@@ -15,6 +15,7 @@ class AuditLogService
     public const LOG_CLIENT_ADMIN_USER = 'client.admin.user';
     public const LOG_CLIENT_API = 'client.api';
     public const LOG_CLIENT_SECURITY = 'client.security';
+    public const LOG_CLIENT_EMERGENCY = 'client.emergency';
 
     /**
      * @var array<int, string>
@@ -26,6 +27,7 @@ class AuditLogService
         self::LOG_CLIENT_ADMIN_USER,
         self::LOG_CLIENT_API,
         self::LOG_CLIENT_SECURITY,
+        self::LOG_CLIENT_EMERGENCY,
     ];
 
     /**
@@ -47,6 +49,10 @@ class AuditLogService
         'api_endpoint',
         'http_status',
         'reauth_reason',
+        'activation_reference',
+        'activated_by',
+        'emergency_account_id',
+        'emergency_role',
     ];
 
     /**

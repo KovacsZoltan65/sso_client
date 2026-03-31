@@ -1,4 +1,60 @@
 php artisan optimize:clear
+php artisan cache:clear
 
 php artisan key:generate --env=testing
 php artisan migrate:fresh --seed --env=testing
+
+// ==========================================
+// EMERGENCY MODE
+// ==========================================
+
+// státusz ellenőrzése
+php artisan emergency:status
+
+// Emergency account létrehozása
+php artisan tinker
+
+use App\Models\EmergencyAccount;
+use Illuminate\Support\Facades\Hash;
+
+EmergencyAccount::create([
+    'username' => 'emergency_admin',
+    'password' => Hash::make('Secret123!'),
+    'role' => 'admin',
+    'allowed_ips' => ['127.0.0.1'],
+    'is_active' => true,
+]);
+
+// Emergency mód aktiválása
+php artisan emergency:activate --reason="TEST emergency mode" --operator="dev@test.local"
+
+// UI teszt
+/emergency
+/emergency/login
+
+👉 ellenőrizd:
+- banner látszik
+- login működik
+- dashboard elérhető
+
+🔐 8. Bejelentkezés
+username: emergency_admin
+password: Secret123!
+
+// Emergency mód kikapcsolása
+php artisan emergency:deactivate --reason="TEST finished" --operator="dev@test.local"
+
+// Cleanup (ERŐSEN AJÁNLOTT)
+php artisan tinker
+
+EmergencyAccount::where('username', 'emergency_admin')->delete();
+
+✅ Gyors checklist
+- .env beállítva
+- cache törölve
+- emergency account létrehozva
+- activate lefuttatva
+- login működik
+- normál route tiltva
+- audit log megjelenik
+- deactivate lefuttatva

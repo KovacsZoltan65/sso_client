@@ -3,6 +3,8 @@
 namespace App\Http\Middleware;
 
 use App\Data\UserSummaryData;
+use App\Models\User;
+use App\Services\Emergency\EmergencyStatusService;
 use App\Services\Sso\SsoClientService;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -32,13 +34,14 @@ class HandleInertiaRequests extends Middleware
     public function share(Request $request): array
     {
         $user = $request->user();
+        $authUser = $user instanceof User ? $user : null;
 
         return [
             ...parent::share($request),
             'auth' => [
-                'isAuthenticated' => $user !== null,
-                'isGuest' => $user === null,
-                'user' => $user ? UserSummaryData::fromModel($user)->toArray() : null,
+                'isAuthenticated' => $authUser !== null,
+                'isGuest' => $authUser === null,
+                'user' => $authUser ? UserSummaryData::fromModel($authUser)->toArray() : null,
                 'loginUrl' => route('login'),
                 'reauthUrl' => route('auth.sso.redirect'),
                 'logoutUrl' => route('logout'),
@@ -49,6 +52,9 @@ class HandleInertiaRequests extends Middleware
             ],
             'sso' => [
                 'status' => fn () => app(SsoClientService::class)->status()->toArray(),
+            ],
+            'emergency' => [
+                'status' => fn () => app(EmergencyStatusService::class)->status()->toArray(),
             ],
         ];
     }

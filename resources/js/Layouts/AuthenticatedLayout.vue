@@ -13,6 +13,7 @@ const { items } = useNavigation();
 const { user, logoutUrl } = useAuth();
 
 const ssoStatus = computed(() => page.props.sso.status);
+const emergencyStatus = computed(() => page.props.emergency?.status ?? null);
 
 const logout = () => {
     router.post(logoutUrl.value);
@@ -69,6 +70,22 @@ watch(
                 @logout="logout"
                 @toggle-navigation="drawerOpen = !drawerOpen"
             />
+
+            <div
+                v-if="emergencyStatus && emergencyStatus.state !== 'normal'"
+                class="mb-4 flex-none rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+            >
+                <p class="font-semibold">
+                    {{ emergencyStatus.state === 'emergency_active' ? 'Emergency mode active' : 'Emergency mode available' }}
+                </p>
+                <p class="mt-1">
+                    {{
+                        emergencyStatus.state === 'emergency_active'
+                            ? emergencyStatus.bannerMessage
+                            : 'SSO health issues detected. Emergency access is available only after explicit activation.'
+                    }}
+                </p>
+            </div>
 
             <div v-if="$slots.header" class="mb-6 flex-none">
                 <slot name="header" />

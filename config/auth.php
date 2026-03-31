@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\User;
+use App\Models\EmergencyAccount;
 
 return [
 
@@ -42,6 +43,10 @@ return [
             'driver' => 'session',
             'provider' => 'users',
         ],
+        'emergency' => [
+            'driver' => 'session',
+            'provider' => 'emergency_accounts',
+        ],
     ],
 
     /*
@@ -65,6 +70,10 @@ return [
         'users' => [
             'driver' => 'eloquent',
             'model' => env('AUTH_MODEL', User::class),
+        ],
+        'emergency_accounts' => [
+            'driver' => 'eloquent',
+            'model' => EmergencyAccount::class,
         ],
 
         // 'users' => [
