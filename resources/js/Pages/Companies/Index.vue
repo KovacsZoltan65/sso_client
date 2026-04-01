@@ -482,6 +482,7 @@ onMounted(loadCompanies);
                             v-if="permissions.create"
                             label="Uj ceg"
                             icon="pi pi-plus"
+                            severity="primary"
                             :disabled="loading || submitting"
                             @click="openCreateDialog"
                         />

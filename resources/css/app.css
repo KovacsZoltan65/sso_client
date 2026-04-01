@@ -46,6 +46,16 @@ body,
     color: #2563eb;
 }
 
+.section-title {
+    @apply text-2xl font-semibold tracking-tight;
+    color: var(--text-main);
+}
+
+.section-copy {
+    @apply text-sm leading-6;
+    color: var(--text-muted);
+}
+
 .shell-card {
     @apply rounded-3xl border border-slate-200/70 bg-white/90 shadow-sm backdrop-blur;
 }
