@@ -1,5 +1,6 @@
 <script setup>
 import EmptyStatePanel from "@/Components/EmptyStatePanel.vue";
+import AdminTableToolbar from "@/Components/Admin/AdminTableToolbar.vue";
 import PageHeader from "@/Components/PageHeader.vue";
 import RowActionMenu from "@/Components/Admin/RowActionMenu.vue";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
@@ -7,6 +8,7 @@ import UserEditDialog from "@/Pages/Users/Partials/UserEditDialog.vue";
 import UserViewDialog from "@/Pages/Users/Partials/UserViewDialog.vue";
 import { UserApiError, listUsers, showUser, updateUser } from "@/Services/userService";
 import { Head } from "@inertiajs/vue3";
+import { FilterMatchMode } from "@primevue/core/api";
 import Column from "primevue/column";
 import DataTable from "primevue/datatable";
 import InputText from "primevue/inputtext";
@@ -14,7 +16,7 @@ import Select from "primevue/select";
 import Tag from "primevue/tag";
 import { useToast } from "primevue/usetoast";
 import { computed, onMounted, reactive, ref, watch } from "vue";
-import { IconField } from "primevue";
+import { IconField, InputIcon } from "primevue";
 
 const props = defineProps({
     usersApi: { type: Object, required: true },
@@ -31,10 +33,10 @@ const showViewDialog = ref(false);
 const showEditDialog = ref(false);
 const selectedUser = ref(null);
 
-const filters = reactive({
-    search: "",
-    local_status: null,
-    has_sso_link: null,
+const tableFilters = ref({
+    global: { value: null, matchMode: FilterMatchMode.CONTAINS },
+    localStatus: { value: null, matchMode: FilterMatchMode.EQUALS },
+    hasSsoLink: { value: null, matchMode: FilterMatchMode.EQUALS },
 });
 
 const tableState = reactive({
@@ -110,10 +112,26 @@ function getRequestParams() {
         per_page: tableState.perPage,
         sort_field: tableState.sortField,
         sort_order: tableState.sortOrder,
-        global: filters.search || undefined,
-        local_status: filters.local_status,
-        has_sso_link: filters.has_sso_link,
+        global: tableFilters.value.global.value || undefined,
+        local_status: tableFilters.value.localStatus.value || undefined,
+        has_sso_link: normalizeBooleanFilter(tableFilters.value.hasSsoLink.value),
     };
+}
+
+function normalizeBooleanFilter(value) {
+    if (value === null || value === undefined || value === '') {
+        return undefined;
+    }
+
+    if (value === true || value === 'true') {
+        return true;
+    }
+
+    if (value === false || value === 'false') {
+        return false;
+    }
+
+    return value;
 }
 
 async function loadUsers() {
@@ -247,6 +265,15 @@ function handleTableSort(event) {
     loadUsers();
 }
 
+function onGlobalFilterInput(value) {
+    tableFilters.value.global.value = value ?? null;
+}
+
+function onFilter() {
+    tableState.page = 1;
+    loadUsers();
+}
+
 function handleApiError(error, fallbackMessage) {
     if (error instanceof UserApiError && error.status === 401) {
         const redirectTarget =
@@ -307,7 +334,7 @@ function userActionItems(user) {
 }
 
 watch(
-    () => filters.local_status,
+    () => tableFilters.value.localStatus.value,
     () => {
         tableState.page = 1;
         loadUsers();
@@ -315,7 +342,7 @@ watch(
 );
 
 watch(
-    () => filters.has_sso_link,
+    () => tableFilters.value.hasSsoLink.value,
     () => {
         tableState.page = 1;
         loadUsers();
@@ -323,7 +350,7 @@ watch(
 );
 
 watch(
-    () => filters.search,
+    () => tableFilters.value.global.value,
     () => {
         if (searchDebounceId) {
             window.clearTimeout(searchDebounceId);
@@ -375,20 +402,8 @@ onMounted(loadUsers);
                     </div>
 
                     <div class="grid gap-3 xl:min-w-[48rem] xl:grid-cols-[1fr_12rem_12rem]">
-                        <div class="relative">
-                            <i
-                                class="pi pi-search pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-sm text-slate-400"
-                            />
-                            <InputText
-                                v-model="filters.search"
-                                fluid
-                                class="h-11 w-full pl-10"
-                                placeholder="Kereses..."
-                            />
-                        </div>
-
                         <Select
-                            v-model="filters.local_status"
+                            v-model="tableFilters.localStatus.value"
                             :options="localStatusOptions"
                             :pt="compactSelectPt"
                             class="w-full"
@@ -399,7 +414,7 @@ onMounted(loadUsers);
                         />
 
                         <Select
-                            v-model="filters.has_sso_link"
+                            v-model="tableFilters.hasSsoLink.value"
                             :options="linkOptions"
                             :pt="compactSelectPt"
                             class="w-full"
@@ -414,6 +429,7 @@ onMounted(loadUsers);
                 <div class="hidden min-h-0 flex-1 lg:flex">
                     <DataTable
                         :value="users"
+                        v-model:filters="tableFilters"
                         :loading="loading"
                         class="admin-datatable"
                         scrollable
@@ -421,6 +437,7 @@ onMounted(loadUsers);
                         lazy
                         paginator
                         removable-sort
+                        filterDisplay="menu"
                         data-key="id"
                         :rows="tableState.perPage"
                         :first="firstRecordIndex"
@@ -432,7 +449,31 @@ onMounted(loadUsers);
                         :rows-per-page-options="[10, 25, 50]"
                         @page="handleTablePage"
                         @sort="handleTableSort"
+                        @filter="onFilter"
                     >
+                    <template #header>
+                        <AdminTableToolbar
+                            :canCreate="false"
+                            :canBulkDelete="false"
+                            :selectedCount="0"
+                            :selectableCount="0"
+                            :busy="loading || dialogLoading || submitting"
+                            @refresh="loadUsers"
+                        >
+                            <template #search>
+                                <IconField class="w-full">
+                                    <InputIcon class="pi pi-search text-slate-400" />
+                                    <InputText
+                                        v-model="tableFilters.global.value"
+                                        placeholder="Global search"
+                                        class="w-full"
+                                        @update:modelValue="onGlobalFilterInput"
+                                    />
+                                </IconField>
+                            </template>
+                        </AdminTableToolbar>
+                    </template>
+
                     <template #empty>
                         <div class="px-6 py-10">
                             <EmptyStatePanel
@@ -447,19 +488,56 @@ onMounted(loadUsers);
                     <Column field="sso_user_id" header="SSO User ID" sortable />
                     <Column field="name" header="Nev" sortable />
                     <Column field="email" header="E-mail" sortable />
-                    <Column field="local_status" header="Statusz" sortable>
+                    <Column
+                        field="local_status"
+                        header="Statusz"
+                        sortable
+                        :showFilterMatchModes="false"
+                        :showFilterOperator="false"
+                        :showAddButton="false"
+                    >
                         <template #body="{ data }">
                             <Tag
                                 :value="statusLabel(data.local_status)"
                                 :severity="statusSeverity(data.local_status)"
                             />
                         </template>
+
+                        <template #filter="{ filterModel, filterCallback }">
+                            <Select
+                                v-model="filterModel.value"
+                                :options="localStatusOptions"
+                                option-label="label"
+                                option-value="value"
+                                placeholder="Minden statusz"
+                                class="w-full"
+                                @change="filterCallback()"
+                            />
+                        </template>
                     </Column>
-                    <Column header="Kapcsolat">
+                    <Column
+                        field="hasSsoLink"
+                        header="Kapcsolat"
+                        :showFilterMatchModes="false"
+                        :showFilterOperator="false"
+                        :showAddButton="false"
+                    >
                         <template #body="{ data }">
                             <Tag
                                 :value="ssoLinkLabel(data)"
                                 :severity="ssoLinkSeverity(data)"
+                            />
+                        </template>
+
+                        <template #filter="{ filterModel, filterCallback }">
+                            <Select
+                                v-model="filterModel.value"
+                                :options="linkOptions"
+                                option-label="label"
+                                option-value="value"
+                                placeholder="Minden kapcsolat"
+                                class="w-full"
+                                @change="filterCallback()"
                             />
                         </template>
                     </Column>
@@ -491,6 +569,43 @@ onMounted(loadUsers);
                 </div>
 
                 <div class="space-y-4 p-6 lg:hidden">
+                    <div class="grid gap-3">
+                        <div class="relative">
+                            <i
+                                class="pi pi-search pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-sm text-slate-400"
+                            />
+                            <InputText
+                                v-model="tableFilters.global.value"
+                                fluid
+                                class="h-11 w-full pl-10"
+                                placeholder="Kereses..."
+                                @update:modelValue="onGlobalFilterInput"
+                            />
+                        </div>
+
+                        <Select
+                            v-model="tableFilters.localStatus.value"
+                            :options="localStatusOptions"
+                            :pt="compactSelectPt"
+                            class="w-full"
+                            option-label="label"
+                            option-value="value"
+                            placeholder="Lokalis statusz"
+                            show-clear
+                        />
+
+                        <Select
+                            v-model="tableFilters.hasSsoLink.value"
+                            :options="linkOptions"
+                            :pt="compactSelectPt"
+                            class="w-full"
+                            option-label="label"
+                            option-value="value"
+                            placeholder="SSO kapcsolat"
+                            show-clear
+                        />
+                    </div>
+
                     <div
                         v-if="loading"
                         class="rounded-2xl border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-500"

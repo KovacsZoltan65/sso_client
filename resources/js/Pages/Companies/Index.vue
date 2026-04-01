@@ -1,5 +1,7 @@
 <script setup>
 import EmptyStatePanel from "@/Components/EmptyStatePanel.vue";
+import AdminTableCard from "@/Components/Admin/AdminTableCard.vue";
+import AdminTableToolbar from "@/Components/Admin/AdminTableToolbar.vue";
 import PageHeader from "@/Components/PageHeader.vue";
 import RowActionMenu from "@/Components/Admin/RowActionMenu.vue";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
@@ -23,6 +25,7 @@ import { useToast } from "primevue/usetoast";
 import { computed, onMounted, reactive, ref, watch } from "vue";
 import CreateCompanyDialog from "./Partials/CreateCompanyDialog.vue";
 import EditCompanyDialog from "./Partials/EditCompanyDialog.vue";
+import { IconField, InputIcon } from "primevue";
 
 const props = defineProps({
     companiesApi: { type: Object, required: true },
@@ -232,6 +235,36 @@ function confirmDelete(company) {
     });
 }
 
+function companyActionItems(company) {
+    return [
+        props.permissions.update
+            ? {
+                  label: "Szerkesztes",
+                  icon: "pi pi-pencil",
+                  command: () => openEditDialog(company),
+              }
+            : null,
+        props.permissions.delete
+            ? {
+                  label: "Torles",
+                  icon: "pi pi-trash",
+                  command: () => confirmDelete(company),
+              }
+            : null,
+    ];
+}
+
+async function refreshCompanies() {
+    await loadCompanies();
+
+    toast.add({
+        severity: "success",
+        summary: "Sikeres muvelet",
+        detail: "A ceglista frissult.",
+        life: 2500,
+    });
+}
+
 function handleTablePage(event) {
     tableState.page = (event.page ?? 0) + 1;
     tableState.perPage = event.rows ?? tableState.perPage;
@@ -317,41 +350,100 @@ onMounted(loadCompanies);
     <Head title="Companies" />
 
     <AuthenticatedLayout>
-        <template #header>
-            <PageHeader
-                title="Companies"
-                description="A helyi cegtorzs teljes adminisztracioja keresessel, szuressel es jogosultsagkezelessel."
-            >
-                <Button
-                    v-if="permissions.create"
-                    label="Uj ceg"
-                    icon="pi pi-plus"
-                    @click="openCreateDialog"
-                />
-            </PageHeader>
-        </template>
-
         <ConfirmDialog />
 
         <div class="admin-table-page">
-            <section class="shell-card admin-table-shell">
-                <div
-                    class="flex flex-col gap-4 border-b border-slate-200/70 px-6 py-5 lg:flex-row lg:items-end lg:justify-between"
-                >
-                    <div>
-                        <p
-                            class="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400"
-                        >
-                            Admin lista
-                        </p>
-                        <h2 class="mt-2 text-xl font-semibold text-slate-950">Ceg kezeles</h2>
-                        <p class="mt-2 text-sm text-slate-600">
-                            Kereses nev, kod es e-mail alapjan, valamint aktiv statusz
-                            szerinti szures.
-                        </p>
-                    </div>
+            <PageHeader
+                title="Companies"
+                description="A helyi cegtorzs teljes adminisztracioja keresessel, szuressel es jogosultsagkezelessel."
+            />
 
-                    <div class="grid gap-3 md:min-w-[28rem] md:grid-cols-[1fr_12rem]">
+            <AdminTableCard>
+                <div class="admin-table-shell">
+                <div class="hidden min-h-0 flex-1 lg:flex">
+                    <DataTable
+                        :value="companies"
+                        :loading="loading"
+                        class="admin-datatable"
+                        scrollable
+                        scroll-height="flex"
+                        lazy
+                        paginator
+                        removable-sort
+                        data-key="id"
+                        :rows="tableState.perPage"
+                        :first="firstRecordIndex"
+                        :total-records="tableState.total"
+                        :sort-field="tableState.sortField"
+                        :sort-order="tableState.sortOrder === 'asc' ? 1 : -1"
+                        paginator-template="RowsPerPageDropdown FirstPageLink PrevPageLink CurrentPageReport NextPageLink LastPageLink"
+                        current-page-report-template="{first} - {last} / {totalRecords}"
+                        :rows-per-page-options="[10, 25, 50]"
+                        @page="handleTablePage"
+                        @sort="handleTableSort"
+                    >
+                        <template #header>
+                            <AdminTableToolbar
+                                :canCreate="permissions.create"
+                                createLabel="Uj ceg"
+                                :canBulkDelete="false"
+                                :selectedCount="0"
+                                :selectableCount="0"
+                                :busy="loading || submitting"
+                                @create="openCreateDialog"
+                                @refresh="refreshCompanies"
+                            >
+                                <template #search>
+                                    <IconField class="w-full">
+                                        <InputIcon class="pi pi-search text-slate-400" />
+                                        <InputText
+                                            v-model="filters.search"
+                                            fluid
+                                            placeholder="Kereses nev, kod vagy e-mail alapjan"
+                                            class="w-full"
+                                        />
+                                    </IconField>
+                                </template>
+                            </AdminTableToolbar>
+                        </template>
+
+                        <template #empty>
+                            <div class="px-6 py-10">
+                                <EmptyStatePanel
+                                    title="Nincs megjelenitheto ceg"
+                                    description="A jelenlegi szurok mellett nincs talalat. Modositsd a keresest vagy hozz letre uj ceget."
+                                    :tags="['Companies', 'Admin CRUD']"
+                                />
+                            </div>
+                        </template>
+
+                        <Column field="name" header="Cegnev" sortable />
+                        <Column field="code" header="Kod" sortable />
+                        <Column field="email" header="E-mail" sortable />
+                        <Column field="phone" header="Telefonszam" />
+                        <Column field="is_active" header="Statusz" sortable>
+                            <template #body="{ data }">
+                                <Tag
+                                    :value="statusLabel(data.is_active)"
+                                    :severity="statusSeverity(data.is_active)"
+                                />
+                            </template>
+                        </Column>
+                        <Column field="created_at" header="Letrehozva" sortable>
+                            <template #body="{ data }">
+                                {{ formatDate(data.created_at) }}
+                            </template>
+                        </Column>
+                        <Column header="Muveletek" :style="{ width: '120px' }">
+                            <template #body="{ data }">
+                                <RowActionMenu :items="companyActionItems(data)" />
+                            </template>
+                        </Column>
+                    </DataTable>
+                </div>
+
+                <div class="space-y-4 p-6 lg:hidden">
+                    <div class="grid gap-3">
                         <div class="relative">
                             <i
                                 class="pi pi-search pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-sm text-slate-400"
@@ -375,83 +467,26 @@ onMounted(loadCompanies);
                             show-clear
                         />
                     </div>
-                </div>
 
-                <div class="hidden min-h-0 flex-1 lg:flex">
-                    <DataTable
-                        :value="companies"
-                        :loading="loading"
-                        class="admin-datatable"
-                        scrollable
-                        scroll-height="flex"
-                        lazy
-                        paginator
-                        removable-sort
-                        data-key="id"
-                        :rows="tableState.perPage"
-                        :first="firstRecordIndex"
-                        :total-records="tableState.total"
-                        :sort-field="tableState.sortField"
-                        :sort-order="tableState.sortOrder === 'asc' ? 1 : -1"
-                        paginator-template="RowsPerPageDropdown FirstPageLink PrevPageLink CurrentPageReport NextPageLink LastPageLink"
-                        current-page-report-template="{first} - {last} / {totalRecords}"
-                        :rows-per-page-options="[10, 25, 50]"
-                        @page="handleTablePage"
-                        @sort="handleTableSort"
-                    >
-                    <template #empty>
-                        <div class="px-6 py-10">
-                            <EmptyStatePanel
-                                title="Nincs megjelenitheto ceg"
-                                description="A jelenlegi szurok mellett nincs talalat. Modositsd a keresest vagy hozz letre uj ceget."
-                                :tags="['Companies', 'Admin CRUD']"
-                            />
-                        </div>
-                    </template>
+                    <div class="flex flex-wrap items-center justify-end gap-3">
+                        <Button
+                            label="Frissites"
+                            icon="pi pi-refresh"
+                            severity="secondary"
+                            outlined
+                            :loading="loading || submitting"
+                            :disabled="loading || submitting"
+                            @click="refreshCompanies"
+                        />
+                        <Button
+                            v-if="permissions.create"
+                            label="Uj ceg"
+                            icon="pi pi-plus"
+                            :disabled="loading || submitting"
+                            @click="openCreateDialog"
+                        />
+                    </div>
 
-                    <Column field="name" header="Cegnev" sortable />
-                    <Column field="code" header="Kod" sortable />
-                    <Column field="email" header="E-mail" sortable />
-                    <Column field="phone" header="Telefonszam" />
-                    <Column field="is_active" header="Statusz" sortable>
-                        <template #body="{ data }">
-                            <Tag
-                                :value="statusLabel(data.is_active)"
-                                :severity="statusSeverity(data.is_active)"
-                            />
-                        </template>
-                    </Column>
-                    <Column field="created_at" header="Letrehozva" sortable>
-                        <template #body="{ data }">
-                            {{ formatDate(data.created_at) }}
-                        </template>
-                    </Column>
-                    <Column header="Muveletek" :style="{ width: '120px' }">
-                        <template #body="{ data }">
-                            <RowActionMenu
-                                :items="[
-                                    permissions.update
-                                        ? {
-                                              label: 'Szerkesztes',
-                                              icon: 'pi pi-pencil',
-                                              command: () => openEditDialog(data),
-                                          }
-                                        : null,
-                                    permissions.delete
-                                        ? {
-                                              label: 'Torles',
-                                              icon: 'pi pi-trash',
-                                              command: () => confirmDelete(data),
-                                          }
-                                        : null,
-                                ]"
-                            />
-                        </template>
-                    </Column>
-                    </DataTable>
-                </div>
-
-                <div class="space-y-4 p-6 lg:hidden">
                     <div
                         v-if="loading"
                         class="rounded-2xl border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-500"
@@ -486,11 +521,15 @@ onMounted(loadCompanies);
                                     <dd>{{ company.email || "-" }}</dd>
                                 </div>
                                 <div>
-                                    <dt class="font-semibold text-slate-900">Telefonszam</dt>
+                                    <dt class="font-semibold text-slate-900">
+                                        Telefonszam
+                                    </dt>
                                     <dd>{{ company.phone || "-" }}</dd>
                                 </div>
                                 <div>
-                                    <dt class="font-semibold text-slate-900">Letrehozva</dt>
+                                    <dt class="font-semibold text-slate-900">
+                                        Letrehozva
+                                    </dt>
                                     <dd>{{ formatDate(company.created_at) }}</dd>
                                 </div>
                             </dl>
@@ -521,7 +560,8 @@ onMounted(loadCompanies);
                         :tags="['Companies', 'Admin CRUD']"
                     />
                 </div>
-            </section>
+                </div>
+            </AdminTableCard>
         </div>
 
         <CreateCompanyDialog
