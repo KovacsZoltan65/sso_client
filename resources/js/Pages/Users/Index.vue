@@ -1,5 +1,6 @@
 <script setup>
 import EmptyStatePanel from "@/Components/EmptyStatePanel.vue";
+import AdminTableCard from "@/Components/Admin/AdminTableCard.vue";
 import AdminTableToolbar from "@/Components/Admin/AdminTableToolbar.vue";
 import PageHeader from "@/Components/PageHeader.vue";
 import RowActionMenu from "@/Components/Admin/RowActionMenu.vue";
@@ -9,6 +10,7 @@ import UserViewDialog from "@/Pages/Users/Partials/UserViewDialog.vue";
 import { UserApiError, listUsers, showUser, updateUser } from "@/Services/userService";
 import { Head } from "@inertiajs/vue3";
 import { FilterMatchMode } from "@primevue/core/api";
+import Button from "primevue/button";
 import Column from "primevue/column";
 import DataTable from "primevue/datatable";
 import InputText from "primevue/inputtext";
@@ -274,6 +276,17 @@ function onFilter() {
     loadUsers();
 }
 
+async function refreshUsers() {
+    await loadUsers();
+
+    toast.add({
+        severity: "success",
+        summary: "Sikeres muvelet",
+        detail: "A felhasznalolista frissult.",
+        life: 2500,
+    });
+}
+
 function handleApiError(error, fallbackMessage) {
     if (error instanceof UserApiError && error.status === 401) {
         const redirectTarget =
@@ -370,62 +383,14 @@ onMounted(loadUsers);
     <Head title="Users" />
 
     <AuthenticatedLayout>
-        <template #header>
             <PageHeader
                 title="Users"
                 description="SSO projection alapju felhasznalolista readonly identity mezokkel es kliens-specifikus helyi metaadatokkal."
-            >
-                <div v-if="dialogLoading" class="text-sm text-slate-500">
-                    Reszletek betoltese...
-                </div>
-            </PageHeader>
-        </template>
+            />
 
         <div class="admin-table-page">
-            <section class="shell-card admin-table-shell">
-                <div
-                    class="flex flex-col gap-4 border-b border-slate-200/70 px-6 py-5 lg:flex-row lg:items-end lg:justify-between"
-                >
-                    <div>
-                        <p
-                            class="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400"
-                        >
-                            Admin lista
-                        </p>
-                        <h2 class="mt-2 text-xl font-semibold text-slate-950">
-                            Felhasznalo kezeles
-                        </h2>
-                        <p class="mt-2 text-sm text-slate-600">
-                            Kereses helyi azonosito, SSO user ID, nev vagy e-mail alapjan,
-                            valamint lokalis statusz es SSO kapcsolat szerinti szures.
-                        </p>
-                    </div>
-
-                    <div class="grid gap-3 xl:min-w-[48rem] xl:grid-cols-[1fr_12rem_12rem]">
-                        <Select
-                            v-model="tableFilters.localStatus.value"
-                            :options="localStatusOptions"
-                            :pt="compactSelectPt"
-                            class="w-full"
-                            option-label="label"
-                            option-value="value"
-                            placeholder="Lokalis statusz"
-                            show-clear
-                        />
-
-                        <Select
-                            v-model="tableFilters.hasSsoLink.value"
-                            :options="linkOptions"
-                            :pt="compactSelectPt"
-                            class="w-full"
-                            option-label="label"
-                            option-value="value"
-                            placeholder="SSO kapcsolat"
-                            show-clear
-                        />
-                    </div>
-                </div>
-
+            <AdminTableCard>
+                <div class="admin-table-shell">
                 <div class="hidden min-h-0 flex-1 lg:flex">
                     <DataTable
                         :value="users"
@@ -606,6 +571,18 @@ onMounted(loadUsers);
                         />
                     </div>
 
+                    <div class="flex flex-wrap items-center justify-end gap-3">
+                        <Button
+                            label="Frissites"
+                            icon="pi pi-refresh"
+                            severity="secondary"
+                            outlined
+                            :loading="loading || dialogLoading || submitting"
+                            :disabled="loading || dialogLoading || submitting"
+                            @click="refreshUsers"
+                        />
+                    </div>
+
                     <div
                         v-if="loading"
                         class="rounded-2xl border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-500"
@@ -677,7 +654,8 @@ onMounted(loadUsers);
                         :tags="['Users', 'SSO projection']"
                     />
                 </div>
-            </section>
+                </div>
+            </AdminTableCard>
         </div>
 
         <UserViewDialog
