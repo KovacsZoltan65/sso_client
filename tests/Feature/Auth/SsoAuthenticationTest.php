@@ -153,7 +153,7 @@ class SsoAuthenticationTest extends TestCase
 
         $response
             ->assertRedirect(route('login'))
-            ->assertSessionHas('error', 'Az SSO szerver hibaval terjen vissza a bejelentkezesbol.');
+            ->assertSessionHas('error', 'A bejelentkezes nem folytathato, mert ehhez az alkalmazashoz nincs hozzaferese.');
 
         Log::shouldHaveReceived('warning')->once()->withArgs(function (string $message, array $context): bool {
             $serializedContext = json_encode($context);
@@ -166,6 +166,23 @@ class SsoAuthenticationTest extends TestCase
                 && ! str_contains($serializedContext, 'access-token')
                 && ! str_contains($serializedContext, 'secret-value');
         });
+
+        $this->assertGuest();
+    }
+
+    #[Group('security')]
+    public function test_callback_handles_invalid_request_error_from_provider_separately(): void
+    {
+        $response = $this
+            ->withSession([
+                config('sso.state_session_key') => 'valid-state',
+                config('sso.pkce_verifier_session_key') => 'verifier-value',
+            ])
+            ->get('/auth/sso/callback?state=valid-state&error=invalid_request');
+
+        $response
+            ->assertRedirect(route('login'))
+            ->assertSessionHas('error', 'A bejelentkezesi kerest a szolgaltato elutasitotta. Inditsa ujra a folyamatot.');
 
         $this->assertGuest();
     }

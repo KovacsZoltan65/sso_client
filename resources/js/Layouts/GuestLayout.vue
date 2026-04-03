@@ -1,6 +1,5 @@
 <script setup>
 import AppBrand from '@/Components/AppBrand.vue';
-import { Link } from '@inertiajs/vue3';
 </script>
 
 <template>
@@ -10,32 +9,29 @@ import { Link } from '@inertiajs/vue3';
                 <div>
                     <AppBrand />
                     <p class="mt-10 max-w-lg text-4xl font-semibold leading-tight text-white">
-                        Egy biztonsagos bejelentkezesi felulet a folytatashoz.
+                        Bejelentkezes a folytatashoz.
                     </p>
                     <p class="mt-5 max-w-xl text-sm leading-7 text-white/72">
-                        A rendszer a kozponti hitelesitest hasznalja, hogy egyszeruen es megbizhatoan lepjen be.
+                        A kozponti hitelesites biztonsagosan visszairanyitja oda, ahol folytatni szeretne.
                     </p>
                 </div>
 
                 <div class="grid gap-4 md:grid-cols-2">
                     <div class="glass-panel rounded-3xl p-5 text-white/82">
-                        <p class="text-xs uppercase tracking-[0.2em] text-white/60">Access</p>
-                        <p class="mt-3 text-lg font-semibold text-white">Central account sign in</p>
+                        <p class="text-xs uppercase tracking-[0.2em] text-white/60">Sign in</p>
+                        <p class="mt-3 text-lg font-semibold text-white">Kozponti belepes</p>
                     </div>
                     <div class="glass-panel rounded-3xl p-5 text-white/82">
-                        <p class="text-xs uppercase tracking-[0.2em] text-white/60">Return</p>
-                        <p class="mt-3 text-lg font-semibold text-white">Continue where you left off</p>
+                        <p class="text-xs uppercase tracking-[0.2em] text-white/60">Continue</p>
+                        <p class="mt-3 text-lg font-semibold text-white">Visszairanyitas az alkalmazasba</p>
                     </div>
                 </div>
             </section>
 
             <section class="shell-card mx-auto w-full max-w-xl p-6 sm:p-8">
-                <div class="mb-8 lg:hidden">
-                    <Link href="/" class="inline-flex">
-                        <div class="rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold tracking-[0.25em] text-white">
-                            SSO CLIENT
-                        </div>
-                    </Link>
+                <div class="mb-8 lg:hidden inline-flex items-center gap-3 rounded-2xl bg-slate-100 px-4 py-3 text-slate-700">
+                    <AppBrand />
+                    <span class="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Secure sign in</span>
                 </div>
                 <slot />
             </section>

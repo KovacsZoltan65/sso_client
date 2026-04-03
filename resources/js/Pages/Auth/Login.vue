@@ -22,8 +22,8 @@ function startSsoLogin() {
 
     <GuestLayout>
         <div>
-            <p class="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">Secure sign in</p>
-            <h1 class="mt-3 text-3xl font-semibold text-slate-950">Jelentkezzen be</h1>
+            <p class="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">Bejelentkezes</p>
+            <h1 class="mt-3 text-3xl font-semibold text-slate-950">Atiranyitas a bejelentkezeshez</h1>
             <p class="mt-3 text-sm leading-7 text-slate-600">
                 A folytatashoz a rendszer a kozponti bejelentkezesre iranyitja.
             </p>
@@ -37,7 +37,7 @@ function startSsoLogin() {
         <div class="mt-8 space-y-4">
             <Button
                 type="button"
-                label="Tovabb a bejelentkezeshez"
+                label="Folytatas"
                 icon="pi pi-sign-in"
                 class="w-full"
                 :loading="loading"
@@ -45,7 +45,7 @@ function startSsoLogin() {
             />
 
             <p class="text-sm leading-7 text-slate-500">
-                A bejelentkezes utan automatikusan visszairanyitjuk az alkalmazasba.
+                A sikeres bejelentkezes utan automatikusan visszairanyitjuk az alkalmazasba.
             </p>
         </div>
     </GuestLayout>

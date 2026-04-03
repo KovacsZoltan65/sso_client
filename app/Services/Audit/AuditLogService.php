@@ -42,6 +42,8 @@ class AuditLogService
         'result',
         'redirect_target',
         'callback_result',
+        'provider_error',
+        'provider_error_description',
         'target_company_id',
         'target_local_user_id',
         'api_endpoint',

@@ -29,7 +29,8 @@ Az `sso_client` által küldött kötelező query paraméterek:
 Szerver oldali viselkedés:
 
 - érvényes kérés és hitelesített user esetén `302` redirect a `redirect_uri` címre `code` és visszaechozott `state` paraméterrel
-- érvénytelen kliens / redirect / scope esetén a jelenlegi szerver oldali működés validation hiba az authorize route-on (`302` session validation hibákkal), nem callback redirect
+- érvénytelen kliens / redirect / request szerkezet esetén a hiba a provider oldalon marad (`302` session validation hibákkal), nem callback redirect
+- csak már validált kliens + validált redirect után keletkező authorize refusal mehet vissza callbacken OAuth-stílusú `error` paraméterekkel
 
 ## 2. Callback szerződés (`sso_client`)
 
@@ -40,7 +41,7 @@ A kliens callback végpontja:
 A kliens elvárása:
 
 - sikeres ág: `code` és `state`
-- hibaág: opcionális OAuth-stílusú `error`
+- hibaág: opcionális OAuth-stílusú `error`, `error_description`, `state`
 
 A kliens oldali validáció szabályai:
 
@@ -48,7 +49,7 @@ A kliens oldali validáció szabályai:
 - hiányzó `state` -> hiba
 - eltérő `state` vagy hiányzó várt session state -> hiba
 - hiányzó PKCE verifier a sessionből -> hiba
-- callback queryben jelen lévő `error` -> hiba
+- callback queryben jelen lévő `error` -> authorize callback hiba, külön kezelve a generikus belső hibáktól
 
 ## 3. Token response szerződés
 
@@ -190,7 +191,34 @@ A kliens guest állapotba kerül, ha:
 - lokális logout történik, vagy
 - a user védett route-ot ér el érvényes session nélkül (`401` JSON API jellegű kérésnél, login redirect böngészőnél)
 
-## 8. Hiba szerződés mátrix
+## 8. Authorize error contract
+
+Provider oldalon marad:
+
+- invalid client
+- invalid redirect URI
+- strukturálisan hibás authorize request, ha a callback biztonsága nem garantált
+- nem hitelesített user esetén a normál provider login flow folytatódik, ez nem callback hiba
+
+Callbacken térhet vissza:
+
+- validált kliens + validált redirect után keletkező authorize refusal
+- jelenleg: `access_denied`
+- a callback payload OAuth-stílusú query paramétereket használ:
+
+```text
+error=access_denied
+error_description=Access to this client was denied.
+state=<eredeti state>
+```
+
+A kliens oldali elvárt reakció:
+
+- `access_denied` -> rövid, nem technikai refusal üzenet
+- `invalid_request` -> rövid, újraindítást kérő authorize hibaüzenet
+- ismeretlen provider callback hiba -> általános, de még mindig provider-authorize hibaként kezelt üzenet
+
+## 9. Hiba szerződés mátrix
 
 | Eset | Szerver státusz/body | Transport | Kliens viselkedés |
 |---|---|---|---|
@@ -198,9 +226,12 @@ A kliens guest állapotba kerül, ha:
 | inactive client (authorize/token) | 302 validation (authorize) / 422 JSON (token) | redirect vagy JSON | a token fázis elbukik, a kliens login hibát ad |
 | redirect mismatch (authorize/token) | 302 validation (authorize) / 422 JSON (token) | redirect vagy JSON | a token fázis elbukik |
 | disallowed scope (authorize) | 302 + validation session hibák (`scope`) | szerver oldali redirect | nem callback-alapú |
+| invalid authorize request structure | 302 + validation session hibák | szerver oldali redirect | nem callback-alapú |
+| client access denied after valid authorize validation | 302 redirect `error=access_denied` paraméterekkel | kliens callback | refusal üzenet, nincs lokális login |
 | missing state (callback) | n/a, kliens oldali callback validáció | query a kliens callbackre | a kliens elutasítja |
 | invalid state (callback) | n/a, kliens oldali callback validáció | query a kliens callbackre | a kliens elutasítja |
 | missing code (callback) | n/a, kliens oldali callback validáció | query a kliens callbackre | a kliens elutasítja |
+| provider authorize callback error (`invalid_request`) | provider által küldött callback hiba | kliens callback | külön authorize hibaüzenet, nem generikus belső hiba |
 | invalid/expired/reused code (token) | 422 JSON envelope `errors.code` mezővel | JSON | a kliens elutasítja a token exchange-et |
 | token endpoint failure/network | n/a | transport hiba | a kliens elutasítja a token exchange-et |
 | userinfo unauthorized | 401 JSON envelope | JSON | a kliens elutasítja a userinfo fázist |
@@ -208,7 +239,7 @@ A kliens guest állapotba kerül, ha:
 | forbidden self-service profile field | 422 JSON envelope mezőszintű hibákkal | JSON | a kliens section-level vagy field-level hibákat renderel |
 | unauthorized protected route (client app) | 302 login redirect (HTML) / 401 JSON (`reauth_to`) | redirect vagy JSON | explicit re-auth viselkedés |
 
-## 9. Konfigurációs szerződés
+## 10. Konfigurációs szerződés
 
 A kliens konfigurációjának tartalmaznia kell:
 
@@ -229,7 +260,7 @@ A szerver konfigurációjának / adatainak ehhez igazodnia kell:
 - a token policy PKCE beállításai kompatibilisek a kliens kérésével
 - a szerver CORS pontosan engedi az `sso_client` browser origint a közvetlen profile API hívásokhoz
 
-## 10. Szerződést védő tesztlefedettség
+## 11. Szerződést védő tesztlefedettség
 
 Szerver:
 
@@ -246,3 +277,256 @@ Kliens:
 
 Ezek a tesztek adják ennek a szerződésnek a regressziós védelmét.
 
+## 12. Planned consent flow contract (specification only)
+
+Ez a szakasz nem jelenlegi implementációt ír le, hanem a következő consent-flow kör célállapotát rögzíti.
+
+### 12.1. Current gap
+
+Jelenleg a kliens erre van felkészítve:
+
+- success callback `code` és `state` paraméterrel
+- authorize refusal vagy provider authorize hiba callback `error` alapon
+
+Jelenleg nincs külön consent képernyő, mert a szerver valid authorize request után automatikusan approve-ol vagy refusal redirectet épít.
+
+### 12.2. Future success callback
+
+Approve után a kliens szerződése változatlan marad:
+
+- `code` kötelező
+- `state` kötelező, ha eredetileg szerepelt a requestben
+
+Kliens reakció:
+
+1. callback validáció
+2. state ellenőrzés
+3. token exchange
+4. userinfo
+5. lokális session létrehozás
+
+### 12.3. Future refusal callback
+
+Consent deny esetén a szerver ezt küldi vissza:
+
+- `error=access_denied`
+- `error_description` opcionális
+- `state` visszaadva, ha az eredeti request tartalmazta
+
+Kliens reakció:
+
+- refusalként kezeli
+- rövid, nem technikai üzenetet mutat
+- ne általános belső hibát jelenítsen meg
+- a user értse, hogy az alkalmazás hozzáférését utasította el
+
+### 12.4. Future authorize callback error separation
+
+A kliensnek továbbra is külön kell kezelnie:
+
+- user-originated refusal callback (`access_denied`)
+- provider-originated authorize callback hibák
+- belső klienshibák a callback, token vagy userinfo fázisban
+
+Ez a szétválasztás a STORY-07 szerződés folytatása, és a consent flow bevezetése után sem keverhető össze.
+
+### 12.5. Client UX baseline
+
+Approve után:
+
+- nincs extra UX ág, a normál login folytatódik
+
+Deny után:
+
+- egyértelmű refusal üzenet
+- újrapróbálás lehetősége a login entrypointon
+
+Provider authorize error után:
+
+- maradjon külön authorize hibaüzenet
+- ne essen vissza az általános “valami elromlott” ágra
+
+### 12.6. Client-side audit expectation
+
+A kliens oldalon legalább ezek az audit események szükségesek majd:
+
+- `client_auth.authorize_refusal.received`
+- `client_auth.authorize_error.received`
+
+Minimum payload:
+
+- `provider_error`
+- `provider_error_description`
+- `callback_result`
+- request context mezők
+
+Nem logolható:
+
+- access token
+- refresh token
+- authorization code
+- PKCE verifier
+- client secret
+
+## 13. Planned trust tier and consent bypass contract (specification only)
+
+Ez a szakasz a jövőbeli trust-tier alapú consent döntést rögzíti, implementáció nélkül.
+
+### 13.1. Current state
+
+Jelenleg a kliens felől nincs explicit trust-tier szerződés:
+
+- a kliens nem kap trust policy adatot
+- a szerver ma nem különböztet meg dokumentált first-party / third-party kategóriákat authorize döntéskor
+- a kliens csak azt látja, hogy success callback vagy authorize hiba érkezik
+
+### 13.2. Future expected behavior
+
+A jövőbeli szerveroldali trust policy három döntési eredményt adhat:
+
+- `show_consent`
+- `skip_consent`
+- `deny_authorization`
+
+A kliens számára ennek látható következménye:
+
+- `skip_consent` -> normál success callback, nincs köztes consent képernyő
+- `show_consent` -> a user provider consent képernyőt lát, majd approve vagy deny történik
+- `deny_authorization` -> authorize refusal vagy provider-side hiba a STORY-07 szerződés szerint
+
+### 13.3. UX expectation
+
+Consent skip esetén:
+
+- a kliens oldalán nincs külön UX ág
+- a mostani success callback flow marad
+
+Consent required esetén:
+
+- a user átmenetileg a provider consent képernyőjét látja
+- approve után normál success callback jön
+- deny után refusal callback jön
+
+### 13.4. Client responsibility boundary
+
+A kliensnek nem kell nyers trust-tier mezőt ismernie.
+
+A kliens szerződéses felelőssége:
+
+- success callback helyes kezelése
+- refusal callback helyes kezelése
+- provider authorize error helyes kezelése
+
+Vagyis a trust modell szerveroldali policy, a kliens számára pedig csak UX-következmény.
+
+## 14. Planned remembered consent contract (specification only)
+
+Ez a szakasz a jövőbeli remembered consent policy kliensre látható hatását rögzíti, implementáció nélkül.
+
+### 14.1. Current state
+
+Jelenleg nincs remembered consent.
+
+A kliens ma nem tud különbséget tenni:
+
+- friss user approve
+- vagy háttérben újrahasznált korábbi consent
+
+és erre nincs is szüksége.
+
+### 14.2. Future visible behavior
+
+Ha a szerver remembered consent alapján skipeli a consent képernyőt:
+
+- a kliens normál success callbacket kap
+- nincs külön callback paraméter
+- nincs külön remembered-consent protokoll
+
+Ha a remembered consent nem használható:
+
+- a normál consent flow jelenik meg
+- approve után success callback
+- deny után refusal callback
+
+### 14.3. Client UX expectation
+
+A kliens UX szempontjából:
+
+- nem kell külön üzenetet mutatni arról, hogy a consent remembered consent miatt lett skipelve
+- a kliensnek csak a success / refusal / provider error hármasra kell stabilan reagálnia
+
+### 14.4. Contract boundary
+
+A kliensnek nem kell tudnia:
+
+- létezett-e consent rekord
+- mikor járt le
+- mi volt az invalidation oka
+- milyen trust-tier vagy policy döntés miatt történt skip
+
+Ez teljesen szerveroldali policy maradjon.
+
+## 15. Planned OIDC-grade nonce, logout, and session-boundary roadmap (specification only)
+
+Ez a szakasz a jövőbeli OIDC-érettebb fejlődési irány kliensoldali következményeit rögzíti, implementáció nélkül.
+
+### 15.1. Current state
+
+`nonce`
+
+- jelenleg nincs explicit `nonce` a kliens authorize requestben
+- a kliens ma `state`-et és `pkce_verifier`-t kezel
+
+Logout
+
+- a kliens jelenleg csak lokális logoutot hajt végre
+- nincs provider logout redirect contract
+- nincs cross-app logout propagation
+
+Session boundary
+
+- a kliens lokális sessionje külön él a provider sessiontől
+- ez implicit módon már igaz, de most válik explicit szerződéssé
+
+### 15.2. Future nonce expectation
+
+A jövőbeli OIDC-grade irányban:
+
+- a kliens generál majd `nonce`-ot
+- azt authorize requestben továbbítja
+- sessionben tárolja
+- a későbbi OIDC response / ID token validáció ehhez fog kapcsolódni
+
+Az első iterációban a kliens callback branch-je emiatt még nem bővül külön protokollággal.
+
+### 15.3. Future logout expectation
+
+A kliens szempontjából három fogalom különül el:
+
+- `local logout`
+- `provider logout`
+- később `cross-app logout`
+
+Első érettségi szint:
+
+- a local logout támogatott és explicit marad
+- a provider logout külön szerződést kap majd
+- a cross-app logout későbbi roadmap fázis
+
+### 15.4. Session boundary expectation
+
+A kliensnek a jövőben is úgy kell működnie, hogy:
+
+- a provider session és a client session nem ugyanaz
+- local logout nem feltétlenül jelenti a provider logoutot
+- provider logout nem feltétlenül propagálódik azonnal minden kliensre
+- reauth requirement külön kezelhető állapot marad
+
+### 15.5. Client UX expectation
+
+A user jövőben ezt tapasztalhatja:
+
+- kijelentkezett ebből az appból, de a központi szolgáltatásban még lehet sessionje
+- a központi szolgáltatásból kijelentkezett, de más kliensek lokális sessionje még rövid ideig élhet, amíg nincs teljes propagation
+
+Ezt a boundary-t a kliens UX-nek később világosan kell kommunikálnia, nem elrejtenie.

@@ -194,12 +194,7 @@ class SsoClientService
         }
 
         if ($request->filled('error')) {
-            $this->throwCallbackFailure(
-                request: $request,
-                message: 'Az SSO szerver hibaval terjen vissza a bejelentkezesbol.',
-                status: 401,
-                reason: 'provider_error',
-            );
+            $this->handleAuthorizeCallbackError($request);
         }
 
         $code = $request->string('code')->toString();
@@ -623,6 +618,14 @@ class SsoClientService
             $properties['api_endpoint'] = $context['sso_endpoint'];
         }
 
+        if (isset($context['provider_error']) && is_string($context['provider_error'])) {
+            $properties['provider_error'] = $context['provider_error'];
+        }
+
+        if (isset($context['provider_error_description']) && is_string($context['provider_error_description'])) {
+            $properties['provider_error_description'] = $context['provider_error_description'];
+        }
+
         $this->auditLogService->logFailure(
             logName: AuditLogService::LOG_CLIENT_AUTH,
             event: 'client_auth.callback.failed',
@@ -632,6 +635,36 @@ class SsoClientService
         );
 
         throw new SsoAuthenticationException($message, $status, $previous, $context);
+    }
+
+    private function handleAuthorizeCallbackError(Request $request): never
+    {
+        $providerError = trim($request->string('error')->toString());
+        $providerDescription = trim($request->string('error_description')->toString());
+
+        $message = $this->authorizeCallbackErrorMessage($providerError, $providerDescription);
+
+        $this->throwCallbackFailure(
+            request: $request,
+            message: $message,
+            status: 401,
+            reason: 'authorize_callback_error',
+            context: [
+                'provider_error' => $providerError,
+                'provider_error_description' => $providerDescription !== '' ? $providerDescription : null,
+            ],
+        );
+    }
+
+    private function authorizeCallbackErrorMessage(string $providerError, string $providerDescription): string
+    {
+        return match ($providerError) {
+            'access_denied' => 'A bejelentkezes nem folytathato, mert ehhez az alkalmazashoz nincs hozzaferese.',
+            'invalid_request' => 'A bejelentkezesi kerest a szolgaltato elutasitotta. Inditsa ujra a folyamatot.',
+            default => $providerDescription !== ''
+                ? 'A kozponti bejelentkezes nem sikerult. '.$providerDescription
+                : 'A kozponti bejelentkezes nem sikerult. Probald ujra kesobb.',
+        };
     }
 
     /**
