@@ -4,7 +4,7 @@ import LoginPage from '@/Pages/Auth/Login.vue';
 import { setPageProps } from '../mocks/inertia';
 
 describe('Auth/Login', () => {
-    it('renders flash error and starts the SSO redirect with a loading state', async () => {
+    it('renders user-facing copy without technical diagnostics and starts the SSO redirect with a loading state', async () => {
         setPageProps({
             auth: {},
             flash: {
@@ -25,11 +25,6 @@ describe('Auth/Login', () => {
             props: {
                 loginUrl: '/auth/sso/redirect',
                 status: null,
-                ssoStatus: {
-                    serverBaseUrl: 'https://sso-server.test',
-                    redirectUri: 'http://sso-client.test/auth/sso/callback',
-                    scopes: ['openid', 'profile', 'email'],
-                },
             },
             global: {
                 stubs: {
@@ -50,7 +45,11 @@ describe('Auth/Login', () => {
         });
 
         expect(wrapper.text()).toContain('Session expired.');
-        expect(wrapper.text()).toContain('https://sso-server.test');
+        expect(wrapper.text()).toContain('Jelentkezzen be');
+        expect(wrapper.text()).toContain('kozponti bejelentkezesre iranyitja');
+        expect(wrapper.text()).not.toContain('https://sso-server.test');
+        expect(wrapper.text()).not.toContain('Redirect URI');
+        expect(wrapper.text()).not.toContain('Scope-ok');
 
         await wrapper.get('button').trigger('click');
 
