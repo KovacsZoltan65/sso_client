@@ -23,8 +23,28 @@ Az `sso_client` által küldött kötelező query paraméterek:
 - `redirect_uri`
 - `scope` szóközzel elválasztva, `SSO_SCOPES` alapján
 - `state` véletlen 64 karakter, sessionben tárolva
+- `nonce` véletlen, nagy entrópiájú string, ha a kért scope-ok között szerepel az `openid`
 - `code_challenge`
 - `code_challenge_method=S256`
+
+`nonce` baseline szabály:
+
+- ha az authorize request `openid` scope-ot kér, a `nonce` kötelező
+- ha az authorize request nem kér `openid` scope-ot, az első iterációban a `nonce` elhagyható
+- a `nonce`-ot mindig az `sso_client` generálja, nem user inputból származik
+- a `state` és a `nonce` nem ugyanaz: a `state` request/callback korrelációra szolgál, a `nonce` a későbbi OIDC identity response / ID token validáció alapja
+
+Kliens oldali session storage szerződés:
+
+- az `sso_client` az authorize indításkor egy `sso.oauth.pending_authorizations` session mapbe ment
+- a kulcs a generált `state`
+- az érték tartalmazza legalább:
+  - `state`
+  - `code_verifier`
+  - `nonce`
+  - `issued_at`
+  - `scope_contains_openid`
+- ez a szerződés azért létezik, hogy a nonce ne UI state-ből vagy queryből legyen később visszafejtve
 
 Szerver oldali viselkedés:
 
@@ -49,7 +69,32 @@ A kliens oldali validáció szabályai:
 - hiányzó `state` -> hiba
 - eltérő `state` vagy hiányzó várt session state -> hiba
 - hiányzó PKCE verifier a sessionből -> hiba
+- ha az eredeti flow `openid` scope-ot használt, de a sessionből hiányzik a nonce kontextus -> hiba
 - callback queryben jelen lévő `error` -> authorize callback hiba, külön kezelve a generikus belső hibáktól
+
+Fontos határ:
+
+- ebben az iterációban még nincs teljes kliensoldali JWT verification platform
+- a ticket célja most már a returned nonce fogadása es az expected vs returned nonce osszevetes foundationje
+- a későbbi OIDC ticket erre a működő adatutra fog építeni
+
+Downstream nonce validation foundation:
+
+- a callback a token response `id_token` mezőjéből olvassa ki a returned nonce-ot
+- a callback a session-bound `expected_nonce` értékkel ténylegesen összeveti a returned nonce-ot
+- sikeres nonce validáció után a kliens a nonce contextet átteszi a `sso.oauth.identity_validation_contexts` session mapbe
+- ebben a retained contextben a kliens `expected_nonce` néven őrzi meg a validált expected oldalt
+- a pending context ugyanahhoz a `state`-hez csak ezután törölhető
+- a kliens oldalon a foundation helper neve `validateExpectedNonce(...)`
+- jelenleg ez a helper:
+  - guardolja a hiányzó elvárt nonce-ot, ha az flow szerint kötelező
+  - mismatch esetén hibát dob
+  - hiányzó returned nonce esetén openid flow-ban hibát dob
+  - csak akkor deferred, ha tényleges identity response még nincs
+- a jelenlegi contract:
+  - `expected_nonce` a kliens retained identity validation contextből jön
+  - `returned_nonce` a szerver által kibocsátott `id_token` nonce claimjéből jön
+  - a kliens a payload parsinget jelenleg nonce-validációra használja, nem teljes JWT hitelesítésre
 
 ## 3. Token response szerződés
 
@@ -78,7 +123,8 @@ Sikeres válasz hiteles formátuma:
     "refresh_token": "...",
     "expires_in": 3600,
     "refresh_token_expires_in": 86400,
-    "scope": "openid profile email"
+    "scope": "openid profile email",
+    "id_token": "eyJ..."
   },
   "meta": {},
   "errors": {}
@@ -87,7 +133,13 @@ Sikeres válasz hiteles formátuma:
 
 Szerződés szabály:
 
-- az `sso_client` kizárólag a `data.access_token` mezőt olvassa, nincs top-level fallback
+- a kliens kizárólag a `data` envelope-ból dolgozik
+- `openid` scope esetén a kliens `data.id_token` mezőt is vár, és abból olvassa ki a returned nonce-ot
+- a kliens `kid` alapján letolti es valasztja ki a megfelelo JWKS kulcsot
+- a kliens RS256 alairast ellenoriz az ID tokenen
+- a kliens minimalisan ellenorzi az `iss`, `aud`, `exp`, `iat` claim-eket is
+- a nonce check csak sikeres signature es claim verify utan futhat le
+- non-openid flow-ban a kliens nem vár `id_token` mezőt
 
 Hibás válasz formátuma:
 
@@ -251,6 +303,13 @@ A kliens konfigurációjának tartalmaznia kell:
 - `SSO_CLIENT_SECRET` ha confidential client auth szükséges
 - `SSO_REDIRECT_URI`
 - `SSO_SCOPES`, és kötelezően tartalmaznia kell az `email` scope-ot, mert a kliens session mappinghez szükséges a `userinfo.email`
+- az `openid` scope jelen iterációban már nem általános konfigurációs kötelezettség, de ha szerepel a kért scope-ok között, a kliens nonce-ot generál és a szerver nonce-ot vár el
+
+Nonce szerződés a konfigurációhoz:
+
+- ha az `SSO_SCOPES` tartalmazza az `openid` scope-ot, az `sso_client` minden authorize redirecthez nonce-ot generál és elküld
+- a szervernek az `openid` scope-ot kérő authorize requestet csak nonce-szal szabad elfogadnia
+- sikeres callback után a kliens retained identity-validation contextben tovább őrzi az expected nonce-ot a későbbi összevetéshez
 
 A szerver konfigurációjának / adatainak ehhez igazodnia kell:
 

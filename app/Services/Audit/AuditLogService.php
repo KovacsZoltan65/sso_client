@@ -49,6 +49,8 @@ class AuditLogService
         'api_endpoint',
         'http_status',
         'reauth_reason',
+        'has_nonce',
+        'scope_contains_openid',
     ];
 
     /**

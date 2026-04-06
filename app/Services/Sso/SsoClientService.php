@@ -6,6 +6,7 @@ use App\Data\SsoStatusData;
 use App\Exceptions\SsoAuthenticationException;
 use App\Models\User;
 use App\Services\Audit\AuditLogService;
+use Illuminate\Contracts\Session\Session;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Request;
 use Illuminate\Http\Client\Response;
@@ -36,11 +37,31 @@ use RuntimeException;
  *     oauth_error: string|null,
  *     response_message: string|null
  * }
+ * @phpstan-type PendingAuthorizationContext array{
+ *     state: string,
+ *     code_verifier: string,
+ *     nonce: string|null,
+ *     issued_at: string,
+ *     scope_contains_openid: bool
+ * }
+ * @phpstan-type IdentityValidationContext array{
+ *     state: string,
+ *     expected_nonce: string|null,
+ *     scope_contains_openid: bool,
+ *     retained_at: string,
+ *     validation_status: string,
+ *     validated_at?: string|null
+ * }
+ * @phpstan-type TokenExchangeResult array{
+ *     access_token: string,
+ *     id_token: string|null
+ * }
  */
 class SsoClientService
 {
     public function __construct(
         private readonly AuditLogService $auditLogService,
+        private readonly OidcIdTokenVerifier $oidcIdTokenVerifier,
     ) {
     }
 
@@ -58,8 +79,7 @@ class SsoClientService
         $requiredScopesConfigured = collect($scopes)
             ->map(static fn (mixed $scope): string => trim((string) $scope))
             ->filter()
-            ->intersect(['openid', 'email'])
-            ->count() === 2;
+            ->contains('email');
         $localAuthEnabled = (bool) config('sso.local_auth_enabled');
         $configured = filled($serverBaseUrl)
             && filled(config('sso.client_id'))
@@ -137,24 +157,48 @@ class SsoClientService
             throw $exception;
         }
 
+        $configuredScopes = $this->normalizedScopes();
+        $requiresNonce = $this->scopeContainsOpenId($configuredScopes);
         $state = Str::random(64);
         $codeVerifier = Str::random(96);
+        $nonce = $requiresNonce ? Str::random(96) : null;
         $codeChallenge = $this->codeChallengeFromVerifier($codeVerifier);
 
-        $request->session()->put(config('sso.state_session_key'), $state);
-        $request->session()->put(config('sso.pkce_verifier_session_key'), $codeVerifier);
+        $this->storePendingAuthorizationContext($request, [
+            'state' => $state,
+            'code_verifier' => $codeVerifier,
+            'nonce' => $nonce,
+            'issued_at' => now()->toIso8601String(),
+            'scope_contains_openid' => $requiresNonce,
+        ]);
 
         $query = http_build_query([
             'response_type' => 'code',
             'client_id' => (string) config('sso.client_id'),
             'redirect_uri' => $this->redirectUri(),
-            'scope' => implode(' ', config('sso.scopes', [])),
+            'scope' => implode(' ', $configuredScopes),
             'state' => $state,
+            'nonce' => $nonce,
             'code_challenge' => $codeChallenge,
             'code_challenge_method' => 'S256',
-        ]);
+        ], arg_separator: '&', encoding_type: PHP_QUERY_RFC3986);
 
         $redirectUrl = $this->configuredEndpoint('authorize_endpoint').'?'.$query;
+
+        if ($nonce !== null) {
+            $this->auditLogService->logSuccess(
+                logName: AuditLogService::LOG_CLIENT_AUTH,
+                event: 'client_auth.nonce.issued',
+                description: 'Client OIDC nonce issued.',
+                causer: $request->user(),
+                properties: [
+                    'has_nonce' => true,
+                    'scope_contains_openid' => true,
+                    'redirect_target' => $this->configuredEndpoint('authorize_endpoint'),
+                    ...$this->auditLogService->requestContext($request),
+                ],
+            );
+        }
 
         $this->auditLogService->logSuccess(
             logName: AuditLogService::LOG_CLIENT_AUTH,
@@ -199,8 +243,6 @@ class SsoClientService
 
         $code = $request->string('code')->toString();
         $state = $request->string('state')->toString();
-        $expectedState = (string) $request->session()->pull(config('sso.state_session_key'));
-        $codeVerifier = (string) $request->session()->pull(config('sso.pkce_verifier_session_key'));
 
         if ($code === '') {
             $this->throwCallbackFailure(
@@ -220,6 +262,12 @@ class SsoClientService
             );
         }
 
+        $pendingAuthorization = $this->getPendingAuthorizationContextByState($request->session(), $state);
+        $expectedState = is_array($pendingAuthorization) ? (string) ($pendingAuthorization['state'] ?? '') : '';
+        $codeVerifier = is_array($pendingAuthorization) ? (string) ($pendingAuthorization['code_verifier'] ?? '') : '';
+        $expectedNonce = is_array($pendingAuthorization) ? trim((string) ($pendingAuthorization['nonce'] ?? '')) : '';
+        $scopeContainsOpenId = (bool) ($pendingAuthorization['scope_contains_openid'] ?? false);
+
         if ($expectedState === '' || ! hash_equals($expectedState, $state)) {
             $this->throwCallbackFailure(
                 request: $request,
@@ -238,9 +286,51 @@ class SsoClientService
             );
         }
 
-        $accessToken = $this->exchangeCodeForAccessToken($code, $codeVerifier);
+        // Future OIDC ID token validation will compare the returned nonce against this session-bound value.
+        if ($scopeContainsOpenId && $expectedNonce === '') {
+            $this->throwCallbackFailure(
+                request: $request,
+                message: 'Hianyzo OIDC nonce allapot miatt nem folytathato a bejelentkezes. Inditsd ujra a login folyamatot.',
+                status: 401,
+                reason: 'missing_nonce_context',
+            );
+        }
+
+        $tokenResponse = $this->exchangeCodeForTokens($code, $codeVerifier);
+
+        if ($scopeContainsOpenId) {
+            $idToken = trim((string) ($tokenResponse['id_token'] ?? ''));
+
+            if ($idToken === '') {
+                $this->throwCallbackFailure(
+                    request: $request,
+                    message: 'Az SSO token valasz nem tartalmaz ervenyes ID tokent az openid flow-hoz.',
+                    status: 502,
+                    reason: 'missing_id_token',
+                );
+            }
+
+            $claims = $this->verifyIdToken($request, $idToken);
+            $returnedNonce = trim((string) ($claims['nonce'] ?? ''));
+
+            $this->validateExpectedNonce(
+                request: $request,
+                expectedNonce: $expectedNonce !== '' ? $expectedNonce : null,
+                returnedNonce: $returnedNonce,
+                required: true,
+                allowDeferredWhenReturnedNonceMissing: false,
+            );
+        }
+
+        $accessToken = $tokenResponse['access_token'];
         $userInfo = $this->fetchUserInfo($accessToken);
         $user = $this->resolveLocalUser($userInfo);
+
+        if (is_array($pendingAuthorization) && $scopeContainsOpenId) {
+            $this->retainIdentityValidationContext($request, $pendingAuthorization, 'validated_from_id_token');
+        }
+
+        $this->forgetPendingAuthorizationContext($request, $state);
 
         Auth::login($user, remember: false);
         $request->session()->regenerate();
@@ -293,8 +383,8 @@ class SsoClientService
 
         Auth::guard('web')->logout();
 
-        $request->session()->forget(config('sso.state_session_key'));
-        $request->session()->forget(config('sso.pkce_verifier_session_key'));
+        $request->session()->forget(config('sso.pending_auth_session_key'));
+        $request->session()->forget(config('sso.identity_validation_session_key'));
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
@@ -316,7 +406,10 @@ class SsoClientService
     /**
      * Authorization code cseréje access tokenre az SSO szervernél.
      */
-    private function exchangeCodeForAccessToken(string $code, string $codeVerifier): string
+    /**
+     * @return TokenExchangeResult
+     */
+    private function exchangeCodeForTokens(string $code, string $codeVerifier): array
     {
         $endpoint = $this->configuredEndpoint('token_endpoint');
 
@@ -350,6 +443,7 @@ class SsoClientService
 
         $payload = $this->decodeJsonResponse($response);
         $accessToken = trim((string) data_get($payload, 'data.access_token'));
+        $idToken = trim((string) data_get($payload, 'data.id_token'));
         $responseMessage = trim((string) data_get($payload, 'message'));
         $diagnostics = $this->buildResponseDiagnostics(
             phase: 'token_exchange',
@@ -391,7 +485,10 @@ class SsoClientService
             );
         }
 
-        return $accessToken;
+        return [
+            'access_token' => $accessToken,
+            'id_token' => $idToken !== '' ? $idToken : null,
+        ];
     }
 
     /**
@@ -571,12 +668,9 @@ class SsoClientService
      */
     private function ensureConfigured(): void
     {
-        $configuredScopes = collect(config('sso.scopes', []))
-            ->map(static fn (mixed $scope): string => trim((string) $scope))
-            ->filter()
-            ->values();
+        $configuredScopes = collect($this->normalizedScopes());
 
-        foreach (['openid', 'email'] as $requiredScope) {
+        foreach (['email'] as $requiredScope) {
             if (! $configuredScopes->contains($requiredScope)) {
                 throw new SsoAuthenticationException(
                     sprintf('Az SSO kliens konfiguracioja hianyos: a "%s" scope kotelezo ehhez a kliens flow-hoz.', $requiredScope),
@@ -766,5 +860,306 @@ class SsoClientService
             'oauth_error' => filled($oauthError) ? $oauthError : null,
             'response_message' => filled($responseMessage) ? Str::limit($responseMessage, 160) : null,
         ];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function normalizedScopes(): array
+    {
+        return collect(config('sso.scopes', []))
+            ->map(static fn (mixed $scope): string => trim((string) $scope))
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param array<int, string> $scopes
+     */
+    private function scopeContainsOpenId(array $scopes): bool
+    {
+        return in_array('openid', $scopes, true);
+    }
+
+    /**
+     * @param PendingAuthorizationContext $context
+     */
+    private function storePendingAuthorizationContext(Request $request, array $context): void
+    {
+        $contexts = $request->session()->get(config('sso.pending_auth_session_key'), []);
+        $contexts = is_array($contexts) ? $contexts : [];
+        $contexts[$context['state']] = $context;
+
+        $request->session()->put(config('sso.pending_auth_session_key'), $contexts);
+    }
+
+    /**
+     * @return PendingAuthorizationContext|null
+     */
+    public function getPendingAuthorizationContextByState(Session $session, string $state): ?array
+    {
+        $contexts = $session->get(config('sso.pending_auth_session_key'), []);
+
+        if (! is_array($contexts)) {
+            return null;
+        }
+
+        $context = $contexts[$state] ?? null;
+
+        return is_array($context) ? $context : null;
+    }
+
+    /**
+     * @return IdentityValidationContext|null
+     */
+    public function getIdentityValidationContextByState(Session $session, string $state): ?array
+    {
+        $contexts = $session->get(config('sso.identity_validation_session_key'), []);
+
+        if (! is_array($contexts)) {
+            return null;
+        }
+
+        $context = $contexts[$state] ?? null;
+
+        return is_array($context) ? $context : null;
+    }
+
+    public function getExpectedNonceByState(Session $session, string $state): ?string
+    {
+        $identityContext = $this->getIdentityValidationContextByState($session, $state);
+
+        if (is_array($identityContext)) {
+            $expectedNonce = trim((string) ($identityContext['expected_nonce'] ?? ''));
+
+            return $expectedNonce !== '' ? $expectedNonce : null;
+        }
+
+        $pendingContext = $this->getPendingAuthorizationContextByState($session, $state);
+        $expectedNonce = trim((string) ($pendingContext['nonce'] ?? ''));
+
+        return $expectedNonce !== '' ? $expectedNonce : null;
+    }
+
+    public function validateExpectedNonce(
+        Request $request,
+        ?string $expectedNonce,
+        ?string $returnedNonce,
+        bool $required,
+        bool $allowDeferredWhenReturnedNonceMissing = true,
+    ): void {
+        $normalizedExpectedNonce = trim((string) ($expectedNonce ?? ''));
+        $normalizedReturnedNonce = trim((string) ($returnedNonce ?? ''));
+
+        if ($required && $normalizedExpectedNonce === '') {
+            $this->auditLogService->logFailure(
+                logName: AuditLogService::LOG_CLIENT_AUTH,
+                event: 'client_auth.nonce.validation_failed',
+                description: 'Client nonce validation failed.',
+                causer: $request->user(),
+                properties: [
+                    'reason' => 'missing_expected_nonce',
+                    'has_nonce' => false,
+                    'scope_contains_openid' => true,
+                    ...$this->auditLogService->requestContext($request),
+                ],
+            );
+
+            $this->throwCallbackFailure(
+                request: $request,
+                message: 'Hianyzo vart OIDC nonce miatt nem folytathato a bejelentkezes. Inditsd ujra a login folyamatot.',
+                status: 401,
+                reason: 'missing_expected_nonce',
+            );
+        }
+
+        if ($normalizedReturnedNonce === '') {
+            if ($required) {
+                if (! $allowDeferredWhenReturnedNonceMissing) {
+                    $this->auditLogService->logFailure(
+                        logName: AuditLogService::LOG_CLIENT_AUTH,
+                        event: 'client_auth.nonce.validation_failed',
+                        description: 'Client nonce validation failed.',
+                        causer: $request->user(),
+                        properties: [
+                            'reason' => 'missing_returned_nonce',
+                            'has_nonce' => $normalizedExpectedNonce !== '',
+                            'scope_contains_openid' => true,
+                            ...$this->auditLogService->requestContext($request),
+                        ],
+                    );
+
+                    $this->throwCallbackFailure(
+                        request: $request,
+                        message: 'Az SSO ID token nem tartalmaz ervenyes nonce claimet. Inditsd ujra a bejelentkezest.',
+                        status: 401,
+                        reason: 'missing_returned_nonce',
+                    );
+                }
+
+                $this->auditLogService->logSuccess(
+                    logName: AuditLogService::LOG_CLIENT_AUTH,
+                    event: 'client_auth.nonce.validation_deferred',
+                    description: 'Client nonce validation deferred until identity response is available.',
+                    causer: $request->user(),
+                    properties: [
+                        'has_nonce' => $normalizedExpectedNonce !== '',
+                        'scope_contains_openid' => $required,
+                        ...$this->auditLogService->requestContext($request),
+                    ],
+                );
+            }
+
+            return;
+        }
+
+        if ($normalizedExpectedNonce === '' || ! hash_equals($normalizedExpectedNonce, $normalizedReturnedNonce)) {
+            $this->auditLogService->logFailure(
+                logName: AuditLogService::LOG_CLIENT_AUTH,
+                event: 'client_auth.nonce.validation_failed',
+                description: 'Client nonce validation failed.',
+                causer: $request->user(),
+                properties: [
+                    'reason' => 'invalid_nonce',
+                    'has_nonce' => $normalizedExpectedNonce !== '',
+                    'scope_contains_openid' => $required,
+                    ...$this->auditLogService->requestContext($request),
+                ],
+            );
+
+            $this->throwCallbackFailure(
+                request: $request,
+                message: 'Az OIDC nonce ellenorzes sikertelen. Inditsd ujra a bejelentkezest.',
+                status: 401,
+                reason: 'invalid_nonce',
+            );
+        }
+
+        if ($required) {
+            $this->auditLogService->logSuccess(
+                logName: AuditLogService::LOG_CLIENT_AUTH,
+                event: 'client_auth.nonce.validated',
+                description: 'Client nonce validated against ID token.',
+                causer: $request->user(),
+                properties: [
+                    'has_nonce' => true,
+                    'scope_contains_openid' => true,
+                    ...$this->auditLogService->requestContext($request),
+                ],
+            );
+        }
+    }
+
+    /**
+     * @param PendingAuthorizationContext $pendingAuthorization
+     */
+    private function retainIdentityValidationContext(Request $request, array $pendingAuthorization, string $validationStatus): void
+    {
+        $contexts = $request->session()->get(config('sso.identity_validation_session_key'), []);
+        $contexts = is_array($contexts) ? $contexts : [];
+
+        $contexts[$pendingAuthorization['state']] = [
+            'state' => $pendingAuthorization['state'],
+            'expected_nonce' => $pendingAuthorization['nonce'],
+            'scope_contains_openid' => $pendingAuthorization['scope_contains_openid'],
+            'retained_at' => now()->toIso8601String(),
+            'validation_status' => $validationStatus,
+            'validated_at' => $validationStatus === 'validated_from_id_token' ? now()->toIso8601String() : null,
+        ];
+
+        $request->session()->put(config('sso.identity_validation_session_key'), $contexts);
+
+        if ((bool) ($pendingAuthorization['scope_contains_openid'] ?? false)) {
+            $this->auditLogService->logSuccess(
+                logName: AuditLogService::LOG_CLIENT_AUTH,
+                event: 'client_auth.nonce.context_retained',
+                description: 'Client nonce context retained for downstream identity validation.',
+                causer: $request->user(),
+                properties: [
+                    'has_nonce' => trim((string) ($pendingAuthorization['nonce'] ?? '')) !== '',
+                    'scope_contains_openid' => true,
+                    ...$this->auditLogService->requestContext($request),
+                ],
+            );
+        }
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function verifyIdToken(Request $request, string $idToken): array
+    {
+        $this->auditLogService->logSuccess(
+            logName: AuditLogService::LOG_CLIENT_AUTH,
+            event: 'client_auth.id_token.received',
+            description: 'Client ID token received.',
+            causer: $request->user(),
+            properties: [
+                'has_nonce' => true,
+                'scope_contains_openid' => true,
+                ...$this->auditLogService->requestContext($request),
+            ],
+        );
+
+        try {
+            $claims = $this->oidcIdTokenVerifier->verify($idToken);
+        } catch (SsoAuthenticationException $exception) {
+            $reason = match ($exception->getMessage()) {
+                'Az SSO ID token alairasa ervenytelen.' => 'invalid_signature',
+                'Az SSO ID token issuer claimje ervenytelen.',
+                'Az SSO ID token audience claimje ervenytelen.',
+                'Az SSO ID token lejart.',
+                'Az SSO ID token idobelyege ervenytelen.' => 'invalid_claims',
+                default => 'invalid_id_token',
+            };
+
+            $event = $reason === 'invalid_signature'
+                ? 'client_auth.id_token.signature_verification_failed'
+                : 'client_auth.id_token.claim_validation_failed';
+
+            $this->auditLogService->logFailure(
+                logName: AuditLogService::LOG_CLIENT_AUTH,
+                event: $event,
+                description: $reason === 'invalid_signature'
+                    ? 'Client ID token signature verification failed.'
+                    : 'Client ID token claim validation failed.',
+                causer: $request->user(),
+                properties: [
+                    'reason' => $reason,
+                    'has_nonce' => true,
+                    'scope_contains_openid' => true,
+                    ...$this->auditLogService->requestContext($request),
+                ],
+            );
+
+            throw $exception;
+        }
+
+        $this->auditLogService->logSuccess(
+            logName: AuditLogService::LOG_CLIENT_AUTH,
+            event: 'client_auth.id_token.signature_verified',
+            description: 'Client ID token signature verified.',
+            causer: $request->user(),
+            properties: [
+                'has_nonce' => trim((string) ($claims['nonce'] ?? '')) !== '',
+                'scope_contains_openid' => true,
+                ...$this->auditLogService->requestContext($request),
+            ],
+        );
+
+        return $claims;
+    }
+
+    private function forgetPendingAuthorizationContext(Request $request, string $state): void
+    {
+        $contexts = $request->session()->get(config('sso.pending_auth_session_key'), []);
+
+        if (! is_array($contexts) || ! array_key_exists($state, $contexts)) {
+            return;
+        }
+
+        unset($contexts[$state]);
+        $request->session()->put(config('sso.pending_auth_session_key'), $contexts);
     }
 }
