@@ -136,7 +136,7 @@ Szerződés szabály:
 - a kliens kizárólag a `data` envelope-ból dolgozik
 - `openid` scope esetén a kliens `data.id_token` mezőt is vár, és abból olvassa ki a returned nonce-ot
 - a kliens discovery foundationkent tudja hasznalni a `GET /.well-known/openid-configuration` metadata dokumentumot is
-- a discoverybol jelenleg ezeket a mezoket veszi at: `issuer`, `authorization_endpoint`, `token_endpoint`, `jwks_uri`, `id_token_signing_alg_values_supported`
+- a discoverybol jelenleg ezeket a mezoket veszi at: `issuer`, `authorization_endpoint`, `token_endpoint`, `userinfo_endpoint`, `jwks_uri`, `id_token_signing_alg_values_supported`
 - precedence szabaly:
   - 1. explicit kliens config
   - 2. ervenyes discovery metadata
@@ -194,7 +194,11 @@ Claim szerződés:
 Kliens oldali szerződés:
 
 - a userinfo választ csak a `data` mezőből olvassa
-- a lokális user session felépítéséhez szükséges a `data.email`
+- a userinfo endpointot explicit configbol, discoverybol vagy kontrollalt fallbackbol oldja fel
+- a userinfo hivas bearer access tokennel történik
+- a kliens a `userinfo.sub` claimet az `id_token.sub` claimmel is osszeveti, mielott sikeres auth state epulne fel
+- a lokális user session felépítéséhez jelenleg szükséges a `data.email`
+- a userinfo endpoint nem teljes profile API; csak a minimalis, scope-vezerelt identity payloadra epulunk
 
 ## 5. Logout szerződés
 

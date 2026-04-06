@@ -7,7 +7,6 @@ use App\Exceptions\SsoAuthenticationException;
 use App\Models\User;
 use App\Services\Audit\AuditLogService;
 use Illuminate\Contracts\Session\Session;
-use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Request;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Auth;
@@ -63,6 +62,7 @@ class SsoClientService
         private readonly AuditLogService $auditLogService,
         private readonly OidcIdTokenVerifier $oidcIdTokenVerifier,
         private readonly OidcDiscoveryService $oidcDiscoveryService,
+        private readonly OidcUserInfoService $oidcUserInfoService,
     ) {
     }
 
@@ -299,6 +299,8 @@ class SsoClientService
 
         $tokenResponse = $this->exchangeCodeForTokens($code, $codeVerifier);
 
+        $verifiedIdTokenClaims = null;
+
         if ($scopeContainsOpenId) {
             $idToken = trim((string) ($tokenResponse['id_token'] ?? ''));
 
@@ -311,8 +313,8 @@ class SsoClientService
                 );
             }
 
-            $claims = $this->verifyIdToken($request, $idToken);
-            $returnedNonce = trim((string) ($claims['nonce'] ?? ''));
+            $verifiedIdTokenClaims = $this->verifyIdToken($request, $idToken);
+            $returnedNonce = trim((string) ($verifiedIdTokenClaims['nonce'] ?? ''));
 
             $this->validateExpectedNonce(
                 request: $request,
@@ -324,7 +326,16 @@ class SsoClientService
         }
 
         $accessToken = $tokenResponse['access_token'];
-        $userInfo = $this->fetchUserInfo($accessToken);
+        $userInfo = $this->fetchUserInfo($request, $accessToken);
+
+        if ($scopeContainsOpenId && is_array($verifiedIdTokenClaims)) {
+            $this->validateUserInfoSubject(
+                request: $request,
+                expectedSubject: trim((string) ($verifiedIdTokenClaims['sub'] ?? '')),
+                userInfo: $userInfo,
+            );
+        }
+
         $user = $this->resolveLocalUser($userInfo);
 
         if (is_array($pendingAuthorization) && $scopeContainsOpenId) {
@@ -497,76 +508,48 @@ class SsoClientService
      *
      * @return SsoUserInfo
      */
-    private function fetchUserInfo(string $accessToken): array
+    private function fetchUserInfo(Request $request, string $accessToken): array
     {
-        $endpoint = $this->configuredEndpoint('userinfo_endpoint');
-
         try {
-            $response = Http::acceptJson()
-                ->timeout((int) config('sso.timeout', 10))
-                ->withToken($accessToken)
-                ->get($endpoint);
-        } catch (ConnectionException $exception) {
+            return $this->oidcUserInfoService->fetch($accessToken);
+        } catch (SsoAuthenticationException $exception) {
             $this->throwCallbackFailure(
-                request: request(),
-                message: 'Az SSO userinfo vegpont nem erheto el.',
-                status: 502,
-                reason: 'userinfo_endpoint_unreachable',
+                request: $request,
+                message: $exception->getMessage(),
+                status: $exception->getCode() > 0 ? (int) $exception->getCode() : 502,
+                reason: $this->mapUserInfoFailureReason($exception->getMessage()),
                 previous: $exception,
-                context: [
-                    'sso_phase' => 'userinfo',
-                    'sso_endpoint' => $endpoint,
-                    'http_status' => null,
-                    'is_json_response' => false,
-                ],
             );
         }
+    }
 
-        $payload = $this->decodeJsonResponse($response);
-        $responseMessage = trim((string) data_get($payload, 'message'));
-        $diagnostics = $this->buildResponseDiagnostics(
-            phase: 'userinfo',
-            endpoint: $endpoint,
-            response: $response,
-            payload: $payload,
-            hasAccessToken: false,
-            responseMessage: $responseMessage,
-            oauthError: null,
-        );
-
-        if ($payload === null) {
+    /**
+     * @param SsoUserInfo $userInfo
+     */
+    private function validateUserInfoSubject(Request $request, string $expectedSubject, array $userInfo): void
+    {
+        try {
+            $this->oidcUserInfoService->assertSubjectMatches($expectedSubject, $userInfo);
+        } catch (SsoAuthenticationException $exception) {
             $this->throwCallbackFailure(
-                request: request(),
-                message: 'Az SSO userinfo vegpont ervenytelen, nem JSON valaszt adott.',
-                status: 502,
-                reason: 'userinfo_response_invalid_json',
-                context: $diagnostics,
+                request: $request,
+                message: $exception->getMessage(),
+                status: $exception->getCode() > 0 ? (int) $exception->getCode() : 401,
+                reason: 'userinfo_subject_mismatch',
+                previous: $exception,
             );
         }
+    }
 
-        if (! $response->successful()) {
-            $this->throwCallbackFailure(
-                request: request(),
-                message: 'Az SSO userinfo vegpont hibaval valaszolt.',
-                status: 502,
-                reason: 'userinfo_endpoint_failed',
-                context: $diagnostics,
-            );
-        }
-
-        $userInfo = data_get($payload, 'data');
-
-        if (! is_array($userInfo)) {
-            $this->throwCallbackFailure(
-                request: request(),
-                message: 'Ervenytelen userinfo valasz erkezett az SSO szervertol.',
-                status: 502,
-                reason: 'userinfo_payload_invalid',
-                context: $diagnostics,
-            );
-        }
-
-        return $userInfo;
+    private function mapUserInfoFailureReason(string $message): string
+    {
+        return match ($message) {
+            'Az SSO userinfo vegpont nem erheto el.' => 'userinfo_endpoint_unreachable',
+            'Az SSO userinfo vegpont ervenytelen, nem JSON valaszt adott.' => 'userinfo_response_invalid_json',
+            'Az SSO userinfo vegpont hibaval valaszolt.' => 'userinfo_endpoint_failed',
+            'Ervenytelen userinfo valasz erkezett az SSO szervertol.' => 'userinfo_payload_invalid',
+            default => 'userinfo_validation_failed',
+        };
     }
 
     /**
@@ -623,7 +606,7 @@ class SsoClientService
      */
     private function resolveSsoUserId(array $userInfo): string
     {
-        return trim((string) (data_get($userInfo, 'id') ?: data_get($userInfo, 'sub')));
+        return trim((string) (data_get($userInfo, 'sub') ?: data_get($userInfo, 'id')));
     }
 
     /**
@@ -806,6 +789,7 @@ class SsoClientService
         $discoveryKey = match ($key) {
             'authorize_endpoint' => 'authorization_endpoint',
             'token_endpoint' => 'token_endpoint',
+            'userinfo_endpoint' => 'userinfo_endpoint',
             default => null,
         };
 

@@ -47,6 +47,7 @@ class OidcDiscoveryService
      *     issuer: string,
      *     authorization_endpoint: string,
      *     token_endpoint: string,
+     *     userinfo_endpoint?: string,
      *     jwks_uri: string,
      *     id_token_signing_alg_values_supported: array<int, string>
      * }
@@ -66,6 +67,7 @@ class OidcDiscoveryService
          *     issuer: string,
          *     authorization_endpoint: string,
          *     token_endpoint: string,
+         *     userinfo_endpoint?: string,
          *     jwks_uri: string,
          *     id_token_signing_alg_values_supported: array<int, string>
          * } $metadata
@@ -121,6 +123,7 @@ class OidcDiscoveryService
      *     issuer: string,
      *     authorization_endpoint: string,
      *     token_endpoint: string,
+     *     userinfo_endpoint?: string,
      *     jwks_uri: string,
      *     id_token_signing_alg_values_supported: array<int, string>
      * }
@@ -144,6 +147,7 @@ class OidcDiscoveryService
         $issuer = trim((string) ($payload['issuer'] ?? ''));
         $authorizationEndpoint = trim((string) ($payload['authorization_endpoint'] ?? ''));
         $tokenEndpoint = trim((string) ($payload['token_endpoint'] ?? ''));
+        $userinfoEndpoint = trim((string) ($payload['userinfo_endpoint'] ?? ''));
         $jwksUri = trim((string) ($payload['jwks_uri'] ?? ''));
         $supportedAlgorithms = array_values(array_filter(
             $payload['id_token_signing_alg_values_supported'] ?? [],
@@ -167,6 +171,10 @@ class OidcDiscoveryService
             'jwks_uri' => $jwksUri,
             'id_token_signing_alg_values_supported' => $supportedAlgorithms,
         ];
+
+        if ($userinfoEndpoint !== '') {
+            $metadata['userinfo_endpoint'] = $userinfoEndpoint;
+        }
 
         $this->auditLogService->logSuccess(
             logName: AuditLogService::LOG_CLIENT_AUTH,

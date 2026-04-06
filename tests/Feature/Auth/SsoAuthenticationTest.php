@@ -81,7 +81,7 @@ class SsoAuthenticationTest extends TestCase
 
         $payload = $this->base64UrlEncode(json_encode(array_merge([
             'iss' => 'https://sso-server.test',
-            'sub' => 'user-123',
+            'sub' => '123',
             'aud' => 'portal-client',
             'iat' => now()->timestamp,
             'exp' => now()->addMinutes(5)->timestamp,
@@ -148,6 +148,7 @@ class SsoAuthenticationTest extends TestCase
             'issuer' => 'https://sso-server.test',
             'authorization_endpoint' => 'https://sso-server.test/oauth/authorize',
             'token_endpoint' => 'https://sso-server.test/api/oauth/token',
+            'userinfo_endpoint' => 'https://sso-server.test/api/oauth/userinfo',
             'jwks_uri' => 'https://sso-server.test/.well-known/jwks.json',
             'response_types_supported' => ['code'],
             'grant_types_supported' => ['authorization_code', 'refresh_token'],
@@ -284,6 +285,7 @@ class SsoAuthenticationTest extends TestCase
         config()->set('sso.token_endpoint', null);
         config()->set('sso.oidc_jwks_endpoint', null);
         config()->set('sso.oidc_expected_issuer', null);
+        config()->set('sso.userinfo_endpoint', null);
 
         Http::fake([
             'https://sso-server.test/.well-known/openid-configuration' => Http::response($this->discoveryPayload(), 200),
@@ -335,6 +337,7 @@ class SsoAuthenticationTest extends TestCase
         config()->set('sso.token_endpoint', null);
         config()->set('sso.oidc_jwks_endpoint', null);
         config()->set('sso.oidc_expected_issuer', null);
+        config()->set('sso.userinfo_endpoint', null);
 
         Http::fake([
             'https://sso-server.test/.well-known/openid-configuration' => Http::response([
@@ -506,7 +509,7 @@ class SsoAuthenticationTest extends TestCase
                 'message' => 'OAuth token issued successfully.',
                 'data' => [
                     'access_token' => 'access-token',
-                    'id_token' => $this->idToken(),
+                    'id_token' => $this->idToken(overrides: ['sub' => 'user-123']),
                 ],
             ], 200),
             'https://sso-server.test/.well-known/jwks.json' => Http::response($this->jwksPayload(), 200),
@@ -534,7 +537,7 @@ class SsoAuthenticationTest extends TestCase
                 'message' => 'OAuth token issued successfully.',
                 'data' => [
                     'access_token' => 'access-token',
-                    'id_token' => $this->idToken(),
+                    'id_token' => $this->idToken(overrides: ['sub' => 'user-123']),
                 ],
             ], 200),
             'https://sso-server.test/.well-known/jwks.json' => Http::response($this->jwksPayload(), 200),
@@ -626,14 +629,14 @@ class SsoAuthenticationTest extends TestCase
                 'message' => 'OAuth token issued successfully.',
                 'data' => [
                     'access_token' => 'access-token',
-                    'id_token' => $this->idToken(),
+                    'id_token' => $this->idToken(overrides: ['sub' => 'server-user-77']),
                 ],
             ], 200),
             'https://sso-server.test/.well-known/jwks.json' => Http::response($this->jwksPayload(), 200),
             'https://sso-server.test/api/oauth/userinfo' => Http::response([
                 'message' => 'User info retrieved successfully.',
                 'data' => [
-                    'id' => 'server-user-77',
+                    'sub' => 'server-user-77',
                     'email' => 'legacy.user@example.test',
                     'name' => 'Linked Legacy User',
                 ],
@@ -666,7 +669,7 @@ class SsoAuthenticationTest extends TestCase
                 'message' => 'OAuth token issued successfully.',
                 'data' => [
                     'access_token' => 'access-token',
-                    'id_token' => $this->idToken(),
+                    'id_token' => $this->idToken(overrides: ['sub' => 'server-user-88']),
                 ],
             ], 200),
             'https://sso-server.test/.well-known/jwks.json' => Http::response($this->jwksPayload(), 200),
@@ -721,7 +724,7 @@ class SsoAuthenticationTest extends TestCase
                 'message' => 'OAuth token issued successfully.',
                 'data' => [
                     'access_token' => 'access-token',
-                    'id_token' => $this->idToken(),
+                    'id_token' => $this->idToken(overrides: ['sub' => 'user-123']),
                 ],
             ], 200),
             'https://sso-server.test/.well-known/jwks.json' => Http::response($this->jwksPayload(), 200),
@@ -751,7 +754,7 @@ class SsoAuthenticationTest extends TestCase
                 'message' => 'OAuth token issued successfully.',
                 'data' => [
                     'access_token' => 'access-token',
-                    'id_token' => $this->idToken(),
+                    'id_token' => $this->idToken(overrides: ['sub' => 'user-123']),
                 ],
             ], 200),
             'https://sso-server.test/.well-known/jwks.json' => Http::response($this->jwksPayload(), 200),
@@ -876,7 +879,7 @@ class SsoAuthenticationTest extends TestCase
                 'message' => 'OAuth token issued successfully.',
                 'data' => [
                     'access_token' => 'access-token',
-                    'id_token' => $this->idToken('expected-downstream-nonce'),
+                    'id_token' => $this->idToken('expected-downstream-nonce', ['sub' => 'user-123']),
                 ],
             ], 200),
             'https://sso-server.test/.well-known/jwks.json' => Http::response($this->jwksPayload(), 200),
@@ -1052,6 +1055,49 @@ class SsoAuthenticationTest extends TestCase
             ->assertSessionHas('error', 'Az SSO ID token nem tartalmaz ervenyes nonce claimet. Inditsd ujra a bejelentkezest.');
 
         $this->assertGuest();
+    }
+
+    #[Group('security')]
+    public function test_callback_rejects_userinfo_subject_mismatch_after_successful_id_token_verification(): void
+    {
+        Http::fake([
+            'https://sso-server.test/api/oauth/token' => Http::response([
+                'message' => 'OAuth token issued successfully.',
+                'data' => [
+                    'access_token' => 'access-token',
+                    'id_token' => $this->idToken(overrides: ['sub' => 'server-user-42']),
+                ],
+                'meta' => [],
+                'errors' => [],
+            ], 200),
+            'https://sso-server.test/.well-known/jwks.json' => Http::response($this->jwksPayload(), 200),
+            'https://sso-server.test/api/oauth/userinfo' => Http::response([
+                'message' => 'User info retrieved successfully.',
+                'data' => [
+                    'sub' => 'other-user-99',
+                    'email' => 'mismatch@example.test',
+                    'name' => 'Mismatch User',
+                ],
+                'meta' => [],
+                'errors' => [],
+            ], 200),
+        ]);
+
+        $response = $this
+            ->withSession($this->pendingAuthorizationSession())
+            ->get('/auth/sso/callback?code=valid-code&state=valid-state');
+
+        $response
+            ->assertRedirect(route('login'))
+            ->assertSessionHas('error', 'Az SSO userinfo subject claimje ervenytelen.');
+
+        $this->assertGuest();
+
+        $this->assertDatabaseHas('activity_log', [
+            'log_name' => 'client.auth',
+            'event' => 'client_auth.userinfo.validation_failed',
+            'description' => 'OIDC userinfo validation failed.',
+        ]);
     }
 
     #[Group('security')]
