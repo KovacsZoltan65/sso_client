@@ -160,6 +160,7 @@ class SsoAuthenticationTest extends TestCase
             'id_token_signing_alg_values_supported' => ['RS256'],
             'scopes_supported' => ['openid', 'profile', 'email'],
             'claims_supported' => ['sub', 'name', 'email', 'email_verified'],
+            'frontchannel_logout_supported' => true,
             'code_challenge_methods_supported' => ['S256'],
         ], $overrides);
     }
@@ -1336,6 +1337,65 @@ class SsoAuthenticationTest extends TestCase
 
         $this->assertNotNull($location);
         $this->assertStringStartsWith('https://sso-server.test/oidc/logout?', $location);
+    }
+
+    #[Group('security')]
+    public function test_frontchannel_logout_clears_the_local_session_for_a_valid_provider_request(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this
+            ->actingAs($user)
+            ->withSession($this->oidcSessionContext($this->idToken()))
+            ->get('/auth/frontchannel-logout?iss=https%3A%2F%2Fsso-server.test&client_id=portal-client');
+
+        $response
+            ->assertOk()
+            ->assertSeeText('Front-channel logout completed.');
+
+        $this->assertGuest();
+        $this->assertNull(session(config('sso.oidc_session_context_key')));
+
+        $this->assertDatabaseHas('activity_log', [
+            'log_name' => 'client.auth',
+            'event' => 'client_auth.logout.frontchannel_received',
+            'description' => 'Client front-channel logout received.',
+        ]);
+
+        $this->assertDatabaseHas('activity_log', [
+            'log_name' => 'client.auth',
+            'event' => 'client_auth.logout.frontchannel_validated',
+            'description' => 'Client front-channel logout validated.',
+        ]);
+
+        $this->assertDatabaseHas('activity_log', [
+            'log_name' => 'client.auth',
+            'event' => 'client_auth.logout.frontchannel_local_completed',
+            'description' => 'Client front-channel local logout completed.',
+        ]);
+    }
+
+    #[Group('security')]
+    public function test_frontchannel_logout_rejects_invalid_provider_guard_without_clearing_the_session(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this
+            ->actingAs($user)
+            ->withSession($this->oidcSessionContext($this->idToken()))
+            ->get('/auth/frontchannel-logout?iss=https%3A%2F%2Fevil-issuer.test&client_id=portal-client');
+
+        $response
+            ->assertStatus(400)
+            ->assertSeeText('Ervenytelen front-channel logout kereses.');
+
+        $this->assertAuthenticatedAs($user);
+
+        $this->assertDatabaseHas('activity_log', [
+            'log_name' => 'client.auth',
+            'event' => 'client_auth.logout.frontchannel_validation_failed',
+            'description' => 'Client front-channel logout validation failed.',
+        ]);
     }
 
     #[Group('security')]

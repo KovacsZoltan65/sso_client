@@ -467,6 +467,69 @@ class SsoClientService
         );
     }
 
+    public function handleFrontChannelLogout(Request $request): string
+    {
+        $issuer = trim($request->query('iss', ''));
+        $clientId = trim($request->query('client_id', ''));
+        $configuredIssuer = trim((string) config('sso.oidc_expected_issuer', ''));
+        $expectedIssuer = $configuredIssuer !== ''
+            ? $configuredIssuer
+            : trim((string) ($this->oidcDiscoveryService->resolveDiscoveryValue('issuer') ?? ''));
+        $expectedClientId = trim((string) config('sso.client_id'));
+
+        $this->auditLogService->logSuccess(
+            logName: AuditLogService::LOG_CLIENT_AUTH,
+            event: 'client_auth.logout.frontchannel_received',
+            description: 'Client front-channel logout received.',
+            subject: $request->user(),
+            causer: $request->user(),
+            properties: [
+                'has_issuer' => $issuer !== '',
+                'has_client_id' => $clientId !== '',
+                ...$this->auditLogService->requestContext($request),
+            ],
+        );
+
+        if (
+            $issuer === ''
+            || $expectedIssuer === ''
+            || ! hash_equals($expectedIssuer, $issuer)
+            || $clientId === ''
+            || $expectedClientId === ''
+            || ! hash_equals($expectedClientId, $clientId)
+        ) {
+            $this->auditLogService->logFailure(
+                logName: AuditLogService::LOG_CLIENT_AUTH,
+                event: 'client_auth.logout.frontchannel_validation_failed',
+                description: 'Client front-channel logout validation failed.',
+                subject: $request->user(),
+                causer: $request->user(),
+                properties: [
+                    'reason' => 'issuer_or_client_mismatch',
+                    ...$this->auditLogService->requestContext($request),
+                ],
+            );
+
+            throw new SsoAuthenticationException('Ervenytelen front-channel logout kereses.', 400);
+        }
+
+        $this->auditLogService->logSuccess(
+            logName: AuditLogService::LOG_CLIENT_AUTH,
+            event: 'client_auth.logout.frontchannel_validated',
+            description: 'Client front-channel logout validated.',
+            subject: $request->user(),
+            causer: $request->user(),
+            properties: [
+                'status' => 'validated',
+                ...$this->auditLogService->requestContext($request),
+            ],
+        );
+
+        $this->clearFrontChannelSession($request);
+
+        return 'Front-channel logout completed.';
+    }
+
     /**
      * Authorization code cseréje access tokenre az SSO szervernél.
      */
@@ -1202,6 +1265,33 @@ class SsoClientService
                 ],
             );
         }
+    }
+
+    private function clearFrontChannelSession(Request $request): void
+    {
+        /** @var User|null $user */
+        $user = $request->user();
+
+        Auth::guard('web')->logout();
+
+        $request->session()->forget(config('sso.pending_auth_session_key'));
+        $request->session()->forget(config('sso.identity_validation_session_key'));
+        $request->session()->forget(config('sso.oidc_session_context_key'));
+        $request->session()->forget(config('sso.logout_state_session_key'));
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        $this->auditLogService->logSuccess(
+            logName: AuditLogService::LOG_CLIENT_AUTH,
+            event: 'client_auth.logout.frontchannel_local_completed',
+            description: 'Client front-channel local logout completed.',
+            subject: $user,
+            causer: $user,
+            properties: [
+                'status' => 'logged_out',
+                ...$this->auditLogService->requestContext($request),
+            ],
+        );
     }
 
     private function buildProviderLogoutUrl(Request $request, string $logoutState): string

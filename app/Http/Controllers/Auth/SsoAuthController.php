@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Services\Sso\SsoClientService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Log;
 
 class SsoAuthController extends Controller
@@ -80,5 +81,14 @@ class SsoAuthController extends Controller
         return redirect()
             ->route('login')
             ->with('success', 'Sikeres kijelentkezes.');
+    }
+
+    public function frontChannelLogout(Request $request): Response
+    {
+        try {
+            return response($this->ssoClientService->handleFrontChannelLogout($request), 200);
+        } catch (SsoAuthenticationException $exception) {
+            return response($exception->getMessage(), $exception->status());
+        }
     }
 }

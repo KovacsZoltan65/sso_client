@@ -51,6 +51,8 @@ class AuditLogService
         'reauth_reason',
         'has_nonce',
         'scope_contains_openid',
+        'has_issuer',
+        'has_client_id',
     ];
 
     /**

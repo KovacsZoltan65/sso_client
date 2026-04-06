@@ -223,6 +223,19 @@ Logout return:
 - a kliens a visszateres `state` erteket a sessionben tarolt logout contexthez meri
 - ervenytelen return allapot eseten a kliens kontrollalt hibauzenettel megszakitja a flow-t
 
+Front-channel logout:
+
+- a kliens kulon fogado vegpontot hasznal: `GET /auth/frontchannel-logout`
+- ez nem azonos a normal logout return route-tal
+- a kliens minimalis guardot alkalmaz:
+  - `iss` egyezik a vart provider issuerrel
+  - `client_id` egyezik a helyi kliensazonositoval
+- ervenyes provider-kezdeményezett logout eseten a kliens:
+  - lokalis auth state-et lezarja
+  - torli az atmeneti OIDC session contextet
+  - sessiont invalidalja
+- ervenytelen front-channel kereses eseten a kliens kontrollalt hibaval all meg, es nem lep ki vakon
+
 Session boundary:
 
 - a provider logout kulon fogalom a local logouttol
@@ -231,9 +244,9 @@ Session boundary:
 
 Tudatosan nincs benne meg:
 
-- front-channel logout propagation
 - back-channel logout
 - teljes single logout tobb kliens kozott
+- teljes garantalt multi-client logout minden bongeszo edge case-re
 
 ## 6. Self-service profile szerződés
 

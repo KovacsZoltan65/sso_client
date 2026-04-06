@@ -18,6 +18,9 @@ Route::middleware('guest')->group(function () {
         ->name('auth.logout.return');
 });
 
+Route::get('auth/frontchannel-logout', [SsoAuthController::class, 'frontChannelLogout'])
+    ->name('auth.logout.frontchannel');
+
 Route::middleware('auth')->group(function () {
     Route::post('auth/logout', [SsoAuthController::class, 'logout'])
         ->name('logout');
