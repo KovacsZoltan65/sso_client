@@ -12,6 +12,7 @@ return [
     'oidc_clock_skew_seconds' => (int) env('SSO_OIDC_CLOCK_SKEW_SECONDS', 60),
     'oidc_jwks_cache_seconds' => (int) env('SSO_OIDC_JWKS_CACHE_SECONDS', 300),
     'logout_endpoint' => env('SSO_LOGOUT_ENDPOINT'),
+    'logout_return_uri' => env('SSO_LOGOUT_RETURN_URI'),
     'client_id' => env('SSO_CLIENT_ID'),
     // Confidential clients should provide a secret; public PKCE-only clients may leave it empty.
     'client_secret' => env('SSO_CLIENT_SECRET'),
@@ -20,5 +21,7 @@ return [
     'timeout' => (int) env('SSO_TIMEOUT', 10),
     'pending_auth_session_key' => 'sso.oauth.pending_authorizations',
     'identity_validation_session_key' => 'sso.oauth.identity_validation_contexts',
+    'oidc_session_context_key' => 'sso.oidc.session_context',
+    'logout_state_session_key' => 'sso.oidc.logout_state',
     'local_auth_enabled' => env('SSO_LOCAL_AUTH_ENABLED', false),
 ];

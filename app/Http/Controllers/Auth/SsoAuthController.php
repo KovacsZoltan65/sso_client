@@ -57,13 +57,28 @@ class SsoAuthController extends Controller
     }
 
     /**
-     * A helyi session kijelentkeztetése az SSO kliensben.
+     * A provider oldali logout indítása és a lokális session lezárása.
      */
     public function logout(Request $request): RedirectResponse
     {
-        $this->ssoClientService->logout($request);
+        return redirect()->away($this->ssoClientService->initiateLogout($request));
+    }
 
-        return redirect('/')
+    /**
+     * A provider logout visszatérés kezelése és a lokális logout véglegesítése.
+     */
+    public function logoutReturn(Request $request): RedirectResponse
+    {
+        try {
+            $this->ssoClientService->finalizeLogoutReturn($request);
+        } catch (SsoAuthenticationException $exception) {
+            return redirect()
+                ->route('login')
+                ->with('error', $exception->getMessage());
+        }
+
+        return redirect()
+            ->route('login')
             ->with('success', 'Sikeres kijelentkezes.');
     }
 }

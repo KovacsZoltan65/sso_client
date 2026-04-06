@@ -13,6 +13,9 @@ Route::middleware('guest')->group(function () {
 
     Route::get('auth/sso/callback', [SsoAuthController::class, 'callback'])
         ->name('auth.sso.callback');
+
+    Route::get('auth/logout/return', [SsoAuthController::class, 'logoutReturn'])
+        ->name('auth.logout.return');
 });
 
 Route::middleware('auth')->group(function () {

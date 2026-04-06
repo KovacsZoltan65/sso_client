@@ -136,7 +136,7 @@ Szerződés szabály:
 - a kliens kizárólag a `data` envelope-ból dolgozik
 - `openid` scope esetén a kliens `data.id_token` mezőt is vár, és abból olvassa ki a returned nonce-ot
 - a kliens discovery foundationkent tudja hasznalni a `GET /.well-known/openid-configuration` metadata dokumentumot is
-- a discoverybol jelenleg ezeket a mezoket veszi at: `issuer`, `authorization_endpoint`, `token_endpoint`, `userinfo_endpoint`, `jwks_uri`, `id_token_signing_alg_values_supported`
+- a discoverybol jelenleg ezeket a mezoket veszi at: `issuer`, `authorization_endpoint`, `token_endpoint`, `userinfo_endpoint`, `end_session_endpoint`, `jwks_uri`, `id_token_signing_alg_values_supported`
 - precedence szabaly:
   - 1. explicit kliens config
   - 2. ervenyes discovery metadata
@@ -147,7 +147,7 @@ Szerződés szabály:
 - a nonce check csak sikeres signature es claim verify utan futhat le
 - non-openid flow-ban a kliens nem vár `id_token` mezőt
 - hianyos vagy ervenytelen discovery dokumentumra a kliens nem epit vakon; kontrollalt fallbacket vagy hibakezelest alkalmaz
-- ez meg mindig foundation ticket: nincs teljes discovery ecosystem, logout metadata vagy dynamic registration tamogatas
+- ez meg mindig foundation ticket: nincs teljes discovery ecosystem vagy dynamic registration tamogatas
 
 Hibás válasz formátuma:
 
@@ -202,11 +202,35 @@ Kliens oldali szerződés:
 
 ## 5. Logout szerződés
 
-Jelenlegi explicit szerződés:
+Logout indítás:
 
-- az `sso_client` csak lokális logoutot hajt végre (`POST /auth/logout`)
-- a session teljesen törlődik lokálisan
-- jelenleg nincs aktív single logout handshake a szerverrel
+- a user logout akcioja a kliensben `POST /auth/logout`
+- a kliens provider logout URL-t epit
+- a kliens lokalis sessiont mar az inditas fazisaban tisztan lezarja
+
+Kuldo paraméterek a provider fele:
+
+- `id_token_hint`, ha az elozo openid loginbol mar rendelkezésre áll
+- `post_logout_redirect_uri`
+- `state`
+
+Logout return:
+
+- a provider a klienst `GET /auth/logout/return` pontra iranyithatja vissza
+- a kliens a visszateres `state` erteket a sessionben tarolt logout contexthez meri
+- ervenytelen return allapot eseten a kliens kontrollalt hibauzenettel megszakitja a flow-t
+
+Session boundary:
+
+- a provider logout kulon fogalom a local logouttol
+- a kliens a local logoutot akkor is vegrehajtja, ha a provider return meg csak ezutan jon
+- a `userinfo`, `id_token` es egyeb atmeneti OIDC session adatok logoutkor torlodnek
+
+Tudatosan nincs benne meg:
+
+- front-channel logout propagation
+- back-channel logout
+- teljes single logout tobb kliens kozott
 
 ## 6. Self-service profile szerződés
 
@@ -537,9 +561,9 @@ A kliensnek nem kell tudnia:
 
 Ez teljesen szerveroldali policy maradjon.
 
-## 15. Planned OIDC-grade nonce, logout, and session-boundary roadmap (specification only)
+## 15. OIDC-grade nonce, logout, and session-boundary roadmap
 
-Ez a szakasz a jövőbeli OIDC-érettebb fejlődési irány kliensoldali következményeit rögzíti, implementáció nélkül.
+Ez a szakasz az implementalt foundationre epitő tovabbi iranyt rogziti.
 
 ### 15.1. Current state
 
@@ -550,9 +574,9 @@ Ez a szakasz a jövőbeli OIDC-érettebb fejlődési irány kliensoldali követk
 
 Logout
 
-- a kliens jelenleg csak lokális logoutot hajt végre
-- nincs provider logout redirect contract
-- nincs cross-app logout propagation
+- a kliens mar tud provider logoutot kezdemenyezni
+- a provider return kulon route-on kezelodik
+- tovabbra sincs cross-app logout propagation
 
 Session boundary
 
@@ -570,7 +594,7 @@ A jövőbeli OIDC-grade irányban:
 
 Az első iterációban a kliens callback branch-je emiatt még nem bővül külön protokollággal.
 
-### 15.3. Future logout expectation
+### 15.3. Logout maturity expectation
 
 A kliens szempontjából három fogalom különül el:
 
@@ -578,11 +602,11 @@ A kliens szempontjából három fogalom különül el:
 - `provider logout`
 - később `cross-app logout`
 
-Első érettségi szint:
+Jelenlegi érettségi szint:
 
-- a local logout támogatott és explicit marad
-- a provider logout külön szerződést kap majd
-- a cross-app logout későbbi roadmap fázis
+- a local logout tamogatott es explicit
+- a provider logout kulon szerzodest kapott
+- a cross-app logout kesobbi roadmap fazis
 
 ### 15.4. Session boundary expectation
 

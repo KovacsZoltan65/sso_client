@@ -51,6 +51,16 @@ use RuntimeException;
  *     validation_status: string,
  *     validated_at?: string|null
  * }
+ * @phpstan-type OidcSessionContext array{
+ *     id_token_hint: string,
+ *     id_token_subject: string|null,
+ *     issuer: string|null,
+ *     stored_at: string
+ * }
+ * @phpstan-type LogoutStateContext array{
+ *     state: string,
+ *     initiated_at: string
+ * }
  * @phpstan-type TokenExchangeResult array{
  *     access_token: string,
  *     id_token: string|null
@@ -300,6 +310,7 @@ class SsoClientService
         $tokenResponse = $this->exchangeCodeForTokens($code, $codeVerifier);
 
         $verifiedIdTokenClaims = null;
+        $receivedIdToken = null;
 
         if ($scopeContainsOpenId) {
             $idToken = trim((string) ($tokenResponse['id_token'] ?? ''));
@@ -313,6 +324,7 @@ class SsoClientService
                 );
             }
 
+            $receivedIdToken = $idToken;
             $verifiedIdTokenClaims = $this->verifyIdToken($request, $idToken);
             $returnedNonce = trim((string) ($verifiedIdTokenClaims['nonce'] ?? ''));
 
@@ -347,6 +359,17 @@ class SsoClientService
         Auth::login($user, remember: false);
         $request->session()->regenerate();
 
+        if ($scopeContainsOpenId && $receivedIdToken !== null && is_array($verifiedIdTokenClaims)) {
+            $this->storeOidcSessionContext($request, [
+                'id_token_hint' => $receivedIdToken,
+                'id_token_subject' => $this->normalizedOptionalString($verifiedIdTokenClaims['sub'] ?? null),
+                'issuer' => $this->normalizedOptionalString($verifiedIdTokenClaims['iss'] ?? null),
+                'stored_at' => now()->toIso8601String(),
+            ]);
+        } else {
+            $request->session()->forget(config('sso.oidc_session_context_key'));
+        }
+
         $this->auditLogService->logSuccess(
             logName: AuditLogService::LOG_CLIENT_AUTH,
             event: 'client_auth.callback.succeeded',
@@ -377,42 +400,71 @@ class SsoClientService
     /**
      * A lokális session teljes kijelentkeztetése és az ideiglenes SSO állapot törlése.
      */
-    public function logout(Request $request): void
+    public function initiateLogout(Request $request): string
     {
         /** @var User|null $user */
         $user = $request->user();
+        $logoutState = Str::random(64);
+        $providerLogoutUrl = $this->buildProviderLogoutUrl($request, $logoutState);
 
         if ($user instanceof User) {
             $this->auditLogService->logSuccess(
                 logName: AuditLogService::LOG_CLIENT_AUTH,
-                event: 'client_auth.session.cleared',
-                description: 'Client session cleared.',
-                subject: $user,
-                causer: $user,
-                properties: $this->auditLogService->requestContext($request),
-            );
-        }
-
-        Auth::guard('web')->logout();
-
-        $request->session()->forget(config('sso.pending_auth_session_key'));
-        $request->session()->forget(config('sso.identity_validation_session_key'));
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
-
-        if ($user instanceof User) {
-            $this->auditLogService->logSuccess(
-                logName: AuditLogService::LOG_CLIENT_AUTH,
-                event: 'client_auth.logout.completed',
-                description: 'Client logout completed.',
+                event: 'client_auth.logout.provider_initiated',
+                description: 'Client provider logout initiated.',
                 subject: $user,
                 causer: $user,
                 properties: [
-                    'status' => 'logged_out',
+                    'redirect_target' => $providerLogoutUrl,
+                    'status' => 'provider_logout_started',
                     ...$this->auditLogService->requestContext($request),
                 ],
             );
         }
+
+        $this->clearLocalSession($request, $user, [
+            'state' => $logoutState,
+            'initiated_at' => now()->toIso8601String(),
+        ]);
+
+        return $providerLogoutUrl;
+    }
+
+    public function finalizeLogoutReturn(Request $request): void
+    {
+        $logoutContext = $this->getLogoutStateContext($request->session());
+        $expectedState = is_array($logoutContext) ? trim((string) ($logoutContext['state'] ?? '')) : '';
+        $returnedState = $request->string('state')->toString();
+
+        if ($expectedState === '' || $returnedState === '' || ! hash_equals($expectedState, $returnedState)) {
+            $request->session()->forget(config('sso.logout_state_session_key'));
+
+            $this->auditLogService->logFailure(
+                logName: AuditLogService::LOG_CLIENT_AUTH,
+                event: 'client_auth.logout.provider_returned',
+                description: 'Client provider logout returned.',
+                properties: [
+                    'reason' => 'invalid_logout_state',
+                    'status' => 'invalid',
+                    ...$this->auditLogService->requestContext($request),
+                ],
+            );
+
+            throw new SsoAuthenticationException('Ervenytelen logout visszateresi allapot.', 401);
+        }
+
+        $request->session()->forget(config('sso.logout_state_session_key'));
+        $request->session()->regenerateToken();
+
+        $this->auditLogService->logSuccess(
+            logName: AuditLogService::LOG_CLIENT_AUTH,
+            event: 'client_auth.logout.provider_returned',
+            description: 'Client provider logout returned.',
+            properties: [
+                'status' => 'provider_logout_returned',
+                ...$this->auditLogService->requestContext($request),
+            ],
+        );
     }
 
     /**
@@ -769,6 +821,17 @@ class SsoClientService
         return route('auth.sso.callback', absolute: true);
     }
 
+    private function logoutReturnUri(): string
+    {
+        $configured = trim((string) config('sso.logout_return_uri'));
+
+        if ($configured !== '') {
+            return $configured;
+        }
+
+        return route('auth.logout.return', absolute: true);
+    }
+
     /**
      * Egy konfigurált SSO végpont teljes URL-jének feloldása.
      */
@@ -790,6 +853,7 @@ class SsoClientService
             'authorize_endpoint' => 'authorization_endpoint',
             'token_endpoint' => 'token_endpoint',
             'userinfo_endpoint' => 'userinfo_endpoint',
+            'logout_endpoint' => 'end_session_endpoint',
             default => null,
         };
 
@@ -805,6 +869,7 @@ class SsoClientService
             'authorize_endpoint' => '/oauth/authorize',
             'token_endpoint' => '/api/oauth/token',
             'userinfo_endpoint' => '/api/oauth/userinfo',
+            'logout_endpoint' => '/oidc/logout',
             default => null,
         };
 
@@ -950,6 +1015,26 @@ class SsoClientService
         return $expectedNonce !== '' ? $expectedNonce : null;
     }
 
+    /**
+     * @return OidcSessionContext|null
+     */
+    public function getOidcSessionContext(Session $session): ?array
+    {
+        $context = $session->get(config('sso.oidc_session_context_key'));
+
+        return is_array($context) ? $context : null;
+    }
+
+    /**
+     * @return LogoutStateContext|null
+     */
+    public function getLogoutStateContext(Session $session): ?array
+    {
+        $context = $session->get(config('sso.logout_state_session_key'));
+
+        return is_array($context) ? $context : null;
+    }
+
     public function validateExpectedNonce(
         Request $request,
         ?string $expectedNonce,
@@ -1057,6 +1142,96 @@ class SsoClientService
                 ],
             );
         }
+    }
+
+    /**
+     * @param OidcSessionContext $context
+     */
+    private function storeOidcSessionContext(Request $request, array $context): void
+    {
+        $request->session()->put(config('sso.oidc_session_context_key'), $context);
+    }
+
+    /**
+     * @param LogoutStateContext $logoutContext
+     */
+    private function clearLocalSession(Request $request, ?User $user, array $logoutContext): void
+    {
+        if ($user instanceof User) {
+            $this->auditLogService->logSuccess(
+                logName: AuditLogService::LOG_CLIENT_AUTH,
+                event: 'client_auth.session.cleared',
+                description: 'Client session cleared.',
+                subject: $user,
+                causer: $user,
+                properties: $this->auditLogService->requestContext($request),
+            );
+        }
+
+        Auth::guard('web')->logout();
+
+        $request->session()->forget(config('sso.pending_auth_session_key'));
+        $request->session()->forget(config('sso.identity_validation_session_key'));
+        $request->session()->forget(config('sso.oidc_session_context_key'));
+        $request->session()->invalidate();
+        $request->session()->put(config('sso.logout_state_session_key'), $logoutContext);
+        $request->session()->regenerateToken();
+
+        if ($user instanceof User) {
+            $this->auditLogService->logSuccess(
+                logName: AuditLogService::LOG_CLIENT_AUTH,
+                event: 'client_auth.logout.local_completed',
+                description: 'Client local logout completed.',
+                subject: $user,
+                causer: $user,
+                properties: [
+                    'status' => 'logged_out',
+                    ...$this->auditLogService->requestContext($request),
+                ],
+            );
+
+            $this->auditLogService->logSuccess(
+                logName: AuditLogService::LOG_CLIENT_AUTH,
+                event: 'client_auth.logout.completed',
+                description: 'Client logout completed.',
+                subject: $user,
+                causer: $user,
+                properties: [
+                    'status' => 'logged_out',
+                    ...$this->auditLogService->requestContext($request),
+                ],
+            );
+        }
+    }
+
+    private function buildProviderLogoutUrl(Request $request, string $logoutState): string
+    {
+        $endpoint = $this->configuredEndpoint('logout_endpoint');
+
+        if ($endpoint === null) {
+            throw new SsoAuthenticationException('Az SSO logout vegpont nincs konfiguralva.', 500);
+        }
+
+        $oidcSessionContext = $this->getOidcSessionContext($request->session());
+        $idTokenHint = $this->normalizedOptionalString($oidcSessionContext['id_token_hint'] ?? null);
+        $query = http_build_query(array_filter([
+            'id_token_hint' => $idTokenHint,
+            'post_logout_redirect_uri' => $this->logoutReturnUri(),
+            'state' => $logoutState,
+        ], static fn (mixed $value): bool => filled($value)), arg_separator: '&', encoding_type: PHP_QUERY_RFC3986);
+
+        return $query === '' ? $endpoint : $endpoint.'?'.$query;
+    }
+
+    private function normalizedOptionalString(mixed $value): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $normalized = trim($value);
+
+        return $normalized === '' ? null : $normalized;
     }
 
     /**
