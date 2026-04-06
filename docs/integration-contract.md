@@ -141,7 +141,10 @@ Szerződés szabály:
   - 1. explicit kliens config
   - 2. ervenyes discovery metadata
   - 3. kontrollalt fallback a `SSO_SERVER_BASE_URL` alapjan
-- a kliens `kid` alapján letolti es valasztja ki a megfelelo JWKS kulcsot
+- a kliens tobbkulcsos JWKS valaszt tud kezelni; nincs `first key wins` logika
+- a kliens `kid` alapján valasztja ki a megfelelo JWKS kulcsot
+- ha a token `kid` erteke hianyzik vagy nincs matching publikus kulcs a JWKS-ben, kontrollalt auth hiba tortenik
+- legacy, de meg publikalt verify kulccsal alairt token tovabbra is verifikalhato
 - a kliens RS256 alairast ellenoriz az ID tokenen
 - a kliens minimalisan ellenorzi az `iss`, `aud`, `exp`, `iat` claim-eket is
 - az `id_token`-tol jelenleg csak a minimalis claim contractot varja: `iss`, `sub`, `aud`, `iat`, `exp`, valamint `nonce` openid flow-ban

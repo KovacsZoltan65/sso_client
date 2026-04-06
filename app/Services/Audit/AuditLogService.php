@@ -53,6 +53,8 @@ class AuditLogService
         'scope_contains_openid',
         'has_issuer',
         'has_client_id',
+        'kid',
+        'key_count',
     ];
 
     /**

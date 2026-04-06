@@ -2,6 +2,7 @@
 
 namespace App\Services\Sso;
 
+use App\Services\Audit\AuditLogService;
 use App\Exceptions\SsoAuthenticationException;
 
 class OidcIdTokenVerifier
@@ -9,6 +10,7 @@ class OidcIdTokenVerifier
     public function __construct(
         private readonly OidcJwksService $jwksService,
         private readonly OidcDiscoveryService $discoveryService,
+        private readonly AuditLogService $auditLogService,
     ) {
     }
 
@@ -34,7 +36,34 @@ class OidcIdTokenVerifier
             throw new SsoAuthenticationException('Az SSO ID token fejlece ervenytelen.', 502);
         }
 
-        $jwk = $this->jwksService->findKeyByKid($kid);
+        try {
+            $jwk = $this->jwksService->findKeyByKid($kid);
+        } catch (SsoAuthenticationException $exception) {
+            if ($exception->getMessage() === 'Az SSO JWKS nem tartalmazza a szukseges alairasi kulcsot.') {
+                $this->auditLogService->logFailure(
+                    logName: AuditLogService::LOG_CLIENT_AUTH,
+                    event: 'client_auth.id_token.kid_not_found',
+                    description: 'Client ID token kid was not found in the JWKS.',
+                    properties: [
+                        'kid' => $kid,
+                        'status' => 'kid_not_found',
+                    ],
+                );
+            }
+
+            throw $exception;
+        }
+
+        $this->auditLogService->logSuccess(
+            logName: AuditLogService::LOG_CLIENT_AUTH,
+            event: 'client_auth.id_token.kid_selected',
+            description: 'Client ID token kid selected from the JWKS.',
+            properties: [
+                'kid' => $kid,
+                'status' => 'kid_selected',
+            ],
+        );
+
         $this->assertSignatureIsValid($encodedHeader.'.'.$encodedPayload, $encodedSignature, $jwk);
         $this->assertClaimsAreValid($claims);
 

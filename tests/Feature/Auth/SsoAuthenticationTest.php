@@ -19,11 +19,17 @@ class SsoAuthenticationTest extends TestCase
     use RefreshDatabase;
 
     protected string $oidcPrivateKeyPem;
+    protected string $legacyOidcPrivateKeyPem;
 
     /**
      * @var array<string, string>
      */
     protected array $oidcJwk;
+
+    /**
+     * @var array<string, string>
+     */
+    protected array $legacyOidcJwk;
 
     protected function setUp(): void
     {
@@ -32,7 +38,9 @@ class SsoAuthenticationTest extends TestCase
         Cache::flush();
 
         $this->oidcPrivateKeyPem = file_get_contents(base_path('tests/Fixtures/oidc/private.pem')) ?: '';
-        $this->oidcJwk = $this->jwkFromPrivateKey($this->oidcPrivateKeyPem);
+        $this->legacyOidcPrivateKeyPem = file_get_contents(base_path('tests/Fixtures/oidc/legacy-private.pem')) ?: '';
+        $this->oidcJwk = $this->jwkFromPrivateKey($this->oidcPrivateKeyPem, 'client-test-oidc-key-1');
+        $this->legacyOidcJwk = $this->jwkFromPrivateKey($this->legacyOidcPrivateKeyPem, 'client-test-legacy-oidc-key-1');
 
         config()->set('sso.server_base_url', 'https://sso-server.test');
         config()->set('sso.authorize_endpoint', '/oauth/authorize');
@@ -74,12 +82,20 @@ class SsoAuthenticationTest extends TestCase
     /**
      * @param array<string, mixed> $overrides
      */
-    private function idToken(?string $nonce = 'oidc-nonce', array $overrides = []): string
+    private function idToken(
+        ?string $nonce = 'oidc-nonce',
+        array $overrides = [],
+        ?string $privateKeyPem = null,
+        ?string $kid = null,
+    ): string
     {
+        $signingKeyPem = $privateKeyPem ?? $this->oidcPrivateKeyPem;
+        $signingKid = $kid ?? $this->oidcJwk['kid'];
+
         $header = $this->base64UrlEncode(json_encode([
             'alg' => 'RS256',
             'typ' => 'JWT',
-            'kid' => $this->oidcJwk['kid'],
+            'kid' => $signingKid,
         ], JSON_THROW_ON_ERROR));
 
         $payload = $this->base64UrlEncode(json_encode(array_merge([
@@ -93,7 +109,7 @@ class SsoAuthenticationTest extends TestCase
 
         $signingInput = $header.'.'.$payload;
         $signature = '';
-        openssl_sign($signingInput, $signature, $this->oidcPrivateKeyPem, OPENSSL_ALGO_SHA256);
+        openssl_sign($signingInput, $signature, $signingKeyPem, OPENSSL_ALGO_SHA256);
 
         return $signingInput.'.'.$this->base64UrlEncode($signature);
     }
@@ -106,7 +122,7 @@ class SsoAuthenticationTest extends TestCase
     /**
      * @return array<string, string>
      */
-    private function jwkFromPrivateKey(string $privateKeyPem): array
+    private function jwkFromPrivateKey(string $privateKeyPem, string $kid): array
     {
         $resource = openssl_pkey_get_private($privateKeyPem);
 
@@ -121,7 +137,7 @@ class SsoAuthenticationTest extends TestCase
 
         return [
             'kty' => 'RSA',
-            'kid' => 'client-test-oidc-key-1',
+            'kid' => $kid,
             'use' => 'sig',
             'alg' => 'RS256',
             'n' => $this->base64UrlEncode($rsa['n']),
@@ -132,10 +148,10 @@ class SsoAuthenticationTest extends TestCase
     /**
      * @return array{keys: array<int, array<string, string>>}
      */
-    private function jwksPayload(): array
+    private function jwksPayload(?array $keys = null): array
     {
         return [
-            'keys' => [
+            'keys' => $keys ?? [
                 $this->oidcJwk,
             ],
         ];
@@ -1046,6 +1062,121 @@ class SsoAuthenticationTest extends TestCase
             'log_name' => 'client.auth',
             'event' => 'client_auth.nonce.validation_failed',
             'description' => 'Client nonce validation failed.',
+        ]);
+    }
+
+    #[Group('security')]
+    public function test_callback_selects_the_matching_kid_from_a_multi_key_jwks(): void
+    {
+        Http::fake([
+            'https://sso-server.test/api/oauth/token' => Http::response([
+                'message' => 'OAuth token issued successfully.',
+                'data' => [
+                    'access_token' => 'access-token',
+                    'id_token' => $this->idToken(),
+                ],
+            ], 200),
+            'https://sso-server.test/.well-known/jwks.json' => Http::response($this->jwksPayload([
+                $this->legacyOidcJwk,
+                $this->oidcJwk,
+            ]), 200),
+            'https://sso-server.test/api/oauth/userinfo' => Http::response([
+                'message' => 'User info retrieved successfully.',
+                'data' => [
+                    'sub' => '123',
+                    'name' => 'Jane Example',
+                    'email' => 'jane@example.test',
+                    'email_verified' => true,
+                ],
+                'meta' => [],
+                'errors' => [],
+            ], 200),
+        ]);
+
+        $this
+            ->withSession($this->pendingAuthorizationSession())
+            ->get('/auth/sso/callback?code=valid-code&state=valid-state')
+            ->assertRedirect(route('dashboard'));
+
+        $this->assertAuthenticated();
+
+        $this->assertDatabaseHas('activity_log', [
+            'log_name' => 'client.auth',
+            'event' => 'client_auth.id_token.kid_selected',
+            'description' => 'Client ID token kid selected from the JWKS.',
+        ]);
+    }
+
+    #[Group('security')]
+    public function test_callback_accepts_a_legacy_but_still_published_jwks_key(): void
+    {
+        Http::fake([
+            'https://sso-server.test/api/oauth/token' => Http::response([
+                'message' => 'OAuth token issued successfully.',
+                'data' => [
+                    'access_token' => 'access-token',
+                    'id_token' => $this->idToken(
+                        privateKeyPem: $this->legacyOidcPrivateKeyPem,
+                        kid: $this->legacyOidcJwk['kid'],
+                    ),
+                ],
+            ], 200),
+            'https://sso-server.test/.well-known/jwks.json' => Http::response($this->jwksPayload([
+                $this->oidcJwk,
+                $this->legacyOidcJwk,
+            ]), 200),
+            'https://sso-server.test/api/oauth/userinfo' => Http::response([
+                'message' => 'User info retrieved successfully.',
+                'data' => [
+                    'sub' => '123',
+                    'name' => 'Jane Example',
+                    'email' => 'jane@example.test',
+                    'email_verified' => true,
+                ],
+                'meta' => [],
+                'errors' => [],
+            ], 200),
+        ]);
+
+        $this
+            ->withSession($this->pendingAuthorizationSession())
+            ->get('/auth/sso/callback?code=valid-code&state=valid-state')
+            ->assertRedirect(route('dashboard'));
+
+        $this->assertAuthenticated();
+    }
+
+    #[Group('security')]
+    public function test_callback_rejects_id_token_when_the_matching_kid_is_missing_from_jwks(): void
+    {
+        Http::fake([
+            'https://sso-server.test/api/oauth/token' => Http::response([
+                'message' => 'OAuth token issued successfully.',
+                'data' => [
+                    'access_token' => 'access-token',
+                    'id_token' => $this->idToken(
+                        privateKeyPem: $this->legacyOidcPrivateKeyPem,
+                        kid: $this->legacyOidcJwk['kid'],
+                    ),
+                ],
+            ], 200),
+            'https://sso-server.test/.well-known/jwks.json' => Http::response($this->jwksPayload([
+                $this->oidcJwk,
+            ]), 200),
+        ]);
+
+        $this
+            ->withSession($this->pendingAuthorizationSession())
+            ->get('/auth/sso/callback?code=valid-code&state=valid-state')
+            ->assertRedirect(route('login'))
+            ->assertSessionHas('error', 'Az SSO JWKS nem tartalmazza a szukseges alairasi kulcsot.');
+
+        $this->assertGuest();
+
+        $this->assertDatabaseHas('activity_log', [
+            'log_name' => 'client.auth',
+            'event' => 'client_auth.id_token.kid_not_found',
+            'description' => 'Client ID token kid was not found in the JWKS.',
         ]);
     }
 

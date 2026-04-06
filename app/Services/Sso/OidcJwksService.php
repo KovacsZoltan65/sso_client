@@ -34,12 +34,16 @@ class OidcJwksService
      */
     public function findKeyByKid(string $kid): array
     {
-        $keys = $this->getJwkSet()['keys'] ?? [];
+        $normalizedKid = trim($kid);
 
-        foreach ($keys as $key) {
-            if (is_array($key) && trim((string) ($key['kid'] ?? '')) === $kid) {
-                return $key;
-            }
+        if ($normalizedKid === '') {
+            throw new SsoAuthenticationException('Az SSO ID token kid headerje hianyzik.', 401);
+        }
+
+        $keys = $this->indexedKeysByKid();
+
+        if (array_key_exists($normalizedKid, $keys)) {
+            return $keys[$normalizedKid];
         }
 
         throw new SsoAuthenticationException('Az SSO JWKS nem tartalmazza a szukseges alairasi kulcsot.', 502);
@@ -92,5 +96,33 @@ class OidcJwksService
         return [
             'keys' => array_values(array_filter($payload['keys'], 'is_array')),
         ];
+    }
+
+    /**
+     * @return array<string, array<string, mixed>>
+     */
+    private function indexedKeysByKid(): array
+    {
+        $indexedKeys = [];
+
+        foreach ($this->getJwkSet()['keys'] ?? [] as $key) {
+            if (! is_array($key)) {
+                continue;
+            }
+
+            $kid = trim((string) ($key['kid'] ?? ''));
+
+            if ($kid === '') {
+                continue;
+            }
+
+            if (array_key_exists($kid, $indexedKeys)) {
+                throw new SsoAuthenticationException('Az SSO JWKS duplikalt kid erteket tartalmaz.', 502);
+            }
+
+            $indexedKeys[$kid] = $key;
+        }
+
+        return $indexedKeys;
     }
 }
