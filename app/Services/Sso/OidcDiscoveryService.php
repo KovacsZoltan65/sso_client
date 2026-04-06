@@ -50,7 +50,8 @@ class OidcDiscoveryService
      *     userinfo_endpoint?: string,
      *     end_session_endpoint?: string,
      *     jwks_uri: string,
-     *     id_token_signing_alg_values_supported: array<int, string>
+     *     id_token_signing_alg_values_supported: array<int, string>,
+     *     claims_supported?: array<int, string>
      * }
      */
     public function getProviderMetadata(): array
@@ -71,7 +72,8 @@ class OidcDiscoveryService
          *     userinfo_endpoint?: string,
          *     end_session_endpoint?: string,
          *     jwks_uri: string,
-         *     id_token_signing_alg_values_supported: array<int, string>
+         *     id_token_signing_alg_values_supported: array<int, string>,
+         *     claims_supported?: array<int, string>
          * } $metadata
          */
         $metadata = Cache::remember($cacheKey, $ttl, function () use ($url): array {
@@ -128,7 +130,8 @@ class OidcDiscoveryService
      *     userinfo_endpoint?: string,
      *     end_session_endpoint?: string,
      *     jwks_uri: string,
-     *     id_token_signing_alg_values_supported: array<int, string>
+     *     id_token_signing_alg_values_supported: array<int, string>,
+     *     claims_supported?: array<int, string>
      * }
      */
     private function fetchProviderMetadata(string $url): array
@@ -157,6 +160,10 @@ class OidcDiscoveryService
             $payload['id_token_signing_alg_values_supported'] ?? [],
             static fn (mixed $value): bool => is_string($value) && trim($value) !== '',
         ));
+        $supportedClaims = array_values(array_filter(
+            $payload['claims_supported'] ?? [],
+            static fn (mixed $value): bool => is_string($value) && trim($value) !== '',
+        ));
 
         if (
             $issuer === ''
@@ -164,6 +171,7 @@ class OidcDiscoveryService
             || $tokenEndpoint === ''
             || $jwksUri === ''
             || ! in_array('RS256', $supportedAlgorithms, true)
+            || ($supportedClaims !== [] && ! in_array('sub', $supportedClaims, true))
         ) {
             throw new SsoAuthenticationException('Az SSO discovery dokumentum ervenytelen.', 502);
         }
@@ -175,6 +183,10 @@ class OidcDiscoveryService
             'jwks_uri' => $jwksUri,
             'id_token_signing_alg_values_supported' => $supportedAlgorithms,
         ];
+
+        if ($supportedClaims !== []) {
+            $metadata['claims_supported'] = $supportedClaims;
+        }
 
         if ($userinfoEndpoint !== '') {
             $metadata['userinfo_endpoint'] = $userinfoEndpoint;

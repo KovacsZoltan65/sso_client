@@ -9,6 +9,20 @@ use Illuminate\Support\Facades\Http;
 
 class OidcUserInfoService
 {
+    /**
+     * @var array<int, string>
+     */
+    private const MINIMAL_ID_TOKEN_CLAIMS = ['iss', 'sub', 'aud', 'iat', 'exp', 'nonce'];
+
+    /**
+     * @var array<string, array<int, string>>
+     */
+    private const USERINFO_SCOPE_TO_CLAIMS = [
+        'openid' => ['sub'],
+        'profile' => ['name'],
+        'email' => ['email', 'email_verified'],
+    ];
+
     public function __construct(
         private readonly AuditLogService $auditLogService,
         private readonly OidcDiscoveryService $oidcDiscoveryService,
@@ -76,6 +90,10 @@ class OidcUserInfoService
             throw new SsoAuthenticationException('Ervenytelen userinfo valasz erkezett az SSO szervertol.', 502);
         }
 
+        if (trim((string) ($data['sub'] ?? '')) === '') {
+            throw new SsoAuthenticationException('Ervenytelen userinfo valasz erkezett az SSO szervertol.', 502);
+        }
+
         $this->auditLogService->logSuccess(
             logName: AuditLogService::LOG_CLIENT_AUTH,
             event: 'client_auth.userinfo.loaded',
@@ -86,6 +104,29 @@ class OidcUserInfoService
         );
 
         return $data;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function expectedIdTokenClaims(): array
+    {
+        return self::MINIMAL_ID_TOKEN_CLAIMS;
+    }
+
+    /**
+     * @param array<int, string> $scopes
+     * @return array<int, string>
+     */
+    public function expectedUserInfoClaimsForScopes(array $scopes): array
+    {
+        return collect($scopes)
+            ->map(static fn (mixed $scope): string => trim((string) $scope))
+            ->filter()
+            ->flatMap(static fn (string $scope): array => self::USERINFO_SCOPE_TO_CLAIMS[$scope] ?? [])
+            ->unique()
+            ->values()
+            ->all();
     }
 
     public function assertSubjectMatches(?string $expectedSubject, array $userInfo): void

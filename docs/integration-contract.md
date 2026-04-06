@@ -144,6 +144,7 @@ Szerződés szabály:
 - a kliens `kid` alapján letolti es valasztja ki a megfelelo JWKS kulcsot
 - a kliens RS256 alairast ellenoriz az ID tokenen
 - a kliens minimalisan ellenorzi az `iss`, `aud`, `exp`, `iat` claim-eket is
+- az `id_token`-tol jelenleg csak a minimalis claim contractot varja: `iss`, `sub`, `aud`, `iat`, `exp`, valamint `nonce` openid flow-ban
 - a nonce check csak sikeres signature es claim verify utan futhat le
 - non-openid flow-ban a kliens nem vár `id_token` mezőt
 - hianyos vagy ervenytelen discovery dokumentumra a kliens nem epit vakon; kontrollalt fallbacket vagy hibakezelest alkalmaz
@@ -188,8 +189,9 @@ Sikeres válasz:
 
 Claim szerződés:
 
-- garantált: `data.sub`
-- scope-függően opcionális: `data.name`, `data.email`, `data.email_verified`
+- `openid` scope eseten garantalt: `data.sub`
+- `profile` scope eseten opcionális: `data.name`
+- `email` scope eseten opcionális: `data.email`, `data.email_verified`
 
 Kliens oldali szerződés:
 
@@ -198,6 +200,7 @@ Kliens oldali szerződés:
 - a userinfo hivas bearer access tokennel történik
 - a kliens a `userinfo.sub` claimet az `id_token.sub` claimmel is osszeveti, mielott sikeres auth state epulne fel
 - a lokális user session felépítéséhez jelenleg szükséges a `data.email`
+- a reszletesebb identity claim-eket a kliens a `userinfo` felől várja, nem az `id_token`-bol
 - a userinfo endpoint nem teljes profile API; csak a minimalis, scope-vezerelt identity payloadra epulunk
 
 ## 5. Logout szerződés

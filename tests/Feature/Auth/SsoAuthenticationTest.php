@@ -3,6 +3,7 @@
 namespace Tests\Feature\Auth;
 
 use App\Models\User;
+use App\Services\Sso\OidcUserInfoService;
 use App\Services\Sso\SsoClientService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -158,6 +159,7 @@ class SsoAuthenticationTest extends TestCase
             'subject_types_supported' => ['public'],
             'id_token_signing_alg_values_supported' => ['RS256'],
             'scopes_supported' => ['openid', 'profile', 'email'],
+            'claims_supported' => ['sub', 'name', 'email', 'email_verified'],
             'code_challenge_methods_supported' => ['S256'],
         ], $overrides);
     }
@@ -402,6 +404,54 @@ class SsoAuthenticationTest extends TestCase
             'event' => 'client_auth.oidc.discovery_validation_failed',
             'description' => 'OIDC discovery metadata validation failed.',
         ]);
+    }
+
+    #[Group('security')]
+    public function test_client_uses_an_explicit_claim_contract_for_id_token_and_userinfo(): void
+    {
+        $service = app(OidcUserInfoService::class);
+
+        $this->assertSame(
+            ['iss', 'sub', 'aud', 'iat', 'exp', 'nonce'],
+            $service->expectedIdTokenClaims(),
+        );
+
+        $this->assertSame(
+            ['sub', 'name', 'email', 'email_verified'],
+            $service->expectedUserInfoClaimsForScopes(['openid', 'profile', 'email']),
+        );
+    }
+
+    #[Group('security')]
+    public function test_callback_rejects_userinfo_payload_without_subject(): void
+    {
+        Http::fake([
+            'https://sso-server.test/api/oauth/token' => Http::response([
+                'message' => 'OAuth token issued successfully.',
+                'data' => [
+                    'access_token' => 'access-token',
+                    'id_token' => $this->idToken(overrides: ['sub' => 'server-user-42']),
+                ],
+                'meta' => [],
+                'errors' => [],
+            ], 200),
+            'https://sso-server.test/.well-known/jwks.json' => Http::response($this->jwksPayload(), 200),
+            'https://sso-server.test/api/oauth/userinfo' => Http::response([
+                'message' => 'User info retrieved successfully.',
+                'data' => [
+                    'email' => 'missing-sub@example.test',
+                    'name' => 'Missing Subject',
+                ],
+                'meta' => [],
+                'errors' => [],
+            ], 200),
+        ]);
+
+        $this
+            ->withSession($this->pendingAuthorizationSession())
+            ->get('/auth/sso/callback?code=valid-code&state=valid-state')
+            ->assertRedirect(route('login'))
+            ->assertSessionHas('error', 'Ervenytelen userinfo valasz erkezett az SSO szervertol.');
     }
 
     #[Group('security')]
