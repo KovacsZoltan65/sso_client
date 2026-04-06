@@ -135,11 +135,19 @@ Szerződés szabály:
 
 - a kliens kizárólag a `data` envelope-ból dolgozik
 - `openid` scope esetén a kliens `data.id_token` mezőt is vár, és abból olvassa ki a returned nonce-ot
+- a kliens discovery foundationkent tudja hasznalni a `GET /.well-known/openid-configuration` metadata dokumentumot is
+- a discoverybol jelenleg ezeket a mezoket veszi at: `issuer`, `authorization_endpoint`, `token_endpoint`, `jwks_uri`, `id_token_signing_alg_values_supported`
+- precedence szabaly:
+  - 1. explicit kliens config
+  - 2. ervenyes discovery metadata
+  - 3. kontrollalt fallback a `SSO_SERVER_BASE_URL` alapjan
 - a kliens `kid` alapján letolti es valasztja ki a megfelelo JWKS kulcsot
 - a kliens RS256 alairast ellenoriz az ID tokenen
 - a kliens minimalisan ellenorzi az `iss`, `aud`, `exp`, `iat` claim-eket is
 - a nonce check csak sikeres signature es claim verify utan futhat le
 - non-openid flow-ban a kliens nem vár `id_token` mezőt
+- hianyos vagy ervenytelen discovery dokumentumra a kliens nem epit vakon; kontrollalt fallbacket vagy hibakezelest alkalmaz
+- ez meg mindig foundation ticket: nincs teljes discovery ecosystem, logout metadata vagy dynamic registration tamogatas
 
 Hibás válasz formátuma:
 

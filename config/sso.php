@@ -2,11 +2,13 @@
 
 return [
     'server_base_url' => env('SSO_SERVER_BASE_URL'),
-    'authorize_endpoint' => env('SSO_AUTHORIZE_ENDPOINT', '/oauth/authorize'),
-    'token_endpoint' => env('SSO_TOKEN_ENDPOINT', '/api/oauth/token'),
-    'userinfo_endpoint' => env('SSO_USERINFO_ENDPOINT', '/api/oauth/userinfo'),
-    'oidc_jwks_endpoint' => env('SSO_OIDC_JWKS_ENDPOINT', '/.well-known/jwks.json'),
-    'oidc_expected_issuer' => env('SSO_OIDC_EXPECTED_ISSUER', env('SSO_SERVER_BASE_URL')),
+    'authorize_endpoint' => env('SSO_AUTHORIZE_ENDPOINT'),
+    'token_endpoint' => env('SSO_TOKEN_ENDPOINT'),
+    'userinfo_endpoint' => env('SSO_USERINFO_ENDPOINT'),
+    'oidc_discovery_endpoint' => env('SSO_OIDC_DISCOVERY_ENDPOINT', '/.well-known/openid-configuration'),
+    'oidc_discovery_cache_seconds' => (int) env('SSO_OIDC_DISCOVERY_CACHE_SECONDS', 300),
+    'oidc_jwks_endpoint' => env('SSO_OIDC_JWKS_ENDPOINT'),
+    'oidc_expected_issuer' => env('SSO_OIDC_EXPECTED_ISSUER'),
     'oidc_clock_skew_seconds' => (int) env('SSO_OIDC_CLOCK_SKEW_SECONDS', 60),
     'oidc_jwks_cache_seconds' => (int) env('SSO_OIDC_JWKS_CACHE_SECONDS', 300),
     'logout_endpoint' => env('SSO_LOGOUT_ENDPOINT'),

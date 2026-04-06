@@ -8,6 +8,11 @@ use Illuminate\Support\Facades\Http;
 
 class OidcJwksService
 {
+    public function __construct(
+        private readonly OidcDiscoveryService $discoveryService,
+    ) {
+    }
+
     /**
      * @return array{keys: array<int, array<string, mixed>>}
      */
@@ -52,6 +57,12 @@ class OidcJwksService
             $baseUrl = rtrim((string) config('sso.server_base_url'), '/');
 
             return $baseUrl.$configured;
+        }
+
+        $discoveryJwksUri = $this->discoveryService->resolveDiscoveryValue('jwks_uri');
+
+        if ($discoveryJwksUri !== null) {
+            return $discoveryJwksUri;
         }
 
         $baseUrl = rtrim((string) config('sso.server_base_url'), '/');

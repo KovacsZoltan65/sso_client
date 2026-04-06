@@ -62,6 +62,7 @@ class SsoClientService
     public function __construct(
         private readonly AuditLogService $auditLogService,
         private readonly OidcIdTokenVerifier $oidcIdTokenVerifier,
+        private readonly OidcDiscoveryService $oidcDiscoveryService,
     ) {
     }
 
@@ -792,21 +793,44 @@ class SsoClientService
     {
         $endpoint = trim((string) config("sso.{$key}"));
 
-        if ($endpoint === '') {
-            return null;
+        if ($endpoint !== '') {
+            if (Str::startsWith($endpoint, ['http://', 'https://'])) {
+                return $endpoint;
+            }
+
+            $baseUrl = $this->serverBaseUrl();
+
+            return $baseUrl === null ? null : $baseUrl.'/'.ltrim($endpoint, '/');
         }
 
-        if (Str::startsWith($endpoint, ['http://', 'https://'])) {
-            return $endpoint;
+        $discoveryKey = match ($key) {
+            'authorize_endpoint' => 'authorization_endpoint',
+            'token_endpoint' => 'token_endpoint',
+            default => null,
+        };
+
+        if ($discoveryKey !== null) {
+            $discoveredEndpoint = $this->oidcDiscoveryService->resolveDiscoveryValue($discoveryKey);
+
+            if ($discoveredEndpoint !== null) {
+                return $discoveredEndpoint;
+            }
+        }
+
+        $fallbackPath = match ($key) {
+            'authorize_endpoint' => '/oauth/authorize',
+            'token_endpoint' => '/api/oauth/token',
+            'userinfo_endpoint' => '/api/oauth/userinfo',
+            default => null,
+        };
+
+        if ($fallbackPath === null) {
+            return null;
         }
 
         $baseUrl = $this->serverBaseUrl();
 
-        if ($baseUrl === null) {
-            return null;
-        }
-
-        return $baseUrl.'/'.ltrim($endpoint, '/');
+        return $baseUrl === null ? null : $baseUrl.$fallbackPath;
     }
 
     /**

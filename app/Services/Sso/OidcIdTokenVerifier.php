@@ -8,6 +8,7 @@ class OidcIdTokenVerifier
 {
     public function __construct(
         private readonly OidcJwksService $jwksService,
+        private readonly OidcDiscoveryService $discoveryService,
     ) {
     }
 
@@ -93,7 +94,10 @@ class OidcIdTokenVerifier
      */
     private function assertClaimsAreValid(array $claims): void
     {
-        $expectedIssuer = trim((string) config('sso.oidc_expected_issuer', config('sso.server_base_url')));
+        $configuredIssuer = trim((string) config('sso.oidc_expected_issuer', ''));
+        $expectedIssuer = $configuredIssuer !== ''
+            ? rtrim($configuredIssuer, '/')
+            : ($this->discoveryService->resolveDiscoveryValue('issuer') ?? rtrim((string) config('sso.server_base_url'), '/'));
         $expectedAudience = trim((string) config('sso.client_id'));
         $clockSkew = max(0, (int) config('sso.oidc_clock_skew_seconds', 60));
         $now = now()->timestamp;

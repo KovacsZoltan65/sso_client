@@ -4,6 +4,7 @@ namespace Tests\Feature\Auth;
 
 use App\Models\User;
 use App\Services\Sso\SsoClientService;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -27,6 +28,8 @@ class SsoAuthenticationTest extends TestCase
     {
         parent::setUp();
 
+        Cache::flush();
+
         $this->oidcPrivateKeyPem = file_get_contents(base_path('tests/Fixtures/oidc/private.pem')) ?: '';
         $this->oidcJwk = $this->jwkFromPrivateKey($this->oidcPrivateKeyPem);
 
@@ -34,6 +37,7 @@ class SsoAuthenticationTest extends TestCase
         config()->set('sso.authorize_endpoint', '/oauth/authorize');
         config()->set('sso.token_endpoint', '/api/oauth/token');
         config()->set('sso.userinfo_endpoint', '/api/oauth/userinfo');
+        config()->set('sso.oidc_discovery_endpoint', '/.well-known/openid-configuration');
         config()->set('sso.oidc_jwks_endpoint', '/.well-known/jwks.json');
         config()->set('sso.oidc_expected_issuer', 'https://sso-server.test');
         config()->set('sso.client_id', 'portal-client');
@@ -132,6 +136,26 @@ class SsoAuthenticationTest extends TestCase
                 $this->oidcJwk,
             ],
         ];
+    }
+
+    /**
+     * @param array<string, mixed> $overrides
+     * @return array<string, mixed>
+     */
+    private function discoveryPayload(array $overrides = []): array
+    {
+        return array_merge([
+            'issuer' => 'https://sso-server.test',
+            'authorization_endpoint' => 'https://sso-server.test/oauth/authorize',
+            'token_endpoint' => 'https://sso-server.test/api/oauth/token',
+            'jwks_uri' => 'https://sso-server.test/.well-known/jwks.json',
+            'response_types_supported' => ['code'],
+            'grant_types_supported' => ['authorization_code', 'refresh_token'],
+            'subject_types_supported' => ['public'],
+            'id_token_signing_alg_values_supported' => ['RS256'],
+            'scopes_supported' => ['openid', 'profile', 'email'],
+            'code_challenge_methods_supported' => ['S256'],
+        ], $overrides);
     }
 
     public function test_login_screen_can_be_rendered(): void
@@ -233,6 +257,130 @@ class SsoAuthenticationTest extends TestCase
         $this->assertArrayHasKey($secondQuery['state'] ?? '', $pendingAuthorizations);
         $this->assertNotSame($firstQuery['state'] ?? null, $secondQuery['state'] ?? null);
         $this->assertNotSame($firstQuery['nonce'] ?? null, $secondQuery['nonce'] ?? null);
+    }
+
+    #[Group('security')]
+    public function test_redirect_endpoint_can_resolve_authorize_endpoint_from_discovery(): void
+    {
+        config()->set('sso.authorize_endpoint', null);
+
+        Http::fake([
+            'https://sso-server.test/.well-known/openid-configuration' => Http::response($this->discoveryPayload(), 200),
+        ]);
+
+        $response = $this->get('/auth/sso/redirect');
+
+        $response->assertRedirect();
+
+        $location = $response->headers->get('Location');
+
+        $this->assertNotNull($location);
+        $this->assertStringStartsWith('https://sso-server.test/oauth/authorize?', $location);
+    }
+
+    #[Group('security')]
+    public function test_callback_can_use_discovery_metadata_for_token_and_jwks_resolution(): void
+    {
+        config()->set('sso.token_endpoint', null);
+        config()->set('sso.oidc_jwks_endpoint', null);
+        config()->set('sso.oidc_expected_issuer', null);
+
+        Http::fake([
+            'https://sso-server.test/.well-known/openid-configuration' => Http::response($this->discoveryPayload(), 200),
+            'https://sso-server.test/api/oauth/token' => Http::response([
+                'message' => 'OAuth token issued successfully.',
+                'data' => [
+                    'access_token' => 'access-token',
+                    'refresh_token' => 'refresh-token',
+                    'expires_in' => 3600,
+                    'refresh_token_expires_in' => 7200,
+                    'token_type' => 'Bearer',
+                    'scope' => 'openid profile email',
+                    'id_token' => $this->idToken(),
+                ],
+                'meta' => [],
+                'errors' => [],
+            ], 200),
+            'https://sso-server.test/.well-known/jwks.json' => Http::response($this->jwksPayload(), 200),
+            'https://sso-server.test/api/oauth/userinfo' => Http::response([
+                'message' => 'User info retrieved successfully.',
+                'data' => [
+                    'sub' => '123',
+                    'name' => 'Jane Example',
+                    'email' => 'jane@example.test',
+                    'email_verified' => true,
+                ],
+                'meta' => [],
+                'errors' => [],
+            ], 200),
+        ]);
+
+        $response = $this
+            ->withSession($this->pendingAuthorizationSession())
+            ->get('/auth/sso/callback?code=valid-code&state=valid-state');
+
+        $response->assertRedirect(route('dashboard'));
+        $this->assertAuthenticated();
+
+        $this->assertDatabaseHas('activity_log', [
+            'log_name' => 'client.auth',
+            'event' => 'client_auth.oidc.discovery_loaded',
+            'description' => 'OIDC discovery metadata loaded.',
+        ]);
+    }
+
+    #[Group('security')]
+    public function test_callback_falls_back_when_discovery_document_is_invalid(): void
+    {
+        config()->set('sso.token_endpoint', null);
+        config()->set('sso.oidc_jwks_endpoint', null);
+        config()->set('sso.oidc_expected_issuer', null);
+
+        Http::fake([
+            'https://sso-server.test/.well-known/openid-configuration' => Http::response([
+                'issuer' => 'https://sso-server.test',
+                'authorization_endpoint' => 'https://sso-server.test/oauth/authorize',
+            ], 200),
+            'https://sso-server.test/api/oauth/token' => Http::response([
+                'message' => 'OAuth token issued successfully.',
+                'data' => [
+                    'access_token' => 'access-token',
+                    'refresh_token' => 'refresh-token',
+                    'expires_in' => 3600,
+                    'refresh_token_expires_in' => 7200,
+                    'token_type' => 'Bearer',
+                    'scope' => 'openid profile email',
+                    'id_token' => $this->idToken(),
+                ],
+                'meta' => [],
+                'errors' => [],
+            ], 200),
+            'https://sso-server.test/.well-known/jwks.json' => Http::response($this->jwksPayload(), 200),
+            'https://sso-server.test/api/oauth/userinfo' => Http::response([
+                'message' => 'User info retrieved successfully.',
+                'data' => [
+                    'sub' => '123',
+                    'name' => 'Jane Example',
+                    'email' => 'jane@example.test',
+                    'email_verified' => true,
+                ],
+                'meta' => [],
+                'errors' => [],
+            ], 200),
+        ]);
+
+        $response = $this
+            ->withSession($this->pendingAuthorizationSession())
+            ->get('/auth/sso/callback?code=valid-code&state=valid-state');
+
+        $response->assertRedirect(route('dashboard'));
+        $this->assertAuthenticated();
+
+        $this->assertDatabaseHas('activity_log', [
+            'log_name' => 'client.auth',
+            'event' => 'client_auth.oidc.discovery_validation_failed',
+            'description' => 'OIDC discovery metadata validation failed.',
+        ]);
     }
 
     #[Group('security')]
