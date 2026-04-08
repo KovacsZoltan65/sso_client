@@ -12,9 +12,12 @@ class AppPageController extends Controller
 {
     public function __construct(
         private readonly SsoClientService $ssoClientService,
-    ) {
-    }
+    ) {}
 
+    /**
+     * @param Request $request
+     * @return \Inertia\Response
+     */
     public function myAccount(Request $request): Response
     {
         return Inertia::render('Account/Show', [
@@ -27,6 +30,10 @@ class AppPageController extends Controller
         ]);
     }
 
+    /**
+     * @param Request $request
+     * @return \Inertia\Response
+     */
     public function users(Request $request): Response
     {
         return Inertia::render('Users/Index', [
@@ -42,6 +49,10 @@ class AppPageController extends Controller
         ]);
     }
 
+    /**
+     * @param Request $request
+     * @return \Inertia\Response
+     */
     public function companies(Request $request): Response
     {
         return Inertia::render('Companies/Index', [
@@ -60,6 +71,9 @@ class AppPageController extends Controller
         ]);
     }
 
+    /**
+     * @return \Inertia\Response
+     */
     public function roles(): Response
     {
         return $this->placeholder(

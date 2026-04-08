@@ -3,7 +3,9 @@
 namespace Tests\Feature\Auth;
 
 use App\Models\User;
+use App\Models\OidcLogoutReceipt;
 use App\Models\OidcSessionMapping;
+use App\Services\Sso\OidcDiscoveryService;
 use App\Services\Sso\OidcUserInfoService;
 use App\Services\Sso\SsoClientService;
 use Illuminate\Support\Facades\Cache;
@@ -411,7 +413,7 @@ class SsoAuthenticationTest extends TestCase
     }
 
     #[Group('security')]
-    public function test_callback_falls_back_when_discovery_document_is_invalid(): void
+    public function test_callback_fails_when_discovery_document_is_invalid(): void
     {
         config()->set('sso.token_endpoint', null);
         config()->set('sso.oidc_jwks_endpoint', null);
@@ -455,14 +457,77 @@ class SsoAuthenticationTest extends TestCase
             ->withSession($this->pendingAuthorizationSession())
             ->get('/auth/sso/callback?code=valid-code&state=valid-state');
 
-        $response->assertRedirect(route('dashboard'));
-        $this->assertAuthenticated();
+        $response
+            ->assertRedirect(route('login'))
+            ->assertSessionHas('error', 'Az SSO discovery dokumentum ervenytelen.');
+
+        $this->assertGuest();
 
         $this->assertDatabaseHas('activity_log', [
             'log_name' => 'client.auth',
             'event' => 'client_auth.oidc.discovery_validation_failed',
             'description' => 'OIDC discovery metadata validation failed.',
         ]);
+    }
+
+    #[Group('security')]
+    public function test_discovery_validation_rejects_issuer_mismatch(): void
+    {
+        Http::fake([
+            'https://sso-server.test/.well-known/openid-configuration' => Http::response($this->discoveryPayload([
+                'issuer' => 'https://issuer-mismatch.test',
+            ]), 200),
+        ]);
+
+        $this->expectException(\App\Exceptions\SsoAuthenticationException::class);
+        $this->expectExceptionMessage('Az SSO discovery dokumentum ervenytelen.');
+
+        app(OidcDiscoveryService::class)->getProviderMetadata();
+    }
+
+    #[Group('security')]
+    public function test_discovery_validation_rejects_missing_rs256_algorithm(): void
+    {
+        Http::fake([
+            'https://sso-server.test/.well-known/openid-configuration' => Http::response($this->discoveryPayload([
+                'id_token_signing_alg_values_supported' => ['ES256'],
+            ]), 200),
+        ]);
+
+        $this->expectException(\App\Exceptions\SsoAuthenticationException::class);
+        $this->expectExceptionMessage('Az SSO discovery dokumentum ervenytelen.');
+
+        app(OidcDiscoveryService::class)->getProviderMetadata();
+    }
+
+    #[Group('security')]
+    public function test_discovery_validation_rejects_invalid_endpoint_url(): void
+    {
+        Http::fake([
+            'https://sso-server.test/.well-known/openid-configuration' => Http::response($this->discoveryPayload([
+                'jwks_uri' => '/.well-known/jwks.json',
+            ]), 200),
+        ]);
+
+        $this->expectException(\App\Exceptions\SsoAuthenticationException::class);
+        $this->expectExceptionMessage('Az SSO discovery dokumentum ervenytelen.');
+
+        app(OidcDiscoveryService::class)->getProviderMetadata();
+    }
+
+    #[Group('security')]
+    public function test_discovery_validation_rejects_claims_supported_without_subject(): void
+    {
+        Http::fake([
+            'https://sso-server.test/.well-known/openid-configuration' => Http::response($this->discoveryPayload([
+                'claims_supported' => ['email'],
+            ]), 200),
+        ]);
+
+        $this->expectException(\App\Exceptions\SsoAuthenticationException::class);
+        $this->expectExceptionMessage('Az SSO discovery dokumentum ervenytelen.');
+
+        app(OidcDiscoveryService::class)->getProviderMetadata();
     }
 
     #[Group('security')]
@@ -1205,6 +1270,65 @@ class SsoAuthenticationTest extends TestCase
     }
 
     #[Group('security')]
+    public function test_callback_refetches_jwks_once_when_kid_is_unknown_in_cached_jwks(): void
+    {
+        Cache::put(
+            'sso.oidc.jwks.'.sha1('https://sso-server.test/.well-known/jwks.json'),
+            $this->jwksPayload([
+                $this->oidcJwk,
+            ]),
+            300,
+        );
+
+        Http::fake([
+            'https://sso-server.test/api/oauth/token' => Http::response([
+                'message' => 'OAuth token issued successfully.',
+                'data' => [
+                    'access_token' => 'access-token',
+                    'id_token' => $this->idToken(
+                        privateKeyPem: $this->legacyOidcPrivateKeyPem,
+                        kid: $this->legacyOidcJwk['kid'],
+                    ),
+                ],
+            ], 200),
+            'https://sso-server.test/.well-known/jwks.json' => Http::response($this->jwksPayload([
+                $this->oidcJwk,
+                $this->legacyOidcJwk,
+            ]), 200),
+            'https://sso-server.test/api/oauth/userinfo' => Http::response([
+                'message' => 'User info retrieved successfully.',
+                'data' => [
+                    'sub' => '123',
+                    'name' => 'Jane Example',
+                    'email' => 'jane@example.test',
+                    'email_verified' => true,
+                ],
+                'meta' => [],
+                'errors' => [],
+            ], 200),
+        ]);
+
+        $this
+            ->withSession($this->pendingAuthorizationSession())
+            ->get('/auth/sso/callback?code=valid-code&state=valid-state')
+            ->assertRedirect(route('dashboard'));
+
+        $this->assertAuthenticated();
+
+        $this->assertDatabaseHas('activity_log', [
+            'log_name' => 'client.auth',
+            'event' => 'client_auth.id_token.unknown_kid_refresh_triggered',
+            'description' => 'Client ID token unknown kid triggered a JWKS refresh.',
+        ]);
+
+        $this->assertDatabaseHas('activity_log', [
+            'log_name' => 'client.auth',
+            'event' => 'client_auth.id_token.kid_selected',
+            'description' => 'Client ID token kid selected from the JWKS.',
+        ]);
+    }
+
+    #[Group('security')]
     public function test_callback_rejects_id_token_when_the_matching_kid_is_missing_from_jwks(): void
     {
         Http::fake([
@@ -1235,6 +1359,18 @@ class SsoAuthenticationTest extends TestCase
             'log_name' => 'client.auth',
             'event' => 'client_auth.id_token.kid_not_found',
             'description' => 'Client ID token kid was not found in the JWKS.',
+        ]);
+
+        $this->assertDatabaseHas('activity_log', [
+            'log_name' => 'client.auth',
+            'event' => 'client_auth.id_token.unknown_kid_refresh_triggered',
+            'description' => 'Client ID token unknown kid triggered a JWKS refresh.',
+        ]);
+
+        $this->assertDatabaseHas('activity_log', [
+            'log_name' => 'client.auth',
+            'event' => 'client_auth.id_token.unknown_kid_still_missing',
+            'description' => 'Client ID token kid was still missing after JWKS refresh.',
         ]);
     }
 
@@ -1653,10 +1789,14 @@ class SsoAuthenticationTest extends TestCase
             'last_activity' => now()->timestamp,
         ]);
 
+        $logoutToken = $this->logoutToken([
+            'jti' => 'backchannel-jti-1',
+        ]);
+
         $response = $this
             ->actingAs($user)
             ->post('/auth/backchannel-logout', [
-                'logout_token' => $this->logoutToken(),
+                'logout_token' => $logoutToken,
             ]);
 
         $response
@@ -1684,6 +1824,75 @@ class SsoAuthenticationTest extends TestCase
             'log_name' => 'client.auth',
             'event' => 'client_auth.logout.backchannel_local_completed',
             'description' => 'Client back-channel local logout completed.',
+        ]);
+
+        $this->assertDatabaseHas('oidc_logout_receipts', [
+            'jti_hash' => hash('sha256', 'backchannel-jti-1'),
+            'issuer' => 'https://sso-server.test',
+            'audience' => 'portal-client',
+            'outcome' => 'local_completed',
+        ]);
+    }
+
+    #[Group('security')]
+    public function test_backchannel_logout_replay_is_a_controlled_idempotent_noop(): void
+    {
+        $user = User::factory()->create([
+            'sso_user_id' => '123',
+        ]);
+
+        Http::fake([
+            'https://sso-server.test/.well-known/jwks.json' => Http::response($this->jwksPayload(), 200),
+        ]);
+
+        \DB::table('sessions')->insert([
+            'id' => 'backchannel-replay-first-session',
+            'user_id' => $user->id,
+            'ip_address' => '127.0.0.1',
+            'user_agent' => 'PHPUnit',
+            'payload' => base64_encode('{}'),
+            'last_activity' => now()->timestamp,
+        ]);
+
+        $logoutToken = $this->logoutToken([
+            'jti' => 'backchannel-replay-jti',
+        ]);
+
+        $this
+            ->actingAs($user)
+            ->post('/auth/backchannel-logout', [
+                'logout_token' => $logoutToken,
+            ])
+            ->assertOk()
+            ->assertSeeText('Back-channel logout completed.');
+
+        \DB::table('sessions')->insert([
+            'id' => 'backchannel-replay-second-session',
+            'user_id' => $user->id,
+            'ip_address' => '127.0.0.1',
+            'user_agent' => 'PHPUnit',
+            'payload' => base64_encode('{}'),
+            'last_activity' => now()->timestamp,
+        ]);
+
+        $this->post('/auth/backchannel-logout', [
+            'logout_token' => $logoutToken,
+        ])
+            ->assertOk()
+            ->assertSeeText('Back-channel logout already processed.');
+
+        $this->assertDatabaseHas('sessions', [
+            'id' => 'backchannel-replay-second-session',
+        ]);
+
+        $this->assertSame(1, OidcLogoutReceipt::query()
+            ->where('jti_hash', hash('sha256', 'backchannel-replay-jti'))
+            ->count());
+
+        $this->assertDatabaseHas('activity_log', [
+            'log_name' => 'client.auth',
+            'event' => 'client_auth.logout.backchannel_replay_detected',
+            'description' => 'Client back-channel logout replay detected.',
         ]);
     }
 
@@ -1720,6 +1929,7 @@ class SsoAuthenticationTest extends TestCase
         $response = $this->post('/auth/backchannel-logout', [
             'logout_token' => $this->logoutToken([
                 'sid' => 'sid-backchannel-match',
+                'jti' => 'backchannel-sid-match-jti',
             ]),
         ]);
 
@@ -1738,6 +1948,12 @@ class SsoAuthenticationTest extends TestCase
             'log_name' => 'client.auth',
             'event' => 'client_auth.logout.backchannel_sid_matched',
             'description' => 'Client back-channel logout sid matched local session correlation.',
+        ]);
+
+        $this->assertDatabaseHas('oidc_logout_receipts', [
+            'jti_hash' => hash('sha256', 'backchannel-sid-match-jti'),
+            'sid_hash' => hash('sha256', 'sid-backchannel-match'),
+            'outcome' => 'local_completed',
         ]);
     }
 
@@ -1764,6 +1980,7 @@ class SsoAuthenticationTest extends TestCase
         $response = $this->post('/auth/backchannel-logout', [
             'logout_token' => $this->logoutToken([
                 'sid' => 'sid-backchannel-unmatched',
+                'jti' => 'backchannel-sid-mismatch-jti',
             ]),
         ]);
 
@@ -1779,6 +1996,52 @@ class SsoAuthenticationTest extends TestCase
             'log_name' => 'client.auth',
             'event' => 'client_auth.logout.backchannel_sid_mismatch',
             'description' => 'Client back-channel logout sid did not match a local session.',
+        ]);
+
+        $this->assertDatabaseHas('oidc_logout_receipts', [
+            'jti_hash' => hash('sha256', 'backchannel-sid-mismatch-jti'),
+            'sid_hash' => hash('sha256', 'sid-backchannel-unmatched'),
+            'outcome' => 'sid_mismatch',
+        ]);
+    }
+
+    #[Group('security')]
+    public function test_backchannel_logout_rejects_an_expired_logout_token_without_receipt_or_cleanup(): void
+    {
+        $user = User::factory()->create([
+            'sso_user_id' => '123',
+        ]);
+
+        Http::fake([
+            'https://sso-server.test/.well-known/jwks.json' => Http::response($this->jwksPayload(), 200),
+        ]);
+
+        \DB::table('sessions')->insert([
+            'id' => 'backchannel-expired-session',
+            'user_id' => $user->id,
+            'ip_address' => '127.0.0.1',
+            'user_agent' => 'PHPUnit',
+            'payload' => base64_encode('{}'),
+            'last_activity' => now()->timestamp,
+        ]);
+
+        $response = $this->actingAs($user)->post('/auth/backchannel-logout', [
+            'logout_token' => $this->logoutToken([
+                'jti' => 'backchannel-expired-jti',
+                'exp' => now()->subMinutes(10)->timestamp,
+            ]),
+        ]);
+
+        $response
+            ->assertStatus(401)
+            ->assertSeeText('A back-channel logout token lejart.');
+
+        $this->assertAuthenticatedAs($user);
+        $this->assertDatabaseHas('sessions', [
+            'id' => 'backchannel-expired-session',
+        ]);
+        $this->assertDatabaseMissing('oidc_logout_receipts', [
+            'jti_hash' => hash('sha256', 'backchannel-expired-jti'),
         ]);
     }
 

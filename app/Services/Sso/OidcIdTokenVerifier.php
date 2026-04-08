@@ -37,21 +37,47 @@ class OidcIdTokenVerifier
         }
 
         try {
-            $jwk = $this->jwksService->findKeyByKid($kid);
+            $jwk = $this->jwksService->findKeyByKid($kid, refreshOnMiss: false);
         } catch (SsoAuthenticationException $exception) {
             if ($exception->getMessage() === 'Az SSO JWKS nem tartalmazza a szukseges alairasi kulcsot.') {
-                $this->auditLogService->logFailure(
+                $this->auditLogService->logSuccess(
                     logName: AuditLogService::LOG_CLIENT_AUTH,
-                    event: 'client_auth.id_token.kid_not_found',
-                    description: 'Client ID token kid was not found in the JWKS.',
+                    event: 'client_auth.id_token.unknown_kid_refresh_triggered',
+                    description: 'Client ID token unknown kid triggered a JWKS refresh.',
                     properties: [
                         'kid' => $kid,
-                        'status' => 'kid_not_found',
+                        'status' => 'refresh_triggered',
                     ],
                 );
-            }
 
-            throw $exception;
+                try {
+                    $jwk = $this->jwksService->findKeyByKid($kid, refreshOnMiss: true);
+                } catch (SsoAuthenticationException $retryException) {
+                    $this->auditLogService->logFailure(
+                        logName: AuditLogService::LOG_CLIENT_AUTH,
+                        event: 'client_auth.id_token.unknown_kid_still_missing',
+                        description: 'Client ID token kid was still missing after JWKS refresh.',
+                        properties: [
+                            'kid' => $kid,
+                            'status' => 'kid_still_missing',
+                        ],
+                    );
+
+                    $this->auditLogService->logFailure(
+                        logName: AuditLogService::LOG_CLIENT_AUTH,
+                        event: 'client_auth.id_token.kid_not_found',
+                        description: 'Client ID token kid was not found in the JWKS.',
+                        properties: [
+                            'kid' => $kid,
+                            'status' => 'kid_not_found',
+                        ],
+                    );
+
+                    throw $retryException;
+                }
+            } else {
+                throw $exception;
+            }
         }
 
         $this->auditLogService->logSuccess(

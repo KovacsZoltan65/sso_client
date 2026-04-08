@@ -136,22 +136,35 @@ Szerződés szabály:
 - a kliens kizárólag a `data` envelope-ból dolgozik
 - `openid` scope esetén a kliens `data.id_token` mezőt is vár, és abból olvassa ki a returned nonce-ot
 - a kliens discovery foundationkent tudja hasznalni a `GET /.well-known/openid-configuration` metadata dokumentumot is
-- a discoverybol jelenleg ezeket a mezoket veszi at: `issuer`, `authorization_endpoint`, `token_endpoint`, `userinfo_endpoint`, `end_session_endpoint`, `jwks_uri`, `id_token_signing_alg_values_supported`, `frontchannel_logout_session_supported`, `backchannel_logout_supported`, `backchannel_logout_session_supported`
+- a discoverybol jelenleg ezeket a mezoket veszi at es validalja: `issuer`, `authorization_endpoint`, `token_endpoint`, `userinfo_endpoint`, `end_session_endpoint`, `jwks_uri`, `response_types_supported`, `subject_types_supported`, `id_token_signing_alg_values_supported`, `claims_supported`, `frontchannel_logout_session_supported`, `backchannel_logout_supported`, `backchannel_logout_session_supported`
 - precedence szabaly:
   - 1. explicit kliens config
-  - 2. ervenyes discovery metadata
-  - 3. kontrollalt fallback a `SSO_SERVER_BASE_URL` alapjan
+  - 2. ervenyes, validalt discovery metadata
+  - 3. kontrollalt fallback a `SSO_SERVER_BASE_URL` alapjan, de csak akkor, ha nincs hibas discovery dokumentum, amelyet a kliens mar megprobalt felhasznalni
+- a discovery validacio kotelezoen ellenorzi:
+  - kotelezo mezok: `issuer`, `authorization_endpoint`, `token_endpoint`, `jwks_uri`, `response_types_supported`, `subject_types_supported`, `id_token_signing_alg_values_supported`, `claims_supported`
+  - `issuer` egyezik az explicit `SSO_OIDC_EXPECTED_ISSUER` ertekkel, ha az be van allitva
+  - endpoint mezok nem uresek es valid abszolut URL-ek
+  - `id_token_signing_alg_values_supported` tartalmazza az `RS256` erteket
+  - `claims_supported` tartalmazza a `sub` claimet
+- hibas vagy hianyos discovery dokumentum eseten a kliens kontrollalt `client_auth.oidc.discovery_validation_failed` audit esemenyt ir, es nem lep tovabb vak fallbackkel
 - a kliens tobbkulcsos JWKS valaszt tud kezelni; nincs `first key wins` logika
 - a kliens `kid` alapján valasztja ki a megfelelo JWKS kulcsot
-- ha a token `kid` erteke hianyzik vagy nincs matching publikus kulcs a JWKS-ben, kontrollalt auth hiba tortenik
-- legacy, de meg publikalt verify kulccsal alairt token tovabbra is verifikalhato
+- ha a token `kid` erteke hianyzik, kontrollalt auth hiba tortenik
+- ha a cache-elt JWKS-ben nincs matching publikus kulcs, a kliens egyszer force-refresh utvonalon ujra lekéri a JWKS-t, majd egyszer ujraprobalja a `kid` valasztast
+- ha a refresh utan sincs matching `kid`, kontrollalt unknown-key auth hiba tortenik; nincs vegtelen retry vagy `first key wins` fallback
+- a provider oldali `active`, `published` es `retiring` kulcsok kliens oldalon egyarant JWKS-ben publikalt verify kulcskent jelennek meg
+- `retiring`, de meg JWKS-ben publikalt verify kulccsal alairt regi token tovabbra is verifikalhato
+- `disabled` kulcsot a provider nem publikál JWKS-ben; ilyen `kid` erteku tokenre a kliens refresh utan is kontrollalt unknown-key hibaval reagal
+- az unknown `kid` refresh audit esemenyei: `client_auth.id_token.unknown_kid_refresh_triggered`, majd hiba eseten `client_auth.id_token.unknown_kid_still_missing`
 - a kliens RS256 alairast ellenoriz az ID tokenen
 - a kliens minimalisan ellenorzi az `iss`, `aud`, `exp`, `iat` claim-eket is
 - az `id_token`-tol jelenleg csak a minimalis claim contractot varja: `iss`, `sub`, `aud`, `iat`, `exp`, valamint `nonce` openid flow-ban es `sid`, ha a provider session-correlated logout foundationt ad
 - a `sub` identity subject, a `sid` session-korrelációs azonosító; a kliens nem mossa ossze oket
 - a nonce check csak sikeres signature es claim verify utan futhat le
 - non-openid flow-ban a kliens nem vár `id_token` mezőt
-- hianyos vagy ervenytelen discovery dokumentumra a kliens nem epit vakon; kontrollalt fallbacket vagy hibakezelest alkalmaz
+- a discovery cache nem orok; TTL configbol jon, es a service explicit force-refresh utvonalat is tamogat
+- hianyos vagy ervenytelen discovery dokumentumra a kliens nem epit vakon; kontrollalt hibakezelest alkalmaz
 - ez meg mindig foundation ticket: nincs teljes discovery ecosystem vagy dynamic registration tamogatas
 
 Hibás válasz formátuma:
@@ -265,17 +278,22 @@ Back-channel logout:
   - `iss`
   - `aud`
   - `iat`
-  - opcionális `exp`
+  - kotelezo `exp`
   - `jti`
   - `sub`
   - `sid`, ha a provider session-correlated logout tokent kuld
   - `events`
 - a vart logout event claim: `http://schemas.openid.net/event/backchannel-logout`
+- a replay ellenorzes csak sikeres token verify utan fut; ismeretlen vagy hamis alairasu token nem kerul receipt store-ba
+- a `jti` feldolgozottsagat a kliens tartos `oidc_logout_receipts` store-ban koveti `jti_hash` alapon, raw logout token es raw `jti` tarolasa nelkul
+- a receipt minimum metaadata: issuer, audience, opcionális `sid_hash`, outcome, processed_at es expires_at
+- ugyanazon valid `jti` masodik beérkezese kontrollalt `already_processed` no-op valaszt ad, es nem indit uj lokalis cleanup hullamot
 - valid token es `sid` claim eseten a kliens elsodlegesen a `sid_hash` alapjan feloldott session mappingeket torli
 - ha a tokenben nincs `sid`, a kliens a meglévo legacy `sub`-alapu fallbacket hasznalja, hogy a korabbi foundation ne regresszaljon
 - back-channel `sid` mismatch eseten kontrollalt no-op tortenik, nincs vak user-szintu session torles
 - ha az aktualis request ugyanahhoz a felhasznalohoz tartozik, a kliens a jelenlegi web sessiont is lezarja
-- a `jti` jelenleg minimalis replay/idempotencia guardot kap cache alapon
+- lejart logout token verify hibat ad, nem hoz letre receiptet, es nem indit lokalis session cleanupot
+- a receipt store-hoz minimalis lejart-receipt cleanup helper tartozik; ez foundation, nem globalis deduplikacios infrastruktura
 - invalid signature, issuer mismatch, audience mismatch vagy hibas event claim eseten kontrollalt hiba tortenik, es nincs vak logout
 
 Tudatosan nincs benne meg:
@@ -283,7 +301,7 @@ Tudatosan nincs benne meg:
 - guaranteed back-channel delivery
 - teljes multi-device/session graph vagy admin session dashboard
 - full OIDC session management iframe spec
-- eros, hosszu TTL-s replay store infrastruktura
+- distributed replay-store koordinacio vagy eros, hosszu TTL-s replay platform
 
 ## 6. Self-service profile szerződés
 

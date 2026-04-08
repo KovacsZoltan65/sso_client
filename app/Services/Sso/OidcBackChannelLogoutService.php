@@ -8,7 +8,6 @@ use App\Models\User;
 use App\Services\Audit\AuditLogService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class OidcBackChannelLogoutService
@@ -20,6 +19,7 @@ class OidcBackChannelLogoutService
         private readonly OidcDiscoveryService $discoveryService,
         private readonly AuditLogService $auditLogService,
         private readonly OidcSessionContextService $oidcSessionContextService,
+        private readonly OidcBackChannelLogoutReceiptService $receiptService,
     ) {
     }
 
@@ -52,7 +52,11 @@ class OidcBackChannelLogoutService
             throw $exception;
         }
 
-        if (! $this->rememberLogoutJti((string) $claims['jti'])) {
+        $this->receiptService->purgeExpiredReceipts();
+
+        if ($this->receiptService->hasProcessedJti($claims)) {
+            $this->receiptService->logReplayDetected($request, $claims);
+
             return 'Back-channel logout already processed.';
         }
 
@@ -82,6 +86,8 @@ class OidcBackChannelLogoutService
                     ],
                 );
 
+                $this->receiptService->markProcessed($claims, 'sid_mismatch');
+
                 return 'Back-channel logout sid mismatch; no local session was cleared.';
             }
 
@@ -103,6 +109,8 @@ class OidcBackChannelLogoutService
             $deletedSessions = $this->clearSessionsForUser($request, $user);
         }
 
+        $this->receiptService->markProcessed($claims, 'local_completed');
+
         $this->auditLogService->logSuccess(
             logName: AuditLogService::LOG_CLIENT_AUTH,
             event: 'client_auth.logout.backchannel_local_completed',
@@ -113,6 +121,8 @@ class OidcBackChannelLogoutService
                 'target_local_user_id' => $user?->getKey(),
                 'affected_count' => $deletedSessions,
                 'has_sid' => $sid !== '',
+                'has_jti' => true,
+                'has_exp' => true,
                 'status' => 'logged_out',
                 ...$this->auditLogService->requestContext($request),
             ],
@@ -170,6 +180,8 @@ class OidcBackChannelLogoutService
             description: 'Client back-channel logout verified.',
             properties: [
                 'kid' => $kid,
+                'has_jti' => trim((string) ($claims['jti'] ?? '')) !== '',
+                'has_exp' => (int) ($claims['exp'] ?? 0) > 0,
                 'status' => 'verified',
             ],
         );
@@ -253,7 +265,7 @@ class OidcBackChannelLogoutService
         $exp = (int) ($claims['exp'] ?? 0);
         $events = $claims['events'] ?? null;
 
-        if ($sub === '' || $jti === '') {
+        if ($sub === '' || $jti === '' || $exp <= 0) {
             throw new SsoAuthenticationException('A back-channel logout token hianyos.', 401);
         }
 
@@ -265,20 +277,13 @@ class OidcBackChannelLogoutService
             throw new SsoAuthenticationException('A back-channel logout token idobelyege ervenytelen.', 401);
         }
 
-        if ($exp > 0 && $exp < ($now - $clockSkew)) {
+        if ($exp < ($now - $clockSkew)) {
             throw new SsoAuthenticationException('A back-channel logout token lejart.', 401);
         }
 
         if (! is_array($events) || ! array_key_exists(self::LOGOUT_EVENT_CLAIM, $events)) {
             throw new SsoAuthenticationException('A back-channel logout token esemeny claimje ervenytelen.', 401);
         }
-    }
-
-    private function rememberLogoutJti(string $jti): bool
-    {
-        $ttl = max(60, (int) config('sso.backchannel_logout_replay_cache_seconds', 300));
-
-        return Cache::add('sso.oidc.backchannel_logout.'.sha1($jti), true, $ttl);
     }
 
     private function clearSessionsForUser(Request $request, ?User $user): int

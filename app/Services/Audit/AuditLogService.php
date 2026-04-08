@@ -52,11 +52,15 @@ class AuditLogService
         'reauth_reason',
         'has_nonce',
         'has_sid',
+        'has_jti',
+        'has_exp',
         'scope_contains_openid',
         'has_issuer',
         'has_client_id',
         'kid',
         'key_count',
+        'metadata_url',
+        'metadata_key',
     ];
 
     /**
