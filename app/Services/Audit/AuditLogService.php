@@ -61,6 +61,8 @@ class AuditLogService
         'key_count',
         'metadata_url',
         'metadata_key',
+        'trigger',
+        'deleted_count',
     ];
 
     /**

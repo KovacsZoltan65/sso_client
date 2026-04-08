@@ -3,7 +3,6 @@
 namespace App\Services\Sso;
 
 use App\Exceptions\SsoAuthenticationException;
-use App\Models\OidcSessionMapping;
 use App\Models\User;
 use App\Services\Audit\AuditLogService;
 use Illuminate\Http\Request;
@@ -20,6 +19,7 @@ class OidcBackChannelLogoutService
         private readonly AuditLogService $auditLogService,
         private readonly OidcSessionContextService $oidcSessionContextService,
         private readonly OidcBackChannelLogoutReceiptService $receiptService,
+        private readonly OidcSessionMappingCleanupService $mappingCleanupService,
     ) {
     }
 
@@ -292,12 +292,16 @@ class OidcBackChannelLogoutService
             return 0;
         }
 
-        $deletedSessions = DB::table((string) config('session.table', 'sessions'))
+        $sessionIds = DB::table((string) config('session.table', 'sessions'))
             ->where('user_id', $user->getKey())
-            ->delete();
+            ->pluck('id')
+            ->map(fn (mixed $sessionId): string => (string) $sessionId)
+            ->all();
 
-        OidcSessionMapping::query()
-            ->where('user_id', $user->getKey())
+        $this->mappingCleanupService->invalidateBySessionIds($sessionIds, $request);
+
+        $deletedSessions = DB::table((string) config('session.table', 'sessions'))
+            ->whereIn('id', $sessionIds)
             ->delete();
 
         if ($request->user() instanceof User && $request->user()?->is($user)) {

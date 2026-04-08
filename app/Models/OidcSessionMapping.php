@@ -14,6 +14,7 @@ class OidcSessionMapping extends Model
         'client_id',
         'bound_at',
         'last_seen_at',
+        'invalidated_at',
     ];
 
     protected function casts(): array
@@ -21,6 +22,7 @@ class OidcSessionMapping extends Model
         return [
             'bound_at' => 'datetime',
             'last_seen_at' => 'datetime',
+            'invalidated_at' => 'datetime',
         ];
     }
 }

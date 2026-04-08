@@ -59,9 +59,28 @@ class OidcBackChannelLogoutReceiptService
 
     public function purgeExpiredReceipts(): int
     {
-        return OidcLogoutReceipt::query()
-            ->where('expires_at', '<=', now())
+        $retentionSeconds = max(3600, (int) config('sso.oidc_logout_receipt_retention_seconds', 86400));
+
+        $deleted = OidcLogoutReceipt::query()
+            ->where(function ($query) use ($retentionSeconds): void {
+                $query->where('expires_at', '<=', now())
+                    ->orWhere('processed_at', '<=', now()->subSeconds($retentionSeconds));
+            })
             ->delete();
+
+        if ($deleted > 0) {
+            $this->auditLogService->logSuccess(
+                logName: AuditLogService::LOG_CLIENT_AUTH,
+                event: 'client_auth.logout.receipt_cleanup_completed',
+                description: 'Client back-channel logout receipt cleanup completed.',
+                properties: [
+                    'deleted_count' => $deleted,
+                    'status' => 'completed',
+                ],
+            );
+        }
+
+        return $deleted;
     }
 
     /**

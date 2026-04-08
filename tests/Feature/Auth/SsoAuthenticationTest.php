@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Models\OidcLogoutReceipt;
 use App\Models\OidcSessionMapping;
 use App\Services\Sso\OidcDiscoveryService;
+use App\Services\Sso\OidcSessionMappingCleanupService;
 use App\Services\Sso\OidcUserInfoService;
 use App\Services\Sso\SsoClientService;
 use Illuminate\Support\Facades\Cache;
@@ -796,6 +797,7 @@ class SsoAuthenticationTest extends TestCase
             'sid_hash' => hash('sha256', 'sid-current-session'),
             'user_id' => $user->id,
             'client_id' => 'portal-client',
+            'invalidated_at' => null,
         ]);
 
         $this->assertDatabaseHas('activity_log', [
@@ -1940,9 +1942,13 @@ class SsoAuthenticationTest extends TestCase
         $this->assertDatabaseMissing('sessions', [
             'id' => 'backchannel-sid-session',
         ]);
-        $this->assertDatabaseMissing('oidc_session_mappings', [
+        $this->assertDatabaseHas('oidc_session_mappings', [
             'sid_hash' => hash('sha256', 'sid-backchannel-match'),
         ]);
+
+        $this->assertNotNull(OidcSessionMapping::query()
+            ->where('sid_hash', hash('sha256', 'sid-backchannel-match'))
+            ->value('invalidated_at'));
 
         $this->assertDatabaseHas('activity_log', [
             'log_name' => 'client.auth',
@@ -1954,6 +1960,107 @@ class SsoAuthenticationTest extends TestCase
             'jti_hash' => hash('sha256', 'backchannel-sid-match-jti'),
             'sid_hash' => hash('sha256', 'sid-backchannel-match'),
             'outcome' => 'local_completed',
+        ]);
+    }
+
+    #[Group('security')]
+    public function test_stale_and_orphan_oidc_session_mappings_can_be_purged(): void
+    {
+        $activeUser = User::factory()->create();
+        $orphanUser = User::factory()->create();
+
+        \DB::table('sessions')->insert([
+            'id' => 'active-session-mapping',
+            'user_id' => $activeUser->id,
+            'ip_address' => '127.0.0.1',
+            'user_agent' => 'PHPUnit',
+            'payload' => base64_encode('{}'),
+            'last_activity' => now()->timestamp,
+        ]);
+
+        OidcSessionMapping::query()->create([
+            'sid_hash' => hash('sha256', 'sid-active-mapping'),
+            'session_id' => 'active-session-mapping',
+            'user_id' => $activeUser->id,
+            'issuer' => 'https://sso-server.test',
+            'client_id' => 'portal-client',
+            'bound_at' => now(),
+            'last_seen_at' => now(),
+        ]);
+
+        OidcSessionMapping::query()->create([
+            'sid_hash' => hash('sha256', 'sid-orphan-mapping'),
+            'session_id' => 'orphan-session-mapping',
+            'user_id' => $orphanUser->id,
+            'issuer' => 'https://sso-server.test',
+            'client_id' => 'portal-client',
+            'bound_at' => now()->subDays(2),
+            'last_seen_at' => now()->subDays(2),
+        ]);
+
+        OidcSessionMapping::query()->create([
+            'sid_hash' => hash('sha256', 'sid-stale-mapping'),
+            'session_id' => 'stale-session-mapping',
+            'user_id' => $orphanUser->id,
+            'issuer' => 'https://sso-server.test',
+            'client_id' => 'portal-client',
+            'bound_at' => now()->subDays(3),
+            'last_seen_at' => now()->subDays(3),
+            'invalidated_at' => now()->subDays(2),
+        ]);
+
+        $service = app(OidcSessionMappingCleanupService::class);
+
+        $this->assertSame(1, $service->purgeOrphanMappings());
+        $this->assertSame(1, $service->purgeStaleMappings(retentionSeconds: 3600));
+
+        $this->assertDatabaseHas('oidc_session_mappings', [
+            'sid_hash' => hash('sha256', 'sid-active-mapping'),
+            'invalidated_at' => null,
+        ]);
+        $this->assertDatabaseMissing('oidc_session_mappings', [
+            'sid_hash' => hash('sha256', 'sid-orphan-mapping'),
+        ]);
+        $this->assertDatabaseMissing('oidc_session_mappings', [
+            'sid_hash' => hash('sha256', 'sid-stale-mapping'),
+        ]);
+    }
+
+    #[Group('security')]
+    public function test_expired_backchannel_logout_receipts_can_be_purged(): void
+    {
+        OidcLogoutReceipt::query()->create([
+            'jti_hash' => hash('sha256', 'expired-receipt-jti'),
+            'issuer' => 'https://sso-server.test',
+            'audience' => 'portal-client',
+            'sid_hash' => hash('sha256', 'sid-expired-receipt'),
+            'outcome' => 'local_completed',
+            'processed_at' => now()->subHours(2),
+            'expires_at' => now()->subHour(),
+        ]);
+
+        OidcLogoutReceipt::query()->create([
+            'jti_hash' => hash('sha256', 'active-receipt-jti'),
+            'issuer' => 'https://sso-server.test',
+            'audience' => 'portal-client',
+            'sid_hash' => hash('sha256', 'sid-active-receipt'),
+            'outcome' => 'local_completed',
+            'processed_at' => now(),
+            'expires_at' => now()->addHour(),
+        ]);
+
+        $deleted = app(\App\Services\Sso\OidcBackChannelLogoutReceiptService::class)->purgeExpiredReceipts();
+
+        $this->assertSame(1, $deleted);
+        $this->assertDatabaseMissing('oidc_logout_receipts', [
+            'jti_hash' => hash('sha256', 'expired-receipt-jti'),
+        ]);
+        $this->assertDatabaseHas('oidc_logout_receipts', [
+            'jti_hash' => hash('sha256', 'active-receipt-jti'),
+        ]);
+        $this->assertDatabaseHas('activity_log', [
+            'log_name' => 'client.auth',
+            'event' => 'client_auth.logout.receipt_cleanup_completed',
         ]);
     }
 

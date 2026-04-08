@@ -29,13 +29,13 @@ class CompanyService
     public function __construct(
         private readonly CompanyRepositoryInterface $companies,
         private readonly AuditLogService $auditLogService,
-    ) {
-    }
+    ) {}
 
     /**
      * Céges lista lekérése a szűrőkkel és lapozási beállításokkal.
      *
      * @param  CompanyListFilters  $filters
+     * @return LengthAwarePaginator
      */
     public function list(array $filters): LengthAwarePaginator
     {
@@ -46,6 +46,7 @@ class CompanyService
      * Új cég létrehozása validált admin payload alapján.
      *
      * @param  CompanyWritePayload  $payload
+     * @return Company
      */
     public function store(array $payload): Company
     {
@@ -71,6 +72,7 @@ class CompanyService
      * Meglévő cég frissítése azonosító alapján.
      *
      * @param  CompanyWritePayload  $payload
+     * @return Company
      */
     public function update(int $companyId, array $payload): Company
     {
@@ -96,6 +98,8 @@ class CompanyService
 
     /**
      * Cég törlése azonosító alapján.
+     * 
+     * @param int $companyId
      */
     public function delete(int $companyId): void
     {

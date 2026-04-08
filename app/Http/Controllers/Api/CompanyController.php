@@ -9,17 +9,41 @@ use App\Http\Requests\Companies\UpdateCompanyRequest;
 use App\Models\Company;
 use App\Services\CompanyService;
 use App\Support\ApiResponse;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 
+/**
+ * Company API Controller
+ *
+ * Felelős a Company erőforrás admin API végpontjaiért.
+ *
+ * Architektúra:
+ * - Controller: request kezelés + authorization + response
+ * - Service: business logic delegálás (CompanyService)
+ *
+ * Fontos:
+ * - Minden végpont policy alapú authorize hívást használ
+ * - Minden válasz egységes ApiResponse formátumban érkezik
+ * - Controller NEM tartalmaz business logikát
+ */
 class CompanyController extends Controller
 {
+    /**
+     * @param CompanyService $companyService
+     */
     public function __construct(
         private readonly CompanyService $companyService,
     ) {
     }
 
     /**
-     * Céges lista lekérése admin API válaszformátumban.
+     * Cégek listázása paginált formában.
+     *
+     * @param IndexCompanyRequest $request Validált szűrők és rendezési paraméterek
+     *
+     * @return JsonResponse
+     *
+     * @throws AuthorizationException
      */
     public function index(IndexCompanyRequest $request): JsonResponse
     {
@@ -55,7 +79,13 @@ class CompanyController extends Controller
     }
 
     /**
-     * Új cég létrehozása az admin API-n keresztül.
+     * Új cég létrehozása.
+     *
+     * @param StoreCompanyRequest $request Validált input adatok
+     *
+     * @return JsonResponse
+     *
+     * @throws AuthorizationException
      */
     public function store(StoreCompanyRequest $request): JsonResponse
     {
@@ -73,7 +103,14 @@ class CompanyController extends Controller
     }
 
     /**
-     * Meglévő cég frissítése az admin API-n keresztül.
+     * Meglévő cég frissítése.
+     *
+     * @param UpdateCompanyRequest $request Validált input adatok
+     * @param Company $company Route model binding alapján feloldott entitás
+     *
+     * @return JsonResponse
+     *
+     * @throws AuthorizationException
      */
     public function update(UpdateCompanyRequest $request, Company $company): JsonResponse
     {
@@ -90,7 +127,13 @@ class CompanyController extends Controller
     }
 
     /**
-     * Cég törlése az admin API-n keresztül.
+     * Cég törlése.
+     *
+     * @param Company $company Route model binding alapján feloldott entitás
+     *
+     * @return JsonResponse
+     *
+     * @throws AuthorizationException
      */
     public function destroy(Company $company): JsonResponse
     {
@@ -102,9 +145,23 @@ class CompanyController extends Controller
     }
 
     /**
-     * Az API válaszban használt cég payload felépítése.
+     * API payload builder Company entitáshoz.
      *
-     * @return array<string, mixed>
+     * Ez a metódus biztosítja az egységes response formátumot.
+     *
+     * @param Company $company
+     *
+     * @return array{
+     *     id: int,
+     *     name: string,
+     *     code: string,
+     *     email: string|null,
+     *     phone: string|null,
+     *     address: string|null,
+     *     is_active: bool,
+     *     created_at: string|null,
+     *     updated_at: string|null
+     * }
      */
     private function toArray(Company $company): array
     {

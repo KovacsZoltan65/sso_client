@@ -1306,6 +1306,18 @@ class SsoClientService
 
             $this->auditLogService->logSuccess(
                 logName: AuditLogService::LOG_CLIENT_AUTH,
+                event: 'client_auth.logout.session_cleanup_completed',
+                description: 'Client OIDC session cleanup completed.',
+                subject: $user,
+                causer: $user,
+                properties: [
+                    'status' => 'completed',
+                    ...$this->auditLogService->requestContext($request),
+                ],
+            );
+
+            $this->auditLogService->logSuccess(
+                logName: AuditLogService::LOG_CLIENT_AUTH,
                 event: 'client_auth.logout.completed',
                 description: 'Client logout completed.',
                 subject: $user,
@@ -1341,6 +1353,18 @@ class SsoClientService
             causer: $user,
             properties: [
                 'status' => 'logged_out',
+                ...$this->auditLogService->requestContext($request),
+            ],
+        );
+
+        $this->auditLogService->logSuccess(
+            logName: AuditLogService::LOG_CLIENT_AUTH,
+            event: 'client_auth.logout.session_cleanup_completed',
+            description: 'Client OIDC session cleanup completed.',
+            subject: $user,
+            causer: $user,
+            properties: [
+                'status' => 'completed',
                 ...$this->auditLogService->requestContext($request),
             ],
         );

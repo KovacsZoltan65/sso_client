@@ -13,6 +13,7 @@ class OidcSessionContextService
 {
     public function __construct(
         private readonly AuditLogService $auditLogService,
+        private readonly OidcSessionMappingCleanupService $mappingCleanupService,
     ) {
     }
 
@@ -35,6 +36,7 @@ class OidcSessionContextService
                 'client_id' => trim((string) config('sso.client_id')),
                 'bound_at' => now(),
                 'last_seen_at' => now(),
+                'invalidated_at' => null,
             ],
         );
 
@@ -82,6 +84,7 @@ class OidcSessionContextService
 
         $mappings = OidcSessionMapping::query()
             ->where('sid_hash', $this->sidHash($sid))
+            ->whereNull('invalidated_at')
             ->get();
 
         if ($mappings->isEmpty()) {
@@ -97,15 +100,13 @@ class OidcSessionContextService
 
         $deletedSessions = 0;
 
+        $this->mappingCleanupService->invalidateBySid($sid, $request);
+
         if ($sessionIds !== []) {
             $deletedSessions = DB::table((string) config('session.table', 'sessions'))
                 ->whereIn('id', $sessionIds)
                 ->delete();
         }
-
-        OidcSessionMapping::query()
-            ->where('sid_hash', $this->sidHash($sid))
-            ->delete();
 
         if (in_array($request->session()->getId(), $sessionIds, true)) {
             Auth::guard('web')->logout();
@@ -119,9 +120,7 @@ class OidcSessionContextService
 
     public function forgetCurrentSession(Request $request): void
     {
-        OidcSessionMapping::query()
-            ->where('session_id', $request->session()->getId())
-            ->delete();
+        $this->mappingCleanupService->invalidateBySessionId($request->session()->getId(), $request);
     }
 
     public function sidHash(string $sid): string

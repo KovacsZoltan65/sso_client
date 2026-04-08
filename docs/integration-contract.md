@@ -696,3 +696,31 @@ A user jövőben ezt tapasztalhatja:
 - a központi szolgáltatásból kijelentkezett, de más kliensek lokális sessionje még rövid ideig élhet, amíg nincs teljes propagation
 
 Ezt a boundary-t a kliens UX-nek később világosan kell kommunikálnia, nem elrejtenie.
+
+## 16. OIDC session cleanup lifecycle
+
+Az OIDC `sid` mapping most explicit lifecycle adatként kezeli a kliensoldali session-korrelációt:
+
+- `bound_at`: mikor kötöttük a provider `sid` értéket a lokális Laravel sessionhöz
+- `last_seen_at`: mikor frissült utoljára ez a kapcsolat
+- `invalidated_at`: mikor zárta le logout vagy cleanup a mappinget
+
+Logout után a kliens nem hagy aktívnak látszó `sid` mappinget:
+
+- local/provider logout esetén a jelenlegi session mapping invalidálódik
+- front-channel logoutnál csak valid `iss` + `client_id` és `sid` match után történik cleanup
+- front-channel `sid` mismatch kontrollált no-op, nem sérti a lokális mappinget
+- back-channel logoutnál a signed token verify és replay guard után a `sid`-hez vagy fallbackként session/user ághoz tartozó mapping invalidálódik
+- replayelt back-channel token nem indít második cleanup hullámot
+
+Retention policy:
+
+- `SSO_OIDC_SESSION_MAPPING_RETENTION_SECONDS`: invalidált mappingek törlési ablaka, alapértelmezés szerint 604800 másodperc
+- `SSO_OIDC_LOGOUT_RECEIPT_RETENTION_SECONDS`: receipt retention szerződés későbbi ütemezett cleanuphoz, az aktuális replay ablakot továbbra is a token `exp` + clock skew védi
+
+Foundation határ:
+
+- nincs multi-device session dashboard
+- nincs distributed session inventory
+- nincs advanced session analytics
+- a cleanup service később Artisan commandhoz vagy schedulerhez köthető

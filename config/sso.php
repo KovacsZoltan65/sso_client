@@ -12,6 +12,8 @@ return [
     'oidc_clock_skew_seconds' => (int) env('SSO_OIDC_CLOCK_SKEW_SECONDS', 60),
     'oidc_jwks_cache_seconds' => (int) env('SSO_OIDC_JWKS_CACHE_SECONDS', 300),
     'backchannel_logout_replay_cache_seconds' => (int) env('SSO_BACKCHANNEL_LOGOUT_REPLAY_CACHE_SECONDS', 300),
+    'oidc_session_mapping_retention_seconds' => (int) env('SSO_OIDC_SESSION_MAPPING_RETENTION_SECONDS', 604800),
+    'oidc_logout_receipt_retention_seconds' => (int) env('SSO_OIDC_LOGOUT_RECEIPT_RETENTION_SECONDS', 86400),
     'logout_endpoint' => env('SSO_LOGOUT_ENDPOINT'),
     'logout_return_uri' => env('SSO_LOGOUT_RETURN_URI'),
     'client_id' => env('SSO_CLIENT_ID'),
