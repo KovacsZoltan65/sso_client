@@ -51,7 +51,10 @@ class OidcDiscoveryService
      *     end_session_endpoint?: string,
      *     jwks_uri: string,
      *     id_token_signing_alg_values_supported: array<int, string>,
-     *     claims_supported?: array<int, string>
+     *     claims_supported?: array<int, string>,
+     *     frontchannel_logout_session_supported?: bool,
+     *     backchannel_logout_supported?: bool,
+     *     backchannel_logout_session_supported?: bool
      * }
      */
     public function getProviderMetadata(): array
@@ -73,7 +76,10 @@ class OidcDiscoveryService
          *     end_session_endpoint?: string,
          *     jwks_uri: string,
          *     id_token_signing_alg_values_supported: array<int, string>,
-         *     claims_supported?: array<int, string>
+         *     claims_supported?: array<int, string>,
+         *     frontchannel_logout_session_supported?: bool,
+         *     backchannel_logout_supported?: bool,
+         *     backchannel_logout_session_supported?: bool
          * } $metadata
          */
         $metadata = Cache::remember($cacheKey, $ttl, function () use ($url): array {
@@ -131,7 +137,10 @@ class OidcDiscoveryService
      *     end_session_endpoint?: string,
      *     jwks_uri: string,
      *     id_token_signing_alg_values_supported: array<int, string>,
-     *     claims_supported?: array<int, string>
+     *     claims_supported?: array<int, string>,
+     *     frontchannel_logout_session_supported?: bool,
+     *     backchannel_logout_supported?: bool,
+     *     backchannel_logout_session_supported?: bool
      * }
      */
     private function fetchProviderMetadata(string $url): array
@@ -194,6 +203,16 @@ class OidcDiscoveryService
 
         if ($endSessionEndpoint !== '') {
             $metadata['end_session_endpoint'] = $endSessionEndpoint;
+        }
+
+        foreach ([
+            'frontchannel_logout_session_supported',
+            'backchannel_logout_supported',
+            'backchannel_logout_session_supported',
+        ] as $booleanMetadataKey) {
+            if (is_bool($payload[$booleanMetadataKey] ?? null)) {
+                $metadata[$booleanMetadataKey] = $payload[$booleanMetadataKey];
+            }
         }
 
         $this->auditLogService->logSuccess(

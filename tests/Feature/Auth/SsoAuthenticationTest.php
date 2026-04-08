@@ -3,6 +3,7 @@
 namespace Tests\Feature\Auth;
 
 use App\Models\User;
+use App\Models\OidcSessionMapping;
 use App\Services\Sso\OidcUserInfoService;
 use App\Services\Sso\SsoClientService;
 use Illuminate\Support\Facades\Cache;
@@ -105,6 +106,7 @@ class SsoAuthenticationTest extends TestCase
             'iat' => now()->timestamp,
             'exp' => now()->addMinutes(5)->timestamp,
             'nonce' => $nonce,
+            'sid' => 'sid-current-session',
         ], $overrides), JSON_THROW_ON_ERROR));
 
         $signingInput = $header.'.'.$payload;
@@ -213,7 +215,9 @@ class SsoAuthenticationTest extends TestCase
             'scopes_supported' => ['openid', 'profile', 'email'],
             'claims_supported' => ['sub', 'name', 'email', 'email_verified'],
             'frontchannel_logout_supported' => true,
+            'frontchannel_logout_session_supported' => true,
             'backchannel_logout_supported' => true,
+            'backchannel_logout_session_supported' => true,
             'code_challenge_methods_supported' => ['S256'],
         ], $overrides);
     }
@@ -221,13 +225,14 @@ class SsoAuthenticationTest extends TestCase
     /**
      * @return array<string, array<string, string|null>>
      */
-    private function oidcSessionContext(string $idTokenHint, ?string $subject = '123'): array
+    private function oidcSessionContext(string $idTokenHint, ?string $subject = '123', ?string $sid = 'sid-current-session'): array
     {
         return [
             config('sso.oidc_session_context_key') => [
                 'id_token_hint' => $idTokenHint,
                 'id_token_subject' => $subject,
                 'issuer' => 'https://sso-server.test',
+                'sid' => $sid,
                 'stored_at' => now()->toIso8601String(),
             ],
         ];
@@ -466,7 +471,7 @@ class SsoAuthenticationTest extends TestCase
         $service = app(OidcUserInfoService::class);
 
         $this->assertSame(
-            ['iss', 'sub', 'aud', 'iat', 'exp', 'nonce'],
+            ['iss', 'sub', 'aud', 'iat', 'exp', 'nonce', 'sid'],
             $service->expectedIdTokenClaims(),
         );
 
@@ -718,6 +723,16 @@ class SsoAuthenticationTest extends TestCase
         $this->assertIsArray($pendingContexts);
         $this->assertArrayNotHasKey('valid-state', $pendingContexts);
 
+        $oidcSessionContext = session(config('sso.oidc_session_context_key'));
+        $this->assertIsArray($oidcSessionContext);
+        $this->assertSame('sid-current-session', $oidcSessionContext['sid'] ?? null);
+
+        $this->assertDatabaseHas('oidc_session_mappings', [
+            'sid_hash' => hash('sha256', 'sid-current-session'),
+            'user_id' => $user->id,
+            'client_id' => 'portal-client',
+        ]);
+
         $this->assertDatabaseHas('activity_log', [
             'log_name' => 'client.auth',
             'event' => 'client_auth.nonce.context_retained',
@@ -734,6 +749,12 @@ class SsoAuthenticationTest extends TestCase
             'log_name' => 'client.auth',
             'event' => 'client_auth.nonce.validated',
             'description' => 'Client nonce validated against ID token.',
+        ]);
+
+        $this->assertDatabaseHas('activity_log', [
+            'log_name' => 'client.auth',
+            'event' => 'client_auth.sid.bound',
+            'description' => 'Client OIDC sid bound to the local auth session.',
         ]);
     }
 
@@ -1544,6 +1565,52 @@ class SsoAuthenticationTest extends TestCase
     }
 
     #[Group('security')]
+    public function test_frontchannel_logout_clears_the_local_session_when_sid_matches(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this
+            ->actingAs($user)
+            ->withSession($this->oidcSessionContext($this->idToken(), sid: 'sid-frontchannel-match'))
+            ->get('/auth/frontchannel-logout?iss=https%3A%2F%2Fsso-server.test&client_id=portal-client&sid=sid-frontchannel-match');
+
+        $response
+            ->assertOk()
+            ->assertSeeText('Front-channel logout completed.');
+
+        $this->assertGuest();
+
+        $this->assertDatabaseHas('activity_log', [
+            'log_name' => 'client.auth',
+            'event' => 'client_auth.logout.frontchannel_sid_matched',
+            'description' => 'Client front-channel logout sid matched the local session.',
+        ]);
+    }
+
+    #[Group('security')]
+    public function test_frontchannel_logout_keeps_the_local_session_when_sid_mismatches(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this
+            ->actingAs($user)
+            ->withSession($this->oidcSessionContext($this->idToken(), sid: 'sid-frontchannel-current'))
+            ->get('/auth/frontchannel-logout?iss=https%3A%2F%2Fsso-server.test&client_id=portal-client&sid=sid-frontchannel-other');
+
+        $response
+            ->assertOk()
+            ->assertSeeText('Front-channel logout sid mismatch; no local session was cleared.');
+
+        $this->assertAuthenticatedAs($user);
+
+        $this->assertDatabaseHas('activity_log', [
+            'log_name' => 'client.auth',
+            'event' => 'client_auth.logout.frontchannel_sid_mismatch',
+            'description' => 'Client front-channel logout sid did not match the local session.',
+        ]);
+    }
+
+    #[Group('security')]
     public function test_frontchannel_logout_rejects_invalid_provider_guard_without_clearing_the_session(): void
     {
         $user = User::factory()->create();
@@ -1617,6 +1684,101 @@ class SsoAuthenticationTest extends TestCase
             'log_name' => 'client.auth',
             'event' => 'client_auth.logout.backchannel_local_completed',
             'description' => 'Client back-channel local logout completed.',
+        ]);
+    }
+
+    #[Group('security')]
+    public function test_backchannel_logout_clears_only_sessions_matched_by_sid(): void
+    {
+        $user = User::factory()->create([
+            'sso_user_id' => '123',
+        ]);
+
+        Http::fake([
+            'https://sso-server.test/.well-known/jwks.json' => Http::response($this->jwksPayload(), 200),
+        ]);
+
+        \DB::table('sessions')->insert([
+            'id' => 'backchannel-sid-session',
+            'user_id' => $user->id,
+            'ip_address' => '127.0.0.1',
+            'user_agent' => 'PHPUnit',
+            'payload' => base64_encode('{}'),
+            'last_activity' => now()->timestamp,
+        ]);
+
+        OidcSessionMapping::query()->create([
+            'sid_hash' => hash('sha256', 'sid-backchannel-match'),
+            'session_id' => 'backchannel-sid-session',
+            'user_id' => $user->id,
+            'issuer' => 'https://sso-server.test',
+            'client_id' => 'portal-client',
+            'bound_at' => now(),
+            'last_seen_at' => now(),
+        ]);
+
+        $response = $this->post('/auth/backchannel-logout', [
+            'logout_token' => $this->logoutToken([
+                'sid' => 'sid-backchannel-match',
+            ]),
+        ]);
+
+        $response
+            ->assertOk()
+            ->assertSeeText('Back-channel logout completed.');
+
+        $this->assertDatabaseMissing('sessions', [
+            'id' => 'backchannel-sid-session',
+        ]);
+        $this->assertDatabaseMissing('oidc_session_mappings', [
+            'sid_hash' => hash('sha256', 'sid-backchannel-match'),
+        ]);
+
+        $this->assertDatabaseHas('activity_log', [
+            'log_name' => 'client.auth',
+            'event' => 'client_auth.logout.backchannel_sid_matched',
+            'description' => 'Client back-channel logout sid matched local session correlation.',
+        ]);
+    }
+
+    #[Group('security')]
+    public function test_backchannel_logout_sid_mismatch_is_a_controlled_noop(): void
+    {
+        $user = User::factory()->create([
+            'sso_user_id' => '123',
+        ]);
+
+        Http::fake([
+            'https://sso-server.test/.well-known/jwks.json' => Http::response($this->jwksPayload(), 200),
+        ]);
+
+        \DB::table('sessions')->insert([
+            'id' => 'backchannel-unmatched-session',
+            'user_id' => $user->id,
+            'ip_address' => '127.0.0.1',
+            'user_agent' => 'PHPUnit',
+            'payload' => base64_encode('{}'),
+            'last_activity' => now()->timestamp,
+        ]);
+
+        $response = $this->post('/auth/backchannel-logout', [
+            'logout_token' => $this->logoutToken([
+                'sid' => 'sid-backchannel-unmatched',
+            ]),
+        ]);
+
+        $response
+            ->assertOk()
+            ->assertSeeText('Back-channel logout sid mismatch; no local session was cleared.');
+
+        $this->assertDatabaseHas('sessions', [
+            'id' => 'backchannel-unmatched-session',
+        ]);
+
+        $this->assertDatabaseHas('activity_log', [
+            'log_name' => 'client.auth',
+            'event' => 'client_auth.logout.backchannel_sid_mismatch',
+            'description' => 'Client back-channel logout sid did not match a local session.',
         ]);
     }
 

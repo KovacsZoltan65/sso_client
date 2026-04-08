@@ -3,6 +3,7 @@
 namespace App\Services\Sso;
 
 use App\Exceptions\SsoAuthenticationException;
+use App\Models\OidcSessionMapping;
 use App\Models\User;
 use App\Services\Audit\AuditLogService;
 use Illuminate\Http\Request;
@@ -18,6 +19,7 @@ class OidcBackChannelLogoutService
         private readonly OidcJwksService $jwksService,
         private readonly OidcDiscoveryService $discoveryService,
         private readonly AuditLogService $auditLogService,
+        private readonly OidcSessionContextService $oidcSessionContextService,
     ) {
     }
 
@@ -59,7 +61,47 @@ class OidcBackChannelLogoutService
             ->where('sso_user_id', (string) $claims['sub'])
             ->first();
 
-        $deletedSessions = $this->clearSessionsForUser($request, $user);
+        $sid = trim((string) ($claims['sid'] ?? ''));
+
+        if ($sid !== '') {
+            $deletedSessions = $this->oidcSessionContextService->clearSessionsForSid($request, $sid);
+
+            if ($deletedSessions === 0) {
+                $this->auditLogService->logSuccess(
+                    logName: AuditLogService::LOG_CLIENT_AUTH,
+                    event: 'client_auth.logout.backchannel_sid_mismatch',
+                    description: 'Client back-channel logout sid did not match a local session.',
+                    subject: $user,
+                    causer: $user,
+                    properties: [
+                        'target_local_user_id' => $user?->getKey(),
+                        'affected_count' => 0,
+                        'has_sid' => true,
+                        'status' => 'no_op',
+                        ...$this->auditLogService->requestContext($request),
+                    ],
+                );
+
+                return 'Back-channel logout sid mismatch; no local session was cleared.';
+            }
+
+            $this->auditLogService->logSuccess(
+                logName: AuditLogService::LOG_CLIENT_AUTH,
+                event: 'client_auth.logout.backchannel_sid_matched',
+                description: 'Client back-channel logout sid matched local session correlation.',
+                subject: $user,
+                causer: $user,
+                properties: [
+                    'target_local_user_id' => $user?->getKey(),
+                    'affected_count' => $deletedSessions,
+                    'has_sid' => true,
+                    'status' => 'matched',
+                    ...$this->auditLogService->requestContext($request),
+                ],
+            );
+        } else {
+            $deletedSessions = $this->clearSessionsForUser($request, $user);
+        }
 
         $this->auditLogService->logSuccess(
             logName: AuditLogService::LOG_CLIENT_AUTH,
@@ -70,6 +112,7 @@ class OidcBackChannelLogoutService
             properties: [
                 'target_local_user_id' => $user?->getKey(),
                 'affected_count' => $deletedSessions,
+                'has_sid' => $sid !== '',
                 'status' => 'logged_out',
                 ...$this->auditLogService->requestContext($request),
             ],
@@ -204,6 +247,7 @@ class OidcBackChannelLogoutService
         }
 
         $sub = trim((string) ($claims['sub'] ?? ''));
+        $sid = trim((string) ($claims['sid'] ?? ''));
         $jti = trim((string) ($claims['jti'] ?? ''));
         $iat = (int) ($claims['iat'] ?? 0);
         $exp = (int) ($claims['exp'] ?? 0);
@@ -211,6 +255,10 @@ class OidcBackChannelLogoutService
 
         if ($sub === '' || $jti === '') {
             throw new SsoAuthenticationException('A back-channel logout token hianyos.', 401);
+        }
+
+        if (array_key_exists('sid', $claims) && $sid === '') {
+            throw new SsoAuthenticationException('A back-channel logout sid claimje ervenytelen.', 401);
         }
 
         if ($iat <= 0 || $iat > ($now + $clockSkew)) {
@@ -240,6 +288,10 @@ class OidcBackChannelLogoutService
         }
 
         $deletedSessions = DB::table((string) config('session.table', 'sessions'))
+            ->where('user_id', $user->getKey())
+            ->delete();
+
+        OidcSessionMapping::query()
             ->where('user_id', $user->getKey())
             ->delete();
 

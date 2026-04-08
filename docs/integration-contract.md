@@ -136,7 +136,7 @@ Szerződés szabály:
 - a kliens kizárólag a `data` envelope-ból dolgozik
 - `openid` scope esetén a kliens `data.id_token` mezőt is vár, és abból olvassa ki a returned nonce-ot
 - a kliens discovery foundationkent tudja hasznalni a `GET /.well-known/openid-configuration` metadata dokumentumot is
-- a discoverybol jelenleg ezeket a mezoket veszi at: `issuer`, `authorization_endpoint`, `token_endpoint`, `userinfo_endpoint`, `end_session_endpoint`, `jwks_uri`, `id_token_signing_alg_values_supported`, `backchannel_logout_supported`
+- a discoverybol jelenleg ezeket a mezoket veszi at: `issuer`, `authorization_endpoint`, `token_endpoint`, `userinfo_endpoint`, `end_session_endpoint`, `jwks_uri`, `id_token_signing_alg_values_supported`, `frontchannel_logout_session_supported`, `backchannel_logout_supported`, `backchannel_logout_session_supported`
 - precedence szabaly:
   - 1. explicit kliens config
   - 2. ervenyes discovery metadata
@@ -147,7 +147,8 @@ Szerződés szabály:
 - legacy, de meg publikalt verify kulccsal alairt token tovabbra is verifikalhato
 - a kliens RS256 alairast ellenoriz az ID tokenen
 - a kliens minimalisan ellenorzi az `iss`, `aud`, `exp`, `iat` claim-eket is
-- az `id_token`-tol jelenleg csak a minimalis claim contractot varja: `iss`, `sub`, `aud`, `iat`, `exp`, valamint `nonce` openid flow-ban
+- az `id_token`-tol jelenleg csak a minimalis claim contractot varja: `iss`, `sub`, `aud`, `iat`, `exp`, valamint `nonce` openid flow-ban es `sid`, ha a provider session-correlated logout foundationt ad
+- a `sub` identity subject, a `sid` session-korrelációs azonosító; a kliens nem mossa ossze oket
 - a nonce check csak sikeres signature es claim verify utan futhat le
 - non-openid flow-ban a kliens nem vár `id_token` mezőt
 - hianyos vagy ervenytelen discovery dokumentumra a kliens nem epit vakon; kontrollalt fallbacket vagy hibakezelest alkalmaz
@@ -205,6 +206,8 @@ Kliens oldali szerződés:
 - a lokális user session felépítéséhez jelenleg szükséges a `data.email`
 - a reszletesebb identity claim-eket a kliens a `userinfo` felől várja, nem az `id_token`-bol
 - a userinfo endpoint nem teljes profile API; csak a minimalis, scope-vezerelt identity payloadra epulunk
+- sikeres openid callback utan a kliens az `id_token.sid` erteket a helyi OIDC session contextben tarolja, es hash-alapu `oidc_session_mappings` bejegyzessel koti a Laravel session ID-hoz
+- raw `sid` nem kerul audit logba; perzisztens lookuphoz csak `sid_hash` tarolodik
 
 ## 5. Logout szerződés
 
@@ -233,11 +236,13 @@ Front-channel logout:
 - a kliens minimalis guardot alkalmaz:
   - `iss` egyezik a vart provider issuerrel
   - `client_id` egyezik a helyi kliensazonositoval
+  - `sid`, ha jelen van, egyeznie kell a helyi OIDC session contexttel
 - ervenyes provider-kezdeményezett logout eseten a kliens:
   - lokalis auth state-et lezarja
   - torli az atmeneti OIDC session contextet
   - sessiont invalidalja
 - ervenytelen front-channel kereses eseten a kliens kontrollalt hibaval all meg, es nem lep ki vakon
+- front-channel `sid` mismatch eseten kontrollalt no-op tortenik: a lokalis session megmarad, es audit esemeny jelzi a mismatch-et
 
 Session boundary:
 
@@ -263,9 +268,12 @@ Back-channel logout:
   - opcionális `exp`
   - `jti`
   - `sub`
+  - `sid`, ha a provider session-correlated logout tokent kuld
   - `events`
 - a vart logout event claim: `http://schemas.openid.net/event/backchannel-logout`
-- valid token eseten a kliens a `sub` alapjan feloldott lokalis user minden adatbazisos sessionjet torli
+- valid token es `sid` claim eseten a kliens elsodlegesen a `sid_hash` alapjan feloldott session mappingeket torli
+- ha a tokenben nincs `sid`, a kliens a meglévo legacy `sub`-alapu fallbacket hasznalja, hogy a korabbi foundation ne regresszaljon
+- back-channel `sid` mismatch eseten kontrollalt no-op tortenik, nincs vak user-szintu session torles
 - ha az aktualis request ugyanahhoz a felhasznalohoz tartozik, a kliens a jelenlegi web sessiont is lezarja
 - a `jti` jelenleg minimalis replay/idempotencia guardot kap cache alapon
 - invalid signature, issuer mismatch, audience mismatch vagy hibas event claim eseten kontrollalt hiba tortenik, es nincs vak logout
@@ -273,7 +281,8 @@ Back-channel logout:
 Tudatosan nincs benne meg:
 
 - guaranteed back-channel delivery
-- teljes `sid`-alapu session korrelacio
+- teljes multi-device/session graph vagy admin session dashboard
+- full OIDC session management iframe spec
 - eros, hosszu TTL-s replay store infrastruktura
 
 ## 6. Self-service profile szerződés

@@ -12,7 +12,7 @@ class OidcUserInfoService
     /**
      * @var array<int, string>
      */
-    private const MINIMAL_ID_TOKEN_CLAIMS = ['iss', 'sub', 'aud', 'iat', 'exp', 'nonce'];
+    private const MINIMAL_ID_TOKEN_CLAIMS = ['iss', 'sub', 'aud', 'iat', 'exp', 'nonce', 'sid'];
 
     /**
      * @var array<string, array<int, string>>

@@ -55,6 +55,7 @@ use RuntimeException;
  *     id_token_hint: string,
  *     id_token_subject: string|null,
  *     issuer: string|null,
+ *     sid: string|null,
  *     stored_at: string
  * }
  * @phpstan-type LogoutStateContext array{
@@ -73,6 +74,7 @@ class SsoClientService
         private readonly OidcIdTokenVerifier $oidcIdTokenVerifier,
         private readonly OidcDiscoveryService $oidcDiscoveryService,
         private readonly OidcUserInfoService $oidcUserInfoService,
+        private readonly OidcSessionContextService $oidcSessionContextService,
     ) {
     }
 
@@ -360,12 +362,24 @@ class SsoClientService
         $request->session()->regenerate();
 
         if ($scopeContainsOpenId && $receivedIdToken !== null && is_array($verifiedIdTokenClaims)) {
+            $sid = $this->normalizedOptionalString($verifiedIdTokenClaims['sid'] ?? null);
+
             $this->storeOidcSessionContext($request, [
                 'id_token_hint' => $receivedIdToken,
                 'id_token_subject' => $this->normalizedOptionalString($verifiedIdTokenClaims['sub'] ?? null),
                 'issuer' => $this->normalizedOptionalString($verifiedIdTokenClaims['iss'] ?? null),
+                'sid' => $sid,
                 'stored_at' => now()->toIso8601String(),
             ]);
+
+            if ($sid !== null) {
+                $this->oidcSessionContextService->bind(
+                    request: $request,
+                    user: $user,
+                    sid: $sid,
+                    issuer: $this->normalizedOptionalString($verifiedIdTokenClaims['iss'] ?? null),
+                );
+            }
         } else {
             $request->session()->forget(config('sso.oidc_session_context_key'));
         }
@@ -471,6 +485,7 @@ class SsoClientService
     {
         $issuer = trim($request->query('iss', ''));
         $clientId = trim($request->query('client_id', ''));
+        $sid = trim($request->query('sid', ''));
         $configuredIssuer = trim((string) config('sso.oidc_expected_issuer', ''));
         $expectedIssuer = $configuredIssuer !== ''
             ? $configuredIssuer
@@ -486,6 +501,7 @@ class SsoClientService
             properties: [
                 'has_issuer' => $issuer !== '',
                 'has_client_id' => $clientId !== '',
+                'has_sid' => $sid !== '',
                 ...$this->auditLogService->requestContext($request),
             ],
         );
@@ -513,6 +529,24 @@ class SsoClientService
             throw new SsoAuthenticationException('Ervenytelen front-channel logout kereses.', 400);
         }
 
+        if ($sid !== '' && ! $this->oidcSessionContextService->currentSessionSidMatches($request, $sid)) {
+            $this->auditLogService->logSuccess(
+                logName: AuditLogService::LOG_CLIENT_AUTH,
+                event: 'client_auth.logout.frontchannel_sid_mismatch',
+                description: 'Client front-channel logout sid did not match the local session.',
+                subject: $request->user(),
+                causer: $request->user(),
+                properties: [
+                    'reason' => 'sid_mismatch',
+                    'has_sid' => true,
+                    'status' => 'no_op',
+                    ...$this->auditLogService->requestContext($request),
+                ],
+            );
+
+            return 'Front-channel logout sid mismatch; no local session was cleared.';
+        }
+
         $this->auditLogService->logSuccess(
             logName: AuditLogService::LOG_CLIENT_AUTH,
             event: 'client_auth.logout.frontchannel_validated',
@@ -521,9 +555,25 @@ class SsoClientService
             causer: $request->user(),
             properties: [
                 'status' => 'validated',
+                'has_sid' => $sid !== '',
                 ...$this->auditLogService->requestContext($request),
             ],
         );
+
+        if ($sid !== '') {
+            $this->auditLogService->logSuccess(
+                logName: AuditLogService::LOG_CLIENT_AUTH,
+                event: 'client_auth.logout.frontchannel_sid_matched',
+                description: 'Client front-channel logout sid matched the local session.',
+                subject: $request->user(),
+                causer: $request->user(),
+                properties: [
+                    'has_sid' => true,
+                    'status' => 'matched',
+                    ...$this->auditLogService->requestContext($request),
+                ],
+            );
+        }
 
         $this->clearFrontChannelSession($request);
 
@@ -1231,6 +1281,7 @@ class SsoClientService
             );
         }
 
+        $this->oidcSessionContextService->forgetCurrentSession($request);
         Auth::guard('web')->logout();
 
         $request->session()->forget(config('sso.pending_auth_session_key'));
@@ -1272,6 +1323,7 @@ class SsoClientService
         /** @var User|null $user */
         $user = $request->user();
 
+        $this->oidcSessionContextService->forgetCurrentSession($request);
         Auth::guard('web')->logout();
 
         $request->session()->forget(config('sso.pending_auth_session_key'));

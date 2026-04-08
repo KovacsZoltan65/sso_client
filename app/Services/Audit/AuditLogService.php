@@ -51,6 +51,7 @@ class AuditLogService
         'http_status',
         'reauth_reason',
         'has_nonce',
+        'has_sid',
         'scope_contains_openid',
         'has_issuer',
         'has_client_id',
