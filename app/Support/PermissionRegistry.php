@@ -13,10 +13,17 @@ class PermissionRegistry
             'dashboard.view',
             'profile.manage',
             'account.view',
+            
             'companies.view',
             'companies.create',
             'companies.update',
             'companies.delete',
+            
+            'employees.view',
+            'employees.create',
+            'employees.update',
+            'employees.delete',
+            
             'users.view',
             'users.manage',
             'roles.view',

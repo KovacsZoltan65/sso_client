@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Exceptions\SsoAuthenticationException;
 use App\Http\Controllers\Controller;
+use App\Services\Sso\OidcBackChannelLogoutService;
 use App\Services\Sso\SsoClientService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -14,6 +15,7 @@ class SsoAuthController extends Controller
 {
     public function __construct(
         private readonly SsoClientService $ssoClientService,
+        private readonly OidcBackChannelLogoutService $backChannelLogoutService,
     ) {
     }
 
@@ -87,6 +89,15 @@ class SsoAuthController extends Controller
     {
         try {
             return response($this->ssoClientService->handleFrontChannelLogout($request), 200);
+        } catch (SsoAuthenticationException $exception) {
+            return response($exception->getMessage(), $exception->status());
+        }
+    }
+
+    public function backChannelLogout(Request $request): Response
+    {
+        try {
+            return response($this->backChannelLogoutService->handle($request), 200);
         } catch (SsoAuthenticationException $exception) {
             return response($exception->getMessage(), $exception->status());
         }

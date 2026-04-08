@@ -1,6 +1,6 @@
 <script setup>
 import Dialog from "primevue/dialog";
-import CompanyForm from "./CompanyForm.vue";
+import EmployeeForm from "./EmployeeForm.vue";
 
 const props = defineProps({
     visible: { type: Boolean, default: false },
@@ -22,11 +22,11 @@ function closeDialog() {
         modal
         dismissable-mask
         :style="{ width: 'min(42rem, 95vw)' }"
-        header="Ceg szerkesztese"
+        header="Dolgozó szerkesztése"
         @update:visible="emit('update:visible', $event)"
         @hide="closeDialog"
     >
-        <CompanyForm
+        <EmployeeForm
             :form="form"
             :errors="errors"
             :submitting="submitting"

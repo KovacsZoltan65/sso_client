@@ -6,12 +6,12 @@ import PageHeader from "@/Components/PageHeader.vue";
 import RowActionMenu from "@/Components/Admin/RowActionMenu.vue";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import {
-    CompanyApiError,
-    createCompany,
-    deleteCompany,
-    listCompanies,
-    updateCompany,
-} from "@/Services/companyService";
+    EmployeeApiError,
+    createEmployee,
+    deleteEmployee,
+    listEmployees,
+    updateEmployee,
+} from "@/Services/employeeService";
 import { Head } from "@inertiajs/vue3";
 import Button from "primevue/button";
 import Column from "primevue/column";
@@ -23,27 +23,33 @@ import Tag from "primevue/tag";
 import { useConfirm } from "primevue/useconfirm";
 import { useToast } from "primevue/usetoast";
 import { computed, onMounted, reactive, ref, watch } from "vue";
-import CreateCompanyDialog from "./Partials/CreateCompanyDialog.vue";
-import EditCompanyDialog from "./Partials/EditCompanyDialog.vue";
+
+import CreateEmployeeDialog from "./Partials/CreateEmployeeDialog.vue";
+import EditEmployeeDialog from "./Partials/EditEmployeeDialog.vue";
+
+//import EmployeeFormModal from "./Partials/EmployeeFormModal.vue";
+
 import { IconField, InputIcon } from "primevue";
 
 const props = defineProps({
-    companiesApi: { type: Object, required: true },
+    employeesApi: { type: Object, required: true },
     permissions: { type: Object, required: true },
+    companies: { type: Array, default: () => [] },
 });
 
 const toast = useToast();
 const confirm = useConfirm();
 
-const companies = ref([]);
+const employees = ref([]);
 const loading = ref(false);
 const showCreateDialog = ref(false);
 const showEditDialog = ref(false);
-const editingCompany = ref(null);
+const editingEmployee = ref(null);
 const submitting = ref(false);
 
 const filters = reactive({
     search: "",
+    company_id: null,
     is_active: null,
 });
 
@@ -52,7 +58,7 @@ const tableState = reactive({
     perPage: 10,
     total: 0,
     sortField: "created_at",
-    sortOrder: "desc",
+    sortOrder: -1,
 });
 
 const form = reactive(defaultForm());
@@ -64,37 +70,40 @@ const statusOptions = [
     { label: "Inaktiv", value: false },
 ];
 
-const firstRecordIndex = computed(() => (tableState.page - 1) * tableState.perPage);
 const compactSelectPt = {
     root: { class: "min-h-11" },
     label: { class: "flex min-h-11 items-center py-0" },
     dropdown: { class: "w-11" },
 };
 
+const firstRecordIndex = computed(() => (tableState.page - 1) * tableState.perPage);
+
 let searchDebounceId = null;
 
 function defaultForm() {
     return {
+        company_id: null,
+        employee_number: "",
         name: "",
-        code: "",
         email: "",
         phone: "",
-        address: "",
+        position: "",
         is_active: true,
     };
 }
 
-function resetForm(company = null) {
+function resetForm(employee = null) {
     Object.assign(
         form,
-        company
+        employee
             ? {
-                  name: company.name ?? "",
-                  code: company.code ?? "",
-                  email: company.email ?? "",
-                  phone: company.phone ?? "",
-                  address: company.address ?? "",
-                  is_active: Boolean(company.is_active),
+                  company_id: employee.company_id ?? null,
+                  employee_number: employee.employee_number ?? "",
+                  name: employee.name ?? "",
+                  email: employee.email ?? "",
+                  phone: employee.phone ?? "",
+                  position: employee.position ?? "",
+                  is_active: Boolean(employee.is_active),
               }
             : defaultForm()
     );
@@ -114,24 +123,25 @@ function getRequestParams() {
         per_page: tableState.perPage,
         sort_field: tableState.sortField,
         sort_order: tableState.sortOrder,
-        search: filters.search || undefined,
-        is_active: filters.is_active,
+        global: filters.search || undefined,
+        company_id: filters.company_id ?? undefined,
+        status: filters.is_active,
     };
 }
 
-async function loadCompanies() {
+async function loadEmployees() {
     loading.value = true;
 
     try {
-        const envelope = await listCompanies(props.companiesApi, getRequestParams());
-        companies.value = envelope.data.items ?? [];
+        const envelope = await listEmployees(props.employeesApi, getRequestParams());
+        employees.value = envelope.data.items ?? [];
 
         const pagination = envelope.meta.pagination ?? {};
         tableState.total = pagination.total ?? 0;
         tableState.page = pagination.current_page ?? tableState.page;
         tableState.perPage = pagination.per_page ?? tableState.perPage;
     } catch (error) {
-        handleApiError(error, "A cegek betoltese sikertelen volt.");
+        handleApiError(error, "Az alkalmazottak betoltese sikertelen volt.");
     } finally {
         loading.value = false;
     }
@@ -142,9 +152,9 @@ function openCreateDialog() {
     showCreateDialog.value = true;
 }
 
-function openEditDialog(company) {
-    editingCompany.value = company;
-    resetForm(company);
+function openEditDialog(employee) {
+    editingEmployee.value = employee;
+    resetForm(employee);
     showEditDialog.value = true;
 }
 
@@ -155,7 +165,7 @@ function closeCreateDialog() {
 
 function closeEditDialog() {
     showEditDialog.value = false;
-    editingCompany.value = null;
+    editingEmployee.value = null;
     resetForm();
 }
 
@@ -164,25 +174,25 @@ async function submitCreate() {
     clearFormErrors();
 
     try {
-        await createCompany(props.companiesApi, form);
+        await createEmployee(props.employeesApi, form);
         toast.add({
             severity: "success",
             summary: "Sikeres muvelet",
-            detail: "A ceg letrehozasa sikeres volt.",
+            detail: "Az alkalmazott letrehozasa sikeres volt.",
             life: 3000,
         });
         closeCreateDialog();
         tableState.page = 1;
-        await loadCompanies();
+        await loadEmployees();
     } catch (error) {
-        handleMutationError(error, "A ceg letrehozasa sikertelen volt.");
+        handleMutationError(error, "Az alkalmazott letrehozasa sikertelen volt.");
     } finally {
         submitting.value = false;
     }
 }
 
 async function submitUpdate() {
-    if (!editingCompany.value) {
+    if (!editingEmployee.value) {
         return;
     }
 
@@ -190,77 +200,77 @@ async function submitUpdate() {
     clearFormErrors();
 
     try {
-        await updateCompany(props.companiesApi, editingCompany.value.id, form);
+        await updateEmployee(props.employeesApi, editingEmployee.value.id, form);
         toast.add({
             severity: "success",
             summary: "Sikeres muvelet",
-            detail: "A ceg adatai frissultek.",
+            detail: "Az alkalmazott adatai frissultek.",
             life: 3000,
         });
         closeEditDialog();
-        await loadCompanies();
+        await loadEmployees();
     } catch (error) {
-        handleMutationError(error, "A ceg modositasa sikertelen volt.");
+        handleMutationError(error, "Az alkalmazott modositasa sikertelen volt.");
     } finally {
         submitting.value = false;
     }
 }
 
-function confirmDelete(company) {
+function confirmDelete(employee) {
     confirm.require({
         header: "Torles megerositese",
-        message: `Biztosan torolni szeretned a(z) ${company.name} ceget?`,
+        message: `Biztosan torolni szeretned a(z) ${employee.name} alkalmazottat?`,
         acceptLabel: "Torles",
         rejectLabel: "Megse",
         acceptClass: "p-button-danger",
         accept: async () => {
             try {
-                await deleteCompany(props.companiesApi, company.id);
+                await deleteEmployee(props.employeesApi, employee.id);
                 toast.add({
                     severity: "success",
                     summary: "Sikeres muvelet",
-                    detail: "A ceg torlese sikeres volt.",
+                    detail: "Az alkalmazott torlese sikeres volt.",
                     life: 3000,
                 });
 
-                if (companies.value.length === 1 && tableState.page > 1) {
+                if (employees.value.length === 1 && tableState.page > 1) {
                     tableState.page -= 1;
                 }
 
-                await loadCompanies();
+                await loadEmployees();
             } catch (error) {
-                handleApiError(error, "A ceg torlese sikertelen volt.");
+                handleApiError(error, "Az alkalmazott torlese sikertelen volt.");
             }
         },
     });
 }
 
-function companyActionItems(company) {
+function employeeActionItems(employee) {
     return [
         props.permissions.update
             ? {
                   label: "Szerkesztes",
                   icon: "pi pi-pencil",
-                  command: () => openEditDialog(company),
+                  command: () => openEditDialog(employee),
               }
             : null,
         props.permissions.delete
             ? {
                   label: "Torles",
                   icon: "pi pi-trash",
-                  command: () => confirmDelete(company),
+                  command: () => confirmDelete(employee),
               }
             : null,
     ];
 }
 
-async function refreshCompanies() {
-    await loadCompanies();
+async function refreshEmployees() {
+    await loadEmployees();
 
     toast.add({
         severity: "success",
         summary: "Sikeres muvelet",
-        detail: "A ceglista frissult.",
+        detail: "Az alkalmazott lista frissult.",
         life: 2500,
     });
 }
@@ -268,18 +278,18 @@ async function refreshCompanies() {
 function handleTablePage(event) {
     tableState.page = (event.page ?? 0) + 1;
     tableState.perPage = event.rows ?? tableState.perPage;
-    loadCompanies();
+    loadEmployees();
 }
 
 function handleTableSort(event) {
     tableState.sortField = event.sortField ?? "created_at";
-    tableState.sortOrder = event.sortOrder === 1 ? "asc" : "desc";
+    tableState.sortOrder = event.sortOrder === 1 ? 1 : -1;
     tableState.page = 1;
-    loadCompanies();
+    loadEmployees();
 }
 
 function handleApiError(error, fallbackMessage) {
-    if (error instanceof CompanyApiError && error.status === 401) {
+    if (error instanceof EmployeeApiError && error.status === 401) {
         const redirectTarget =
             error.meta.reauth_to || error.meta.redirect_to || route("login");
         window.location.assign(redirectTarget);
@@ -289,13 +299,13 @@ function handleApiError(error, fallbackMessage) {
     toast.add({
         severity: "error",
         summary: "Hiba tortent",
-        detail: error instanceof CompanyApiError ? error.message : fallbackMessage,
+        detail: error instanceof EmployeeApiError ? error.message : fallbackMessage,
         life: 4000,
     });
 }
 
 function handleMutationError(error, fallbackMessage) {
-    if (error instanceof CompanyApiError && error.status === 422) {
+    if (error instanceof EmployeeApiError && error.status === 422) {
         Object.assign(formErrors, error.errors ?? {});
         return;
     }
@@ -322,10 +332,18 @@ function formatDate(value) {
 }
 
 watch(
+    () => filters.company_id,
+    () => {
+        tableState.page = 1;
+        loadEmployees();
+    }
+);
+
+watch(
     () => filters.is_active,
     () => {
         tableState.page = 1;
-        loadCompanies();
+        loadEmployees();
     }
 );
 
@@ -338,31 +356,31 @@ watch(
 
         searchDebounceId = window.setTimeout(() => {
             tableState.page = 1;
-            loadCompanies();
+            loadEmployees();
         }, 350);
     }
 );
 
-onMounted(loadCompanies);
+onMounted(loadEmployees);
 </script>
 
 <template>
-    <Head title="Companies" />
+    <Head title="Employees" />
 
     <AuthenticatedLayout>
         <ConfirmDialog />
 
         <div class="admin-table-page">
             <PageHeader
-                title="Companies"
-                description="A helyi cegtorzs teljes adminisztracioja keresessel, szuressel es jogosultsagkezelessel."
+                title="Employees"
+                description="A helyi alkalmazott torzs teljes adminisztracioja keresessel, szuressel es jogosultsagkezelessel."
             />
 
             <AdminTableCard>
                 <div class="admin-table-shell">
                     <div class="hidden min-h-0 flex-1 lg:flex">
                         <DataTable
-                            :value="companies"
+                            :value="employees"
                             :loading="loading"
                             class="admin-datatable"
                             scrollable
@@ -375,7 +393,7 @@ onMounted(loadCompanies);
                             :first="firstRecordIndex"
                             :total-records="tableState.total"
                             :sort-field="tableState.sortField"
-                            :sort-order="tableState.sortOrder === 'asc' ? 1 : -1"
+                            :sort-order="tableState.sortOrder"
                             paginator-template="RowsPerPageDropdown FirstPageLink PrevPageLink CurrentPageReport NextPageLink LastPageLink"
                             current-page-report-template="{first} - {last} / {totalRecords}"
                             :rows-per-page-options="[10, 25, 50]"
@@ -385,26 +403,50 @@ onMounted(loadCompanies);
                             <template #header>
                                 <AdminTableToolbar
                                     :canCreate="permissions.create"
-                                    createLabel="Uj ceg"
+                                    createLabel="Uj alkalmazott"
                                     :canBulkDelete="false"
                                     :selectedCount="0"
                                     :selectableCount="0"
                                     :busy="loading || submitting"
                                     @create="openCreateDialog"
-                                    @refresh="refreshCompanies"
+                                    @refresh="refreshEmployees"
                                 >
                                     <template #search>
-                                        <IconField class="w-full">
-                                            <InputIcon
-                                                class="pi pi-search text-slate-400"
-                                            />
-                                            <InputText
-                                                v-model="filters.search"
-                                                fluid
-                                                placeholder="Kereses nev, kod vagy e-mail alapjan"
+                                        <div
+                                            class="grid w-full gap-3 lg:grid-cols-[minmax(0,1fr)_220px_180px]"
+                                        >
+                                            <IconField class="w-full">
+                                                <InputIcon
+                                                    class="pi pi-search text-slate-400"
+                                                />
+                                                <InputText
+                                                    v-model="filters.search"
+                                                    fluid
+                                                    placeholder="Kereses nev, e-mail, pozicio vagy azonosito alapjan"
+                                                    class="w-full"
+                                                />
+                                            </IconField>
+
+                                            <Select
+                                                v-model="filters.company_id"
+                                                :options="companies"
+                                                option-label="name"
+                                                option-value="id"
+                                                placeholder="Ceg"
+                                                show-clear
                                                 class="w-full"
                                             />
-                                        </IconField>
+
+                                            <Select
+                                                v-model="filters.is_active"
+                                                :options="statusOptions"
+                                                option-label="label"
+                                                option-value="value"
+                                                placeholder="Statusz"
+                                                show-clear
+                                                class="w-full"
+                                            />
+                                        </div>
                                     </template>
                                 </AdminTableToolbar>
                             </template>
@@ -412,17 +454,19 @@ onMounted(loadCompanies);
                             <template #empty>
                                 <div class="px-6 py-10">
                                     <EmptyStatePanel
-                                        title="Nincs megjelenitheto ceg"
-                                        description="A jelenlegi szurok mellett nincs talalat. Modositsd a keresest vagy hozz letre uj ceget."
-                                        :tags="['Companies', 'Admin CRUD']"
+                                        title="Nincs megjelenitheto alkalmazott"
+                                        description="A jelenlegi szurok mellett nincs talalat. Modositsd a keresest vagy hozz letre uj alkalmazottat."
+                                        :tags="['Employees', 'Admin CRUD']"
                                     />
                                 </div>
                             </template>
 
-                            <Column field="name" header="Cegnev" sortable />
-                            <Column field="code" header="Kod" sortable />
+                            <Column field="employee_number" header="Azonosito" sortable />
+                            <Column field="name" header="Nev" sortable />
                             <Column field="email" header="E-mail" sortable />
                             <Column field="phone" header="Telefonszam" />
+                            <Column field="position" header="Pozicio" sortable />
+                            <Column field="company_name" header="Ceg" sortable />
                             <Column field="is_active" header="Statusz" sortable>
                                 <template #body="{ data }">
                                     <Tag
@@ -438,7 +482,7 @@ onMounted(loadCompanies);
                             </Column>
                             <Column header="Muveletek" :style="{ width: '120px' }">
                                 <template #body="{ data }">
-                                    <RowActionMenu :items="companyActionItems(data)" />
+                                    <RowActionMenu :items="employeeActionItems(data)" />
                                 </template>
                             </Column>
                         </DataTable>
@@ -454,9 +498,20 @@ onMounted(loadCompanies);
                                     v-model="filters.search"
                                     fluid
                                     class="h-11 w-full pl-10"
-                                    placeholder="Kereses nev, kod vagy e-mail alapjan"
+                                    placeholder="Kereses nev, e-mail, pozicio vagy azonosito alapjan"
                                 />
                             </div>
+
+                            <Select
+                                v-model="filters.company_id"
+                                :options="companies"
+                                :pt="compactSelectPt"
+                                class="w-full"
+                                option-label="name"
+                                option-value="id"
+                                placeholder="Ceg"
+                                show-clear
+                            />
 
                             <Select
                                 v-model="filters.is_active"
@@ -478,11 +533,11 @@ onMounted(loadCompanies);
                                 outlined
                                 :loading="loading || submitting"
                                 :disabled="loading || submitting"
-                                @click="refreshCompanies"
+                                @click="refreshEmployees"
                             />
                             <Button
                                 v-if="permissions.create"
-                                label="Uj ceg"
+                                label="Uj alkalmazott"
                                 icon="pi pi-plus"
                                 severity="primary"
                                 :disabled="loading || submitting"
@@ -497,93 +552,97 @@ onMounted(loadCompanies);
                             Betoltes folyamatban...
                         </div>
 
-                        <template v-else-if="companies.length > 0">
+                        <template v-else-if="employees.length > 0">
                             <article
-                                v-for="company in companies"
-                                :key="company.id"
+                                v-for="employee in employees"
+                                :key="employee.id"
                                 class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"
                             >
                                 <div class="flex items-start justify-between gap-3">
                                     <div>
                                         <h3 class="text-lg font-semibold text-slate-950">
-                                            {{ company.name }}
+                                            {{ employee.name }}
                                         </h3>
                                         <p class="mt-1 text-sm text-slate-500">
-                                            {{ company.code }}
+                                            {{ employee.employee_number || "-" }}
                                         </p>
                                     </div>
                                     <Tag
-                                        :value="statusLabel(company.is_active)"
-                                        :severity="statusSeverity(company.is_active)"
+                                        :value="statusLabel(employee.is_active)"
+                                        :severity="statusSeverity(employee.is_active)"
                                     />
                                 </div>
 
                                 <dl class="mt-4 grid gap-3 text-sm text-slate-600">
                                     <div>
-                                        <dt class="font-semibold text-slate-900">
-                                            E-mail
-                                        </dt>
-                                        <dd>{{ company.email || "-" }}</dd>
+                                        <dt class="font-medium text-slate-900">E-mail</dt>
+                                        <dd>{{ employee.email || "-" }}</dd>
                                     </div>
                                     <div>
-                                        <dt class="font-semibold text-slate-900">
-                                            Telefonszam
+                                        <dt class="font-medium text-slate-900">
+                                            Telefon
                                         </dt>
-                                        <dd>{{ company.phone || "-" }}</dd>
+                                        <dd>{{ employee.phone || "-" }}</dd>
                                     </div>
                                     <div>
-                                        <dt class="font-semibold text-slate-900">
+                                        <dt class="font-medium text-slate-900">
+                                            Pozicio
+                                        </dt>
+                                        <dd>{{ employee.position || "-" }}</dd>
+                                    </div>
+                                    <div>
+                                        <dt class="font-medium text-slate-900">Ceg</dt>
+                                        <dd>{{ employee.company_name || "-" }}</dd>
+                                    </div>
+                                    <div>
+                                        <dt class="font-medium text-slate-900">
                                             Letrehozva
                                         </dt>
-                                        <dd>{{ formatDate(company.created_at) }}</dd>
+                                        <dd>{{ formatDate(employee.created_at) }}</dd>
                                     </div>
                                 </dl>
 
-                                <div class="mt-5 flex gap-3">
-                                    <Button
-                                        v-if="permissions.update"
-                                        label="Szerkesztes"
-                                        severity="secondary"
-                                        text
-                                        @click="openEditDialog(company)"
-                                    />
-                                    <Button
-                                        v-if="permissions.delete"
-                                        label="Torles"
-                                        severity="danger"
-                                        text
-                                        @click="confirmDelete(company)"
+                                <div class="mt-5 flex justify-end">
+                                    <RowActionMenu
+                                        :items="employeeActionItems(employee)"
                                     />
                                 </div>
                             </article>
                         </template>
 
-                        <EmptyStatePanel
+                        <div
                             v-else
-                            title="Nincs megjelenitheto ceg"
-                            description="A jelenlegi szurok mellett nincs talalat. Modositsd a keresest vagy hozz letre uj ceget."
-                            :tags="['Companies', 'Admin CRUD']"
-                        />
+                            class="rounded-3xl border border-dashed border-slate-300 bg-slate-50 px-5 py-8"
+                        >
+                            <EmptyStatePanel
+                                title="Nincs megjelenitheto alkalmazott"
+                                description="A jelenlegi szurok mellett nincs talalat. Modositsd a keresest vagy hozz letre uj alkalmazottat."
+                                :tags="['Employees', 'Admin CRUD']"
+                            />
+                        </div>
                     </div>
                 </div>
             </AdminTableCard>
         </div>
 
-        <CreateCompanyDialog
-            :visible="showCreateDialog"
+        <CreateEmployeeDialog
+            v-model:visible="showCreateDialog"
+            :companies="companies"
             :form="form"
             :errors="formErrors"
             :submitting="submitting"
-            @update:visible="showCreateDialog = $event"
             @submit="submitCreate"
+            @close="closeCreateDialog"
         />
-        <EditCompanyDialog
-            :visible="showEditDialog"
+        <EditEmployeeDialog
+            v-model:visible="showEditDialog"
+            :employee="editingEmployee"
+            :companies="companies"
             :form="form"
             :errors="formErrors"
             :submitting="submitting"
-            @update:visible="showEditDialog = $event"
             @submit="submitUpdate"
+            @close="closeEditDialog"
         />
     </AuthenticatedLayout>
 </template>

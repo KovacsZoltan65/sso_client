@@ -21,6 +21,10 @@ Route::middleware('guest')->group(function () {
 Route::get('auth/frontchannel-logout', [SsoAuthController::class, 'frontChannelLogout'])
     ->name('auth.logout.frontchannel');
 
+Route::post('auth/backchannel-logout', [SsoAuthController::class, 'backChannelLogout'])
+    ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class])
+    ->name('auth.logout.backchannel');
+
 Route::middleware('auth')->group(function () {
     Route::post('auth/logout', [SsoAuthController::class, 'logout'])
         ->name('logout');

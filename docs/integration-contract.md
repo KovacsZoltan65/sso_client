@@ -136,7 +136,7 @@ Szerződés szabály:
 - a kliens kizárólag a `data` envelope-ból dolgozik
 - `openid` scope esetén a kliens `data.id_token` mezőt is vár, és abból olvassa ki a returned nonce-ot
 - a kliens discovery foundationkent tudja hasznalni a `GET /.well-known/openid-configuration` metadata dokumentumot is
-- a discoverybol jelenleg ezeket a mezoket veszi at: `issuer`, `authorization_endpoint`, `token_endpoint`, `userinfo_endpoint`, `end_session_endpoint`, `jwks_uri`, `id_token_signing_alg_values_supported`
+- a discoverybol jelenleg ezeket a mezoket veszi at: `issuer`, `authorization_endpoint`, `token_endpoint`, `userinfo_endpoint`, `end_session_endpoint`, `jwks_uri`, `id_token_signing_alg_values_supported`, `backchannel_logout_supported`
 - precedence szabaly:
   - 1. explicit kliens config
   - 2. ervenyes discovery metadata
@@ -247,9 +247,34 @@ Session boundary:
 
 Tudatosan nincs benne meg:
 
-- back-channel logout
 - teljes single logout tobb kliens kozott
 - teljes garantalt multi-client logout minden bongeszo edge case-re
+
+Back-channel logout:
+
+- a kliens kulon backend vegpontot hasznal: `POST /auth/backchannel-logout`
+- ez nem UI route, nem callback route, es nem a front-channel logout ujrahasznositasa
+- a provider `logout_token` mezoben signed logout JWT-t kuld
+- a kliens a meglévo OIDC verify foundationre epítve ellenorzi:
+  - signature
+  - `iss`
+  - `aud`
+  - `iat`
+  - opcionális `exp`
+  - `jti`
+  - `sub`
+  - `events`
+- a vart logout event claim: `http://schemas.openid.net/event/backchannel-logout`
+- valid token eseten a kliens a `sub` alapjan feloldott lokalis user minden adatbazisos sessionjet torli
+- ha az aktualis request ugyanahhoz a felhasznalohoz tartozik, a kliens a jelenlegi web sessiont is lezarja
+- a `jti` jelenleg minimalis replay/idempotencia guardot kap cache alapon
+- invalid signature, issuer mismatch, audience mismatch vagy hibas event claim eseten kontrollalt hiba tortenik, es nincs vak logout
+
+Tudatosan nincs benne meg:
+
+- guaranteed back-channel delivery
+- teljes `sid`-alapu session korrelacio
+- eros, hosszu TTL-s replay store infrastruktura
 
 ## 6. Self-service profile szerződés
 

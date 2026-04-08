@@ -114,6 +114,42 @@ class SsoAuthenticationTest extends TestCase
         return $signingInput.'.'.$this->base64UrlEncode($signature);
     }
 
+    /**
+     * @param array<string, mixed> $overrides
+     */
+    private function logoutToken(
+        array $overrides = [],
+        ?string $privateKeyPem = null,
+        ?string $kid = null,
+    ): string {
+        $signingKeyPem = $privateKeyPem ?? $this->oidcPrivateKeyPem;
+        $signingKid = $kid ?? $this->oidcJwk['kid'];
+
+        $header = $this->base64UrlEncode(json_encode([
+            'alg' => 'RS256',
+            'typ' => 'JWT',
+            'kid' => $signingKid,
+        ], JSON_THROW_ON_ERROR));
+
+        $payload = $this->base64UrlEncode(json_encode(array_merge([
+            'iss' => 'https://sso-server.test',
+            'sub' => '123',
+            'aud' => 'portal-client',
+            'iat' => now()->timestamp,
+            'exp' => now()->addMinutes(5)->timestamp,
+            'jti' => (string) str()->uuid(),
+            'events' => [
+                'http://schemas.openid.net/event/backchannel-logout' => new \stdClass(),
+            ],
+        ], $overrides), JSON_THROW_ON_ERROR));
+
+        $signingInput = $header.'.'.$payload;
+        $signature = '';
+        openssl_sign($signingInput, $signature, $signingKeyPem, OPENSSL_ALGO_SHA256);
+
+        return $signingInput.'.'.$this->base64UrlEncode($signature);
+    }
+
     private function base64UrlEncode(string $value): string
     {
         return rtrim(strtr(base64_encode($value), '+/', '-_'), '=');
@@ -177,6 +213,7 @@ class SsoAuthenticationTest extends TestCase
             'scopes_supported' => ['openid', 'profile', 'email'],
             'claims_supported' => ['sub', 'name', 'email', 'email_verified'],
             'frontchannel_logout_supported' => true,
+            'backchannel_logout_supported' => true,
             'code_challenge_methods_supported' => ['S256'],
         ], $overrides);
     }
@@ -1527,6 +1564,136 @@ class SsoAuthenticationTest extends TestCase
             'event' => 'client_auth.logout.frontchannel_validation_failed',
             'description' => 'Client front-channel logout validation failed.',
         ]);
+    }
+
+    #[Group('security')]
+    public function test_backchannel_logout_verifies_a_valid_logout_token_and_clears_local_sessions(): void
+    {
+        $user = User::factory()->create([
+            'sso_user_id' => '123',
+        ]);
+
+        Http::fake([
+            'https://sso-server.test/.well-known/jwks.json' => Http::response($this->jwksPayload(), 200),
+        ]);
+
+        \DB::table('sessions')->insert([
+            'id' => 'backchannel-session-1',
+            'user_id' => $user->id,
+            'ip_address' => '127.0.0.1',
+            'user_agent' => 'PHPUnit',
+            'payload' => base64_encode('{}'),
+            'last_activity' => now()->timestamp,
+        ]);
+
+        $response = $this
+            ->actingAs($user)
+            ->post('/auth/backchannel-logout', [
+                'logout_token' => $this->logoutToken(),
+            ]);
+
+        $response
+            ->assertOk()
+            ->assertSeeText('Back-channel logout completed.');
+
+        $this->assertGuest();
+        $this->assertDatabaseMissing('sessions', [
+            'id' => 'backchannel-session-1',
+        ]);
+
+        $this->assertDatabaseHas('activity_log', [
+            'log_name' => 'client.auth',
+            'event' => 'client_auth.logout.backchannel_received',
+            'description' => 'Client back-channel logout received.',
+        ]);
+
+        $this->assertDatabaseHas('activity_log', [
+            'log_name' => 'client.auth',
+            'event' => 'client_auth.logout.backchannel_verified',
+            'description' => 'Client back-channel logout verified.',
+        ]);
+
+        $this->assertDatabaseHas('activity_log', [
+            'log_name' => 'client.auth',
+            'event' => 'client_auth.logout.backchannel_local_completed',
+            'description' => 'Client back-channel local logout completed.',
+        ]);
+    }
+
+    #[Group('security')]
+    public function test_backchannel_logout_rejects_an_invalid_signature(): void
+    {
+        Http::fake([
+            'https://sso-server.test/.well-known/jwks.json' => Http::response($this->jwksPayload(), 200),
+        ]);
+
+        $response = $this->post('/auth/backchannel-logout', [
+            'logout_token' => $this->logoutToken(privateKeyPem: $this->legacyOidcPrivateKeyPem, kid: $this->oidcJwk['kid']),
+        ]);
+
+        $response
+            ->assertStatus(401)
+            ->assertSeeText('Ervenytelen back-channel logout token alairas.');
+
+        $this->assertDatabaseHas('activity_log', [
+            'log_name' => 'client.auth',
+            'event' => 'client_auth.logout.backchannel_verification_failed',
+            'description' => 'Client back-channel logout verification failed.',
+        ]);
+    }
+
+    #[Group('security')]
+    public function test_backchannel_logout_rejects_an_issuer_mismatch(): void
+    {
+        Http::fake([
+            'https://sso-server.test/.well-known/jwks.json' => Http::response($this->jwksPayload(), 200),
+        ]);
+
+        $response = $this->post('/auth/backchannel-logout', [
+            'logout_token' => $this->logoutToken([
+                'iss' => 'https://evil-issuer.test',
+            ]),
+        ]);
+
+        $response
+            ->assertStatus(401)
+            ->assertSeeText('A back-channel logout issuer claimje ervenytelen.');
+    }
+
+    #[Group('security')]
+    public function test_backchannel_logout_rejects_an_audience_mismatch(): void
+    {
+        Http::fake([
+            'https://sso-server.test/.well-known/jwks.json' => Http::response($this->jwksPayload(), 200),
+        ]);
+
+        $response = $this->post('/auth/backchannel-logout', [
+            'logout_token' => $this->logoutToken([
+                'aud' => 'different-client',
+            ]),
+        ]);
+
+        $response
+            ->assertStatus(401)
+            ->assertSeeText('A back-channel logout audience claimje ervenytelen.');
+    }
+
+    #[Group('security')]
+    public function test_backchannel_logout_rejects_a_missing_logout_event_claim(): void
+    {
+        Http::fake([
+            'https://sso-server.test/.well-known/jwks.json' => Http::response($this->jwksPayload(), 200),
+        ]);
+
+        $response = $this->post('/auth/backchannel-logout', [
+            'logout_token' => $this->logoutToken([
+                'events' => [],
+            ]),
+        ]);
+
+        $response
+            ->assertStatus(401)
+            ->assertSeeText('A back-channel logout token esemeny claimje ervenytelen.');
     }
 
     #[Group('security')]

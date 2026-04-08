@@ -46,6 +46,7 @@ class AuditLogService
         'provider_error_description',
         'target_company_id',
         'target_local_user_id',
+        'affected_count',
         'api_endpoint',
         'http_status',
         'reauth_reason',
