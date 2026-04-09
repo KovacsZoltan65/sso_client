@@ -408,14 +408,13 @@ onMounted(loadEmployees);
                                     :selectedCount="0"
                                     :selectableCount="0"
                                     :busy="loading || submitting"
+                                    searchContainerClass="w-full lg:flex-1 lg:min-w-0"
                                     @create="openCreateDialog"
                                     @refresh="refreshEmployees"
                                 >
                                     <template #search>
-                                        <div
-                                            class="grid w-full gap-3 lg:grid-cols-[minmax(0,1fr)_220px_180px]"
-                                        >
-                                            <IconField class="w-full">
+                                        <div class="flex w-full min-w-0 flex-wrap items-start gap-3">
+                                            <IconField class="min-w-[18rem] flex-1">
                                                 <InputIcon
                                                     class="pi pi-search text-slate-400"
                                                 />
@@ -434,7 +433,7 @@ onMounted(loadEmployees);
                                                 option-value="id"
                                                 placeholder="Ceg"
                                                 show-clear
-                                                class="w-full"
+                                                class="min-w-[12rem] flex-none"
                                             />
 
                                             <Select
@@ -444,7 +443,7 @@ onMounted(loadEmployees);
                                                 option-value="value"
                                                 placeholder="Statusz"
                                                 show-clear
-                                                class="w-full"
+                                                class="min-w-[12rem] flex-none"
                                             />
                                         </div>
                                     </template>
@@ -645,5 +644,8 @@ onMounted(loadEmployees);
         />
     </AuthenticatedLayout>
 </template>
+
+
+
 
 

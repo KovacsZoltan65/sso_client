@@ -30,18 +30,22 @@ defineProps({
         type: Boolean,
         default: false,
     },
+    searchContainerClass: {
+        type: String,
+        default: "w-full sm:max-w-sm",
+    },
 });
 
 defineEmits(["create", "bulk-delete", "refresh"]);
 </script>
 
 <template>
-    <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div class="w-full sm:max-w-sm">
+    <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div :class="searchContainerClass" class="min-w-0">
             <slot name="search" />
         </div>
 
-        <div class="flex flex-wrap items-center justify-end gap-3">
+        <div class="flex flex-wrap items-center justify-end gap-3 lg:flex-none">
             <span v-if="selectedCount" class="text-sm text-slate-500">
                 {{ selectedCount }} selected
             </span>
