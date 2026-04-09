@@ -30,7 +30,7 @@ class UserController extends Controller
         return ApiResponse::success(
             'Users retrieved successfully.',
             data: [
-                'items' => $users->getCollection()
+                'items' => collect($users->items())
                     ->map(fn (User $user) => $this->toArray($user, $request))
                     ->values()
                     ->all(),
@@ -111,3 +111,4 @@ class UserController extends Controller
         ];
     }
 }
+

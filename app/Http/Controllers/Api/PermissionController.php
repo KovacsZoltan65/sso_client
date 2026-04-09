@@ -35,7 +35,7 @@ class PermissionController extends Controller
         return ApiResponse::success(
             'Permissions retrieved successfully.',
             data: [
-                'items' => $permissions->getCollection()
+                'items' => collect($permissions->items())
                     ->map(fn (Permission $permission) => $this->toArray($permission, $request))
                     ->values()
                     ->all(),
@@ -139,3 +139,4 @@ class PermissionController extends Controller
         ];
     }
 }
+

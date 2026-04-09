@@ -54,7 +54,7 @@ class CompanyController extends Controller
         return ApiResponse::success(
             'Companies retrieved successfully.',
             data: [
-                'items' => $companies->getCollection()
+                'items' => collect($companies->items())
                     ->map(fn (Company $company) => $this->toArray($company))
                     ->values()
                     ->all(),
@@ -178,3 +178,4 @@ class CompanyController extends Controller
         ];
     }
 }
+

@@ -35,7 +35,7 @@ class RoleController extends Controller
         return ApiResponse::success(
             'Roles retrieved successfully.',
             data: [
-                'items' => $roles->getCollection()
+                'items' => collect($roles->items())
                     ->map(fn (Role $role) => $this->toArray($role, $request))
                     ->values()
                     ->all(),
@@ -157,3 +157,4 @@ class RoleController extends Controller
         ];
     }
 }
+
