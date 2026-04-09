@@ -8,6 +8,7 @@ use App\Services\Audit\AuditLogService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use App\Models\Permission;
+use Spatie\Activitylog\Models\Activity;
 use Tests\TestCase;
 
 class AuditLogsApiTest extends TestCase
@@ -34,6 +35,8 @@ class AuditLogsApiTest extends TestCase
         $company = Company::factory()->create();
         $causer = User::factory()->create();
 
+        $this->resetAuditLogFixtures();
+
         $this->createActivity('client_admin.company.created', 'Alpha company created.', $company, $causer);
         $this->createActivity('client_admin.company.updated', 'Alpha company updated.', $company, $causer);
         $this->createActivity('client_admin.company.deleted', 'Alpha company deleted.', $company, $causer);
@@ -54,6 +57,8 @@ class AuditLogsApiTest extends TestCase
         $company = Company::factory()->create(['name' => 'Alpha Kft.']);
         $causerA = User::factory()->create(['name' => 'Alice Auditor', 'email' => 'alice@example.test']);
         $causerB = User::factory()->create(['name' => 'Bob Operator', 'email' => 'bob@example.test']);
+
+        $this->resetAuditLogFixtures();
 
         $this->createActivity('client_admin.company.created', 'Alpha company created.', $company, $causerA);
         $this->createActivity('client.account.updated', 'User profile adjusted.', $causerB, $causerB, AuditLogService::LOG_CLIENT_ACCOUNT);
@@ -90,6 +95,8 @@ class AuditLogsApiTest extends TestCase
         $company = Company::factory()->create();
         $causer = User::factory()->create();
 
+        $this->resetAuditLogFixtures();
+
         $first = $this->createActivity('client_admin.company.created', 'First activity.', $company, $causer);
         $second = $this->createActivity('client_admin.company.updated', 'Second activity.', $company, $causer);
 
@@ -100,11 +107,33 @@ class AuditLogsApiTest extends TestCase
     }
 
     #[Test]
+    public function audit_logs_index_supports_fully_qualified_subject_type_filters(): void
+    {
+        $viewer = $this->userWithPermission('audit-logs.view');
+        $company = Company::factory()->create();
+        $causer = User::factory()->create();
+
+        $this->resetAuditLogFixtures();
+
+        $this->createActivity('client_admin.company.created', 'Company audit entry.', $company, $causer);
+        $this->createActivity('client.account.updated', 'User audit entry.', $causer, $causer, AuditLogService::LOG_CLIENT_ACCOUNT);
+
+        $this->actingAs($viewer)
+            ->getJson('/api/audit-logs?subject_type=' . urlencode(Company::class))
+            ->assertOk()
+            ->assertJsonCount(1, 'data.items')
+            ->assertJsonPath('data.items.0.subject_type', 'Company');
+    }
+
+    #[Test]
     public function audit_logs_show_returns_the_detail_payload_for_authorized_users(): void
     {
         $viewer = $this->userWithPermission('audit-logs.view');
         $company = Company::factory()->create(['name' => 'Alpha Kft.']);
         $causer = User::factory()->create(['name' => 'Alice Auditor', 'email' => 'alice@example.test']);
+
+        $this->resetAuditLogFixtures();
+
         $activity = $this->createActivity(
             'client_admin.company.updated',
             'Alpha company updated.',
@@ -192,5 +221,10 @@ class AuditLogsApiTest extends TestCase
         $entry->log($description);
 
         return \Spatie\Activitylog\Models\Activity::query()->latest('id')->firstOrFail();
+    }
+
+    private function resetAuditLogFixtures(): void
+    {
+        Activity::query()->delete();
     }
 }

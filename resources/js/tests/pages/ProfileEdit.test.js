@@ -262,4 +262,47 @@ describe('Profile/Edit', () => {
             detail: 'Forbidden.',
         }));
     });
+
+    it('renders a safe load error when the canonical profile fetch fails', async () => {
+        setPageProps(profilePageProps());
+        axiosMock.mockRejectedValueOnce({
+            response: {
+                status: 500,
+                data: {
+                    message: 'Server error.',
+                    data: [],
+                    meta: {},
+                    errors: {},
+                },
+            },
+        });
+
+        const wrapper = mount(ProfileEditPage, {
+            props: {
+                authUser: {
+                    name: 'Local Session Name',
+                    email: 'session@example.test',
+                },
+                profileApi: {
+                    enabled: true,
+                    endpoints: {
+                        show: 'https://sso-server.test/api/profile',
+                        update: 'https://sso-server.test/api/profile',
+                        updatePassword: 'https://sso-server.test/api/profile/password',
+                    },
+                },
+            },
+            global: {
+                stubs: {
+                    AuthenticatedLayout: { template: '<div><slot name="header" /><slot /></div>' },
+                    PageHeader: { template: '<div><slot /></div>' },
+                },
+            },
+        });
+
+        await flushPromises();
+
+        expect(wrapper.text()).toContain('Server error.');
+        expect(wrapper.text()).not.toContain('Profile details');
+    });
 });
