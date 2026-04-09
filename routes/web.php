@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\CompanyController;
 use App\Http\Controllers\Api\EmployeeController;
 use App\Http\Controllers\Api\PermissionController;
@@ -69,6 +70,10 @@ Route::middleware(['auth', 'permission:permissions.view'])
     });
 
 Route::prefix('api')->middleware(['auth'])->group(function () {
+    Route::get('/audit-logs', [AuditLogController::class, 'index'])
+        ->middleware('permission:audit-logs.view')
+        ->name('api.audit-logs.index');
+
     Route::get('/users', [UserController::class, 'index'])
         ->middleware('permission:users.view')
         ->name('api.users.index');

@@ -7,7 +7,6 @@ use App\Services\Sso\SsoClientService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
-use Spatie\Activitylog\Models\Activity;
 
 class AppPageController extends Controller
 {
@@ -136,24 +135,20 @@ class AppPageController extends Controller
     }
 
     /**
+     * @param Request $request
      * @return \Inertia\Response
      */
-    public function auditLogs(): Response
+    public function auditLogs(Request $request): Response
     {
         return Inertia::render('AuditLogs/Index', [
-            'entries' => Activity::query()
-                ->latest()
-                ->limit(12)
-                ->get()
-                ->map(fn (Activity $activity) => [
-                    'id' => $activity->id,
-                    'log_name' => $activity->log_name,
-                    'description' => $activity->description,
-                    'event' => $activity->event,
-                    'subject_type' => class_basename((string) $activity->subject_type),
-                    'causer' => $activity->causer?->only(['id', 'name', 'email']),
-                    'created_at' => optional($activity->created_at)?->toDateTimeString(),
-                ]),
+            'auditLogsApi' => [
+                'endpoints' => [
+                    'index' => route('api.audit-logs.index'),
+                ],
+            ],
+            'permissions' => [
+                'view' => $request->user()?->can('audit-logs.view') ?? false,
+            ],
         ]);
     }
 }
