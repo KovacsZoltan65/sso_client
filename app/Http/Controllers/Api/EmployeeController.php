@@ -23,37 +23,26 @@ class EmployeeController extends Controller
     ) {
     }
 
+    /**
+     * @return \Inertia\Response
+     */
     public function index(): Response
     {
         $this->authorize('viewAny', Employee::class);
 
         return Inertia::render('Employees/Index', [
-        'employeesApi' => [
-            'endpoints' => [
-                'index' => route('api.employees.fetch'),
-                'store' => route('api.employees.store'),
+            'employeesApi' => [
+                'endpoints' => [
+                    'index' => route('api.employees.fetch'),
+                    'store' => route('api.employees.store'),
+                ],
             ],
-        ],
-        'permissions' => [
-            'view' => request()->user()?->can('employees.view') ?? false,
-            'create' => request()->user()?->can('employees.create') ?? false,
-            'update' => request()->user()?->can('employees.update') ?? false,
-            'delete' => request()->user()?->can('employees.delete') ?? false,
-        ],
-        'companies' => Company::query()
-            ->orderBy('name')
-            ->get(['id', 'name'])
-            ->map(fn (Company $company): array => [
-                'id' => $company->id,
-                'name' => $company->name,
-            ])
-            ->values(),
-    ]);
-        
-        
-        
-        /*
-        return Inertia::render('Employees/Index', [
+            'permissions' => [
+                'view' => request()->user()?->can('employees.view') ?? false,
+                'create' => request()->user()?->can('employees.create') ?? false,
+                'update' => request()->user()?->can('employees.update') ?? false,
+                'delete' => request()->user()?->can('employees.delete') ?? false,
+            ],
             'companies' => Company::query()
                 ->orderBy('name')
                 ->get(['id', 'name'])
@@ -63,9 +52,12 @@ class EmployeeController extends Controller
                 ])
                 ->values(),
         ]);
-        */
     }
 
+    /**
+     * @param EmployeeIndexRequest $request
+     * @return JsonResponse
+     */
     public function fetch(EmployeeIndexRequest $request): JsonResponse
     {
         $this->authorize('viewAny', Employee::class);
@@ -91,6 +83,10 @@ class EmployeeController extends Controller
         ]);
     }
 
+    /**
+     * @param EmployeeStoreRequest $request
+     * @return JsonResponse
+     */
     public function store(EmployeeStoreRequest $request): JsonResponse
     {
         $this->authorize('create', Employee::class);
@@ -105,6 +101,11 @@ class EmployeeController extends Controller
         ], 201);
     }
 
+    /**
+     * @param EmployeeUpdateRequest $request
+     * @param Employee $employee
+     * @return JsonResponse
+     */
     public function update(EmployeeUpdateRequest $request, Employee $employee): JsonResponse
     {
         $this->authorize('update', $employee);
@@ -119,6 +120,10 @@ class EmployeeController extends Controller
         ]);
     }
 
+    /**
+     * @param Employee $employee
+     * @return JsonResponse
+     */
     public function destroy(Employee $employee): JsonResponse
     {
         $this->authorize('delete', $employee);

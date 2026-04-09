@@ -2,8 +2,10 @@
 
 namespace App\Services;
 
+use App\Exceptions\ProtectedAuthorizationArtifactException;
 use App\Repositories\Contracts\PermissionRepositoryInterface;
 use App\Services\Audit\AuditLogService;
+use App\Support\ProtectedAuthorizationArtifacts;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Spatie\Permission\Models\Permission;
 
@@ -29,7 +31,8 @@ class PermissionService
     }
 
     /**
-     * @param PermissionListFilters $filters
+     * @param array $filters
+     * @return LengthAwarePaginator
      */
     public function list(array $filters): LengthAwarePaginator
     {
@@ -37,7 +40,8 @@ class PermissionService
     }
 
     /**
-     * @param PermissionWritePayload $payload
+     * @param array $payload
+     * @return Permission
      */
     public function store(array $payload): Permission
     {
@@ -64,11 +68,18 @@ class PermissionService
     }
 
     /**
-     * @param PermissionWritePayload $payload
+     * @param int $permissionId
+     * @param array $payload
+     * @return Permission
      */
     public function update(int $permissionId, array $payload): Permission
     {
         $permission = $this->permissions->findById($permissionId);
+
+        if (ProtectedAuthorizationArtifacts::blocksProtectedPermissionIdentityUpdate($permission, $payload)) {
+            throw ProtectedAuthorizationArtifactException::permissionIdentityUpdate($permission->name);
+        }
+
         $updatedPermission = $this->permissions->update($permission, [
             'name' => $payload['name'],
             'guard_name' => $payload['guard_name'] ?? $permission->guard_name,
@@ -91,9 +102,17 @@ class PermissionService
         return $updatedPermission;
     }
 
+    /**
+     * @param int $permissionId
+     * @return void
+     */
     public function delete(int $permissionId): void
     {
         $permission = $this->permissions->findById($permissionId);
+
+        if (ProtectedAuthorizationArtifacts::isProtectedPermission($permission)) {
+            throw ProtectedAuthorizationArtifactException::permissionDeletion($permission->name);
+        }
 
         $this->auditLogService->logClientAdminCrud(
             resource: 'permission',

@@ -8,6 +8,7 @@ use App\Http\Requests\Permissions\StorePermissionRequest;
 use App\Http\Requests\Permissions\UpdatePermissionRequest;
 use App\Services\PermissionService;
 use App\Support\ApiResponse;
+use App\Support\ProtectedAuthorizationArtifacts;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -21,6 +22,8 @@ class PermissionController extends Controller
     }
 
     /**
+     * @param IndexPermissionRequest $request
+     * @return JsonResponse
      * @throws AuthorizationException
      */
     public function index(IndexPermissionRequest $request): JsonResponse
@@ -56,6 +59,8 @@ class PermissionController extends Controller
     }
 
     /**
+     * @param StorePermissionRequest $request
+     * @return JsonResponse
      * @throws AuthorizationException
      */
     public function store(StorePermissionRequest $request): JsonResponse
@@ -74,6 +79,9 @@ class PermissionController extends Controller
     }
 
     /**
+     * @param UpdatePermissionRequest $request
+     * @param Permission $permission
+     * @return JsonResponse
      * @throws AuthorizationException
      */
     public function update(UpdatePermissionRequest $request, Permission $permission): JsonResponse
@@ -91,6 +99,9 @@ class PermissionController extends Controller
     }
 
     /**
+     * @param Request $request
+     * @param Permission $permission
+     * @return JsonResponse
      * @throws AuthorizationException
      */
     public function destroy(Request $request, Permission $permission): JsonResponse
@@ -103,11 +114,14 @@ class PermissionController extends Controller
     }
 
     /**
+     * @param Permission $permission
+     * @param Request $request
      * @return array<string, mixed>
      */
     private function toArray(Permission $permission, Request $request): array
     {
         $permission->loadCount('roles');
+        $isProtected = ProtectedAuthorizationArtifacts::isProtectedPermission($permission);
 
         return [
             'id' => (int) $permission->id,
@@ -116,9 +130,11 @@ class PermissionController extends Controller
             'roles_count' => (int) ($permission->roles_count ?? 0),
             'created_at' => optional($permission->created_at)?->toDateTimeString(),
             'updated_at' => optional($permission->updated_at)?->toDateTimeString(),
+            'is_protected' => $isProtected,
+            'protection_label' => $isProtected ? ProtectedAuthorizationArtifacts::protectionLabel() : null,
             'can' => [
                 'update' => $request->user()?->can('update', $permission) ?? false,
-                'delete' => $request->user()?->can('delete', $permission) ?? false,
+                'delete' => ($request->user()?->can('delete', $permission) ?? false) && ! $isProtected,
             ],
         ];
     }

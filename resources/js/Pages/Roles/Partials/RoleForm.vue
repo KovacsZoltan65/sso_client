@@ -3,6 +3,8 @@ import GroupedCheckboxSelector from "@/Components/Admin/GroupedCheckboxSelector.
 import InputError from "@/Components/InputError.vue";
 import Button from "primevue/button";
 import InputText from "primevue/inputtext";
+import Message from "primevue/message";
+import Tag from "primevue/tag";
 
 defineProps({
     form: { type: Object, required: true },
@@ -10,6 +12,7 @@ defineProps({
     submitting: { type: Boolean, default: false },
     submitLabel: { type: String, required: true },
     permissionOptions: { type: Array, default: () => [] },
+    isProtected: { type: Boolean, default: false },
 });
 
 defineEmits(["submit", "cancel"]);
@@ -17,6 +20,13 @@ defineEmits(["submit", "cancel"]);
 
 <template>
     <form class="space-y-5" @submit.prevent="$emit('submit')">
+        <Message v-if="isProtected" severity="warn" :closable="false">
+            <div class="flex flex-wrap items-center gap-2">
+                <Tag value="Rendszer" severity="warn" />
+                <span>A nev es a guard vedett. A jogosultsagok tovabbra is szerkeszthetok.</span>
+            </div>
+        </Message>
+
         <div class="grid gap-5 md:grid-cols-2">
             <div class="space-y-2">
                 <label for="role-name" class="text-sm font-semibold text-slate-900">Role name</label>
@@ -25,6 +35,7 @@ defineEmits(["submit", "cancel"]);
                     v-model="form.name"
                     fluid
                     autocomplete="off"
+                    :readonly="isProtected"
                     :invalid="Boolean(errors.name?.length)"
                 />
                 <InputError :message="errors.name?.[0]" />
@@ -48,9 +59,9 @@ defineEmits(["submit", "cancel"]);
                 v-model="form.permission_ids"
                 :options="permissionOptions"
                 fieldLabel="Permissions"
-                searchPlaceholder="Search permissions by resource or action"
-                emptyMessage="No permissions match the current search."
-                groupCountLabel="permissions"
+                searchPlaceholder="Kereses permission eroforras vagy muvelet szerint"
+                emptyMessage="Nincs a keresesnek megfelelo permission."
+                groupCountLabel="permission"
                 :disabled="submitting"
             />
             <InputError :message="errors.permission_ids?.[0]" />

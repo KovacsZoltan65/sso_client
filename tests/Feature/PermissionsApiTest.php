@@ -130,11 +130,78 @@ class PermissionsApiTest extends TestCase
     }
 
     #[Test]
+    public function protected_permissions_cannot_be_deleted(): void
+    {
+        $user = $this->userWithPermission('permissions.delete');
+        $permission = Permission::findOrCreate('roles.view', 'web');
+        $role = Role::findOrCreate('admin', 'web');
+        $role->givePermissionTo($permission);
+
+        $this->actingAs($user)
+            ->deleteJson("/api/permissions/{$permission->id}")
+            ->assertStatus(409)
+            ->assertJsonPath('message', 'A(z) roles.view vedett rendszer-jogosultsag, ezert nem torolheto.');
+
+        $this->assertDatabaseHas(config('permission.table_names.permissions'), [
+            'id' => $permission->id,
+            'name' => 'roles.view',
+        ]);
+        $this->assertCount(1, $role->fresh()->permissions);
+    }
+
+    #[Test]
+    public function protected_permissions_cannot_be_renamed(): void
+    {
+        $user = $this->userWithPermission('permissions.update');
+        $permission = Permission::findOrCreate('roles.view', 'web');
+
+        $this->actingAs($user)
+            ->putJson("/api/permissions/{$permission->id}", [
+                'name' => 'roles.manage',
+                'guard_name' => 'web',
+            ])
+            ->assertStatus(409)
+            ->assertJsonPath('message', 'A(z) roles.view vedett rendszer-jogosultsag neve vagy guardja nem modositheto.');
+
+        $this->assertDatabaseHas(config('permission.table_names.permissions'), [
+            'id' => $permission->id,
+            'name' => 'roles.view',
+        ]);
+    }
+
+    #[Test]
+    public function permissions_update_requires_update_permission(): void
+    {
+        $user = User::factory()->create();
+        $permission = Permission::findOrCreate('roles.assign', 'web');
+
+        $this->actingAs($user)
+            ->putJson("/api/permissions/{$permission->id}", [
+                'name' => 'roles.attach',
+                'guard_name' => 'web',
+            ])
+            ->assertForbidden()
+            ->assertJsonPath('message', 'Forbidden.');
+    }
+
+    #[Test]
+    public function permissions_delete_requires_delete_permission(): void
+    {
+        $user = User::factory()->create();
+        $permission = Permission::findOrCreate('roles.assign', 'web');
+
+        $this->actingAs($user)
+            ->deleteJson("/api/permissions/{$permission->id}")
+            ->assertForbidden()
+            ->assertJsonPath('message', 'Forbidden.');
+    }
+
+    #[Test]
     public function permissions_delete_removes_the_selected_permission_and_detaches_roles(): void
     {
         $user = $this->userWithPermission('permissions.delete');
         $permission = Permission::findOrCreate('roles.assign', 'web');
-        $role = Role::findOrCreate('admin', 'web');
+        $role = Role::findOrCreate('manager', 'web');
         $role->givePermissionTo($permission);
 
         $this->actingAs($user)
@@ -159,6 +226,3 @@ class PermissionsApiTest extends TestCase
         return $user;
     }
 }
-
-
-

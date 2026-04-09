@@ -8,6 +8,7 @@ use App\Http\Requests\Roles\StoreRoleRequest;
 use App\Http\Requests\Roles\UpdateRoleRequest;
 use App\Services\RoleService;
 use App\Support\ApiResponse;
+use App\Support\ProtectedAuthorizationArtifacts;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -21,6 +22,8 @@ class RoleController extends Controller
     }
 
     /**
+     * @param IndexRoleRequest $request
+     * @return JsonResponse
      * @throws AuthorizationException
      */
     public function index(IndexRoleRequest $request): JsonResponse
@@ -56,6 +59,8 @@ class RoleController extends Controller
     }
 
     /**
+     * @param StoreRoleRequest $request
+     * @return JsonResponse
      * @throws AuthorizationException
      */
     public function store(StoreRoleRequest $request): JsonResponse
@@ -74,6 +79,9 @@ class RoleController extends Controller
     }
 
     /**
+     * @param UpdateRoleRequest $request
+     * @param Role $role
+     * @return JsonResponse
      * @throws AuthorizationException
      */
     public function update(UpdateRoleRequest $request, Role $role): JsonResponse
@@ -91,6 +99,9 @@ class RoleController extends Controller
     }
 
     /**
+     * @param Request $request
+     * @param Role $role
+     * @return JsonResponse
      * @throws AuthorizationException
      */
     public function destroy(Request $request, Role $role): JsonResponse
@@ -103,11 +114,30 @@ class RoleController extends Controller
     }
 
     /**
+     * @param Role $role
+     * @param Request $request
+     * @return array{
+     *      can: array{
+     *          delete: bool, 
+     *          update: bool, 
+     *          created_at: mixed, 
+     *          guard_name: string, 
+     *          id: int, 
+     *          is_protected: bool, 
+     *          name: string, 
+     *          permission_ids: int[], 
+     *          permission_names: array, 
+     *          permissions_count: int, 
+     *          protection_label: string|null, 
+     *          updated_at: mixed
+     *      }
+     * }
      * @return array<string, mixed>
      */
     private function toArray(Role $role, Request $request): array
     {
         $role->loadMissing('permissions:id,name')->loadCount('permissions');
+        $isProtected = ProtectedAuthorizationArtifacts::isProtectedRole($role);
 
         return [
             'id' => (int) $role->id,
@@ -118,9 +148,11 @@ class RoleController extends Controller
             'permission_names' => $role->permissions->pluck('name')->values()->all(),
             'created_at' => optional($role->created_at)?->toDateTimeString(),
             'updated_at' => optional($role->updated_at)?->toDateTimeString(),
+            'is_protected' => $isProtected,
+            'protection_label' => $isProtected ? ProtectedAuthorizationArtifacts::protectionLabel() : null,
             'can' => [
                 'update' => $request->user()?->can('update', $role) ?? false,
-                'delete' => $request->user()?->can('delete', $role) ?? false,
+                'delete' => ($request->user()?->can('delete', $role) ?? false) && ! $isProtected,
             ],
         ];
     }

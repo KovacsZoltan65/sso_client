@@ -8,6 +8,7 @@ const props = defineProps({
     errors: { type: Object, default: () => ({}) },
     submitting: { type: Boolean, default: false },
     permissionOptions: { type: Array, default: () => [] },
+    role: { type: Object, default: null },
 });
 
 const emit = defineEmits(["update:visible", "submit"]);
@@ -32,6 +33,7 @@ function closeDialog() {
             :errors="errors"
             :submitting="submitting"
             :permissionOptions="permissionOptions"
+            :isProtected="Boolean(role?.is_protected)"
             submit-label="Mentes"
             @submit="emit('submit')"
             @cancel="closeDialog"

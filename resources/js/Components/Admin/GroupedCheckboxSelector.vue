@@ -19,19 +19,19 @@ const props = defineProps({
     },
     fieldLabel: {
         type: String,
-        default: "Options",
+        default: "Opciók",
     },
     searchPlaceholder: {
         type: String,
-        default: "Search by group or action",
+        default: "Kereses csoport vagy muvelet szerint",
     },
     emptyMessage: {
         type: String,
-        default: "No options match the current search.",
+        default: "Nincs a keresesnek megfelelo opcio.",
     },
     groupCountLabel: {
         type: String,
-        default: "items",
+        default: "tetel",
     },
     allowInternalScroll: {
         type: Boolean,
@@ -208,7 +208,7 @@ const clearGroup = (group) => {
                     <div class="flex flex-wrap gap-2">
                         <Button
                             type="button"
-                            label="Select all"
+                            label="Mind kijelol"
                             size="small"
                             severity="secondary"
                             text
@@ -217,7 +217,7 @@ const clearGroup = (group) => {
                         />
                         <Button
                             type="button"
-                            label="Clear"
+                            label="Kijeloles torlese"
                             size="small"
                             severity="secondary"
                             text

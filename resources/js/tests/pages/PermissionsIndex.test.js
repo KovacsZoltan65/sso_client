@@ -6,10 +6,12 @@ import DataTable from 'primevue/datatable';
 import { confirmRequireMock, toastAddMock } from '../setup';
 import { setPageProps } from '../mocks/inertia';
 
-const listPermissionsMock = vi.fn();
-const createPermissionMock = vi.fn();
-const updatePermissionMock = vi.fn();
-const deletePermissionMock = vi.fn();
+const { listPermissionsMock, createPermissionMock, updatePermissionMock, deletePermissionMock } = vi.hoisted(() => ({
+    listPermissionsMock: vi.fn(),
+    createPermissionMock: vi.fn(),
+    updatePermissionMock: vi.fn(),
+    deletePermissionMock: vi.fn(),
+}));
 
 vi.mock('@/Services/permissionService', () => ({
     PermissionApiError: class PermissionApiError extends Error {
@@ -27,48 +29,20 @@ vi.mock('@/Services/permissionService', () => ({
     deletePermission: (...args) => deletePermissionMock(...args),
 }));
 
-const permissionsApi = {
-    endpoints: {
-        index: '/api/permissions',
-    },
-};
+const permissionsApi = { endpoints: { index: '/api/permissions' } };
 
 function makeEnvelope(items = []) {
     return {
         message: 'Permissions retrieved successfully.',
         data: { items },
-        meta: {
-            pagination: {
-                current_page: 1,
-                per_page: 10,
-                total: items.length,
-            },
-        },
+        meta: { pagination: { current_page: 1, per_page: 10, total: items.length } },
         errors: {},
     };
 }
 
 function mountPage(permissions = { view: true, create: true, update: true, delete: true }) {
-    setPageProps({
-        auth: {
-            user: {
-                permissions: [],
-            },
-        },
-        flash: {},
-        sso: {
-            status: {
-                message: 'Rendben',
-            },
-        },
-    });
-
-    return mount(PermissionsIndex, {
-        props: {
-            permissionsApi,
-            permissions,
-        },
-    });
+    setPageProps({ auth: { user: { permissions: [] } }, flash: {}, sso: { status: { message: 'Rendben' } } });
+    return mount(PermissionsIndex, { props: { permissionsApi, permissions } });
 }
 
 function findButtonByText(wrapper, text) {
@@ -92,37 +66,24 @@ describe('Permissions/Index', () => {
 
     it('loads the permissions list on mount', async () => {
         listPermissionsMock.mockResolvedValueOnce(makeEnvelope([
-            { id: 1, name: 'companies.view', guard_name: 'web', roles_count: 2, created_at: '2026-04-09 08:00:00' },
+            { id: 1, name: 'companies.view', guard_name: 'web', roles_count: 2, created_at: '2026-04-09 08:00:00', is_protected: true, protection_label: 'Rendszer' },
         ]));
 
         const wrapper = mountPage();
         await flushPromises();
 
-        expect(listPermissionsMock).toHaveBeenCalledWith(permissionsApi, expect.objectContaining({
-            page: 1,
-            per_page: 10,
-            sort_field: 'created_at',
-            sort_order: 'desc',
-        }));
+        expect(listPermissionsMock).toHaveBeenCalledWith(permissionsApi, expect.objectContaining({ page: 1, per_page: 10, sort_field: 'created_at', sort_order: 'desc' }));
         expect(wrapper.text()).toContain('companies.view');
     });
 
     it('creates a permission and refreshes the list after save', async () => {
         const submittedPayloads = [];
-        listPermissionsMock
-            .mockResolvedValueOnce(makeEnvelope())
-            .mockResolvedValueOnce(makeEnvelope([
-                { id: 7, name: 'roles.assign', guard_name: 'web', roles_count: 0, created_at: '2026-04-09 08:00:00' },
-            ]));
+        listPermissionsMock.mockResolvedValueOnce(makeEnvelope()).mockResolvedValueOnce(makeEnvelope([
+            { id: 7, name: 'roles.assign', guard_name: 'web', roles_count: 0, created_at: '2026-04-09 08:00:00', is_protected: false },
+        ]));
         createPermissionMock.mockImplementationOnce(async (_api, payload) => {
             submittedPayloads.push({ ...payload });
-
-            return {
-                message: 'Permission created successfully.',
-                data: { permission: { id: 7, name: 'roles.assign' } },
-                meta: {},
-                errors: {},
-            };
+            return { message: 'Permission created successfully.', data: { permission: { id: 7, name: 'roles.assign' } }, meta: {}, errors: {} };
         });
 
         const wrapper = mountPage();
@@ -134,31 +95,20 @@ describe('Permissions/Index', () => {
         await wrapper.get('form').trigger('submit.prevent');
         await flushPromises();
 
-        expect(submittedPayloads[0]).toEqual(expect.objectContaining({
-            name: 'roles.assign',
-            guard_name: 'web',
-        }));
+        expect(submittedPayloads[0]).toEqual(expect.objectContaining({ name: 'roles.assign', guard_name: 'web' }));
         expect(listPermissionsMock).toHaveBeenCalledTimes(2);
     });
 
     it('updates a permission and refreshes the list after save', async () => {
         const submittedPayloads = [];
-        listPermissionsMock
-            .mockResolvedValueOnce(makeEnvelope([
-                { id: 9, name: 'roles.assign', guard_name: 'web', roles_count: 1, created_at: '2026-04-09 08:00:00', can: { update: true, delete: true } },
-            ]))
-            .mockResolvedValueOnce(makeEnvelope([
-                { id: 9, name: 'roles.attach', guard_name: 'web', roles_count: 1, created_at: '2026-04-09 08:00:00', can: { update: true, delete: true } },
-            ]));
+        listPermissionsMock.mockResolvedValueOnce(makeEnvelope([
+            { id: 9, name: 'roles.assign', guard_name: 'web', roles_count: 1, created_at: '2026-04-09 08:00:00', is_protected: false, can: { update: true, delete: true } },
+        ])).mockResolvedValueOnce(makeEnvelope([
+            { id: 9, name: 'roles.attach', guard_name: 'web', roles_count: 1, created_at: '2026-04-09 08:00:00', is_protected: false, can: { update: true, delete: true } },
+        ]));
         updatePermissionMock.mockImplementationOnce(async (_api, _permissionId, payload) => {
             submittedPayloads.push({ ...payload });
-
-            return {
-                message: 'Permission updated successfully.',
-                data: { permission: { id: 9, name: 'roles.attach' } },
-                meta: {},
-                errors: {},
-            };
+            return { message: 'Permission updated successfully.', data: { permission: { id: 9, name: 'roles.attach' } }, meta: {}, errors: {} };
         });
 
         const wrapper = mountPage();
@@ -173,6 +123,54 @@ describe('Permissions/Index', () => {
         expect(updatePermissionMock).toHaveBeenCalledWith(permissionsApi, 9, expect.any(Object));
         expect(submittedPayloads[0].name).toBe('roles.attach');
         expect(listPermissionsMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('marks protected permissions and hides their delete action', async () => {
+        listPermissionsMock.mockResolvedValueOnce(makeEnvelope([
+            { id: 1, name: 'roles.view', guard_name: 'web', roles_count: 2, created_at: '2026-04-09 08:00:00', is_protected: true, protection_label: 'Rendszer', can: { update: true, delete: false } },
+        ]));
+
+        const wrapper = mountPage();
+        await flushPromises();
+
+        expect(wrapper.text()).toContain('Rendszer');
+        expect(wrapper.text()).not.toContain('Torles');
+    });
+
+    it('keeps protected permission fields read-only and the save action disabled', async () => {
+        listPermissionsMock.mockResolvedValueOnce(makeEnvelope([
+            { id: 1, name: 'roles.view', guard_name: 'web', roles_count: 2, created_at: '2026-04-09 08:00:00', is_protected: true, protection_label: 'Rendszer', can: { update: true, delete: false } },
+        ]));
+
+        const wrapper = mountPage();
+        await flushPromises();
+
+        await findButtonByText(wrapper, 'Szerkesztes').trigger('click');
+        const editDialog = wrapper.findComponent(EditPermissionDialog);
+
+        expect(editDialog.find('input#permission-name').attributes('readonly')).toBeDefined();
+        expect(editDialog.text()).toContain('Ez a rendszer-jogosultsag vedett');
+        expect(editDialog.find('button[type="submit"]').attributes('disabled')).toBeDefined();
+    });
+
+    it('shows an error toast and keeps the dialog open when the backend rejects a protected permission update', async () => {
+        listPermissionsMock.mockResolvedValueOnce(makeEnvelope([
+            { id: 1, name: 'roles.view', guard_name: 'web', roles_count: 2, created_at: '2026-04-09 08:00:00', is_protected: true, protection_label: 'Rendszer', can: { update: true, delete: false } },
+        ]));
+        updatePermissionMock.mockRejectedValueOnce(new Error('A(z) roles.view vedett rendszer-jogosultsag neve vagy guardja nem modositheto.'));
+
+        const wrapper = mountPage();
+        await flushPromises();
+
+        await findButtonByText(wrapper, 'Szerkesztes').trigger('click');
+        const editDialog = wrapper.findComponent(EditPermissionDialog);
+        editDialog.props('form').name = 'roles.manage';
+
+        await wrapper.get('form').trigger('submit.prevent');
+        await flushPromises();
+
+        expect(toastAddMock).toHaveBeenCalled();
+        expect(wrapper.findComponent(EditPermissionDialog).props('visible')).toBe(true);
     });
 
     it('resets the create dialog form when the dialog is closed', async () => {
@@ -194,7 +192,7 @@ describe('Permissions/Index', () => {
 
     it('uses the shared full-height scrollable datatable layout on desktop', async () => {
         listPermissionsMock.mockResolvedValueOnce(makeEnvelope([
-            { id: 1, name: 'companies.view', guard_name: 'web', roles_count: 2, created_at: '2026-04-09 08:00:00' },
+            { id: 1, name: 'companies.view', guard_name: 'web', roles_count: 2, created_at: '2026-04-09 08:00:00', is_protected: true, protection_label: 'Rendszer' },
         ]));
 
         const wrapper = mountPage();

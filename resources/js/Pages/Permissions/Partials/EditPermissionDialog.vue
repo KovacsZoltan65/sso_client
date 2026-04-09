@@ -7,6 +7,7 @@ const props = defineProps({
     form: { type: Object, required: true },
     errors: { type: Object, default: () => ({}) },
     submitting: { type: Boolean, default: false },
+    permission: { type: Object, default: null },
 });
 
 const emit = defineEmits(["update:visible", "submit"]);
@@ -30,6 +31,7 @@ function closeDialog() {
             :form="form"
             :errors="errors"
             :submitting="submitting"
+            :isProtected="Boolean(permission?.is_protected)"
             submit-label="Mentes"
             @submit="emit('submit')"
             @cancel="closeDialog"

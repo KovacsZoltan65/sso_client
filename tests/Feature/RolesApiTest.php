@@ -147,6 +147,96 @@ class RolesApiTest extends TestCase
     }
 
     #[Test]
+    public function protected_roles_cannot_be_deleted(): void
+    {
+        $user = $this->userWithPermission('roles.delete');
+        $role = Role::findOrCreate('admin', 'web');
+
+        $this->actingAs($user)
+            ->deleteJson("/api/roles/{$role->id}")
+            ->assertStatus(409)
+            ->assertJsonPath('message', 'A(z) admin vedett rendszer-szerepkor, ezert nem torolheto.');
+
+        $this->assertDatabaseHas(config('permission.table_names.roles'), [
+            'id' => $role->id,
+            'name' => 'admin',
+        ]);
+    }
+
+    #[Test]
+    public function protected_roles_cannot_be_renamed(): void
+    {
+        $user = $this->userWithPermission('roles.update');
+        $permission = Permission::findOrCreate('companies.view', 'web');
+        $role = Role::findOrCreate('admin', 'web');
+        $role->syncPermissions([$permission]);
+
+        $this->actingAs($user)
+            ->putJson("/api/roles/{$role->id}", [
+                'name' => 'admin-renamed',
+                'guard_name' => 'web',
+                'permission_ids' => [$permission->id],
+            ])
+            ->assertStatus(409)
+            ->assertJsonPath('message', 'A(z) admin vedett rendszer-szerepkor neve vagy guardja nem modositheto.');
+
+        $this->assertDatabaseHas(config('permission.table_names.roles'), [
+            'id' => $role->id,
+            'name' => 'admin',
+        ]);
+    }
+
+    #[Test]
+    public function protected_roles_can_still_sync_permissions_when_identity_is_unchanged(): void
+    {
+        $user = $this->userWithPermission('roles.update');
+        $permissionA = Permission::findOrCreate('companies.view', 'web');
+        $permissionB = Permission::findOrCreate('employees.view', 'web');
+        $role = Role::findOrCreate('admin', 'web');
+        $role->syncPermissions([$permissionA]);
+
+        $this->actingAs($user)
+            ->putJson("/api/roles/{$role->id}", [
+                'name' => 'admin',
+                'guard_name' => 'web',
+                'permission_ids' => [$permissionB->id],
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.role.name', 'admin')
+            ->assertJsonPath('data.role.permissions_count', 1);
+
+        $this->assertSame([$permissionB->id], $role->fresh()->permissions()->pluck('id')->all());
+    }
+
+    #[Test]
+    public function roles_update_requires_update_permission(): void
+    {
+        $user = User::factory()->create();
+        $role = Role::findOrCreate('operator', 'web');
+
+        $this->actingAs($user)
+            ->putJson("/api/roles/{$role->id}", [
+                'name' => 'operator-updated',
+                'guard_name' => 'web',
+                'permission_ids' => [],
+            ])
+            ->assertForbidden()
+            ->assertJsonPath('message', 'Forbidden.');
+    }
+
+    #[Test]
+    public function roles_delete_requires_delete_permission(): void
+    {
+        $user = User::factory()->create();
+        $role = Role::findOrCreate('operator', 'web');
+
+        $this->actingAs($user)
+            ->deleteJson("/api/roles/{$role->id}")
+            ->assertForbidden()
+            ->assertJsonPath('message', 'Forbidden.');
+    }
+
+    #[Test]
     public function roles_delete_removes_the_selected_role(): void
     {
         $user = $this->userWithPermission('roles.delete');
@@ -172,6 +262,3 @@ class RolesApiTest extends TestCase
         return $user;
     }
 }
-
-
-

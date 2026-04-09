@@ -1,16 +1,17 @@
 <?php
 
+use App\Exceptions\ProtectedAuthorizationArtifactException;
+use App\Services\Audit\AuditLogService;
+use App\Support\ApiResponse;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
-use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Spatie\Permission\Exceptions\UnauthorizedException;
 use Symfony\Component\HttpFoundation\Response;
-use App\Support\ApiResponse;
-use App\Services\Audit\AuditLogService;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -117,6 +118,16 @@ return Application::configure(basePath: dirname(__DIR__))
             return redirect()
                 ->back()
                 ->with('error', 'Nincs jogosultsagod a kert oldal megtekintesehez.');
+        });
+
+        $exceptions->render(function (ProtectedAuthorizationArtifactException $exception, Request $request): Response {
+            if ($request->expectsJson()) {
+                return ApiResponse::error($exception->getMessage(), 409);
+            }
+
+            return redirect()
+                ->back()
+                ->with('error', $exception->getMessage());
         });
 
         $exceptions->render(function (ValidationException $exception, Request $request): ?Response {

@@ -2,21 +2,25 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\RolePageDataService;
 use App\Services\Sso\SsoClientService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 use Spatie\Activitylog\Models\Activity;
-use Spatie\Permission\Models\Permission;
 
 class AppPageController extends Controller
 {
     public function __construct(
         private readonly SsoClientService $ssoClientService,
+        private readonly RolePageDataService $rolePageDataService,
     ) {
     }
 
+    /**
+     * @param Request $request
+     * @return \Inertia\Response
+     */
     public function myAccount(Request $request): Response
     {
         return Inertia::render('Account/Show', [
@@ -29,6 +33,10 @@ class AppPageController extends Controller
         ]);
     }
 
+    /**
+     * @param Request $request
+     * @return \Inertia\Response
+     */
     public function users(Request $request): Response
     {
         return Inertia::render('Users/Index', [
@@ -44,6 +52,10 @@ class AppPageController extends Controller
         ]);
     }
 
+    /**
+     * @param Request $request
+     * @return \Inertia\Response
+     */
     public function companies(Request $request): Response
     {
         return Inertia::render('Companies/Index', [
@@ -62,6 +74,10 @@ class AppPageController extends Controller
         ]);
     }
 
+    /**
+     * @param Request $request
+     * @return \Inertia\Response
+     */
     public function roles(Request $request): Response
     {
         return Inertia::render('Roles/Index', [
@@ -77,23 +93,14 @@ class AppPageController extends Controller
                 'update' => $request->user()?->can('roles.update') ?? false,
                 'delete' => $request->user()?->can('roles.delete') ?? false,
             ],
-            'permissionOptions' => Permission::query()
-                ->orderBy('name')
-                ->get(['id', 'name'])
-                ->map(fn (Permission $permission) => [
-                    'value' => (int) $permission->id,
-                    'label' => Str::headline((string) Str::of($permission->name)->afterLast('.')),
-                    'helper' => $permission->name,
-                    'groupKey' => (string) Str::of($permission->name)->before('.'),
-                    'groupLabel' => Str::headline((string) Str::of($permission->name)->before('.')->replace(['-', '_'], ' ')),
-                    'action' => (string) Str::of($permission->name)->afterLast('.'),
-                    'itemLabel' => Str::headline((string) Str::of($permission->name)->afterLast('.')),
-                ])
-                ->values()
-                ->all(),
+            'permissionOptions' => $this->rolePageDataService->permissionOptions(),
         ]);
     }
 
+    /**
+     * @param Request $request
+     * @return \Inertia\Response
+     */
     public function permissions(Request $request): Response
     {
         return Inertia::render('Permissions/Index', [
@@ -112,6 +119,9 @@ class AppPageController extends Controller
         ]);
     }
 
+    /**
+     * @return \Inertia\Response
+     */
     public function ssoStatus(): Response
     {
         return Inertia::render('Sso/Status', [
@@ -125,6 +135,9 @@ class AppPageController extends Controller
         ]);
     }
 
+    /**
+     * @return \Inertia\Response
+     */
     public function auditLogs(): Response
     {
         return Inertia::render('AuditLogs/Index', [

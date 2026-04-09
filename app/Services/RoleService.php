@@ -2,8 +2,10 @@
 
 namespace App\Services;
 
+use App\Exceptions\ProtectedAuthorizationArtifactException;
 use App\Repositories\Contracts\RoleRepositoryInterface;
 use App\Services\Audit\AuditLogService;
+use App\Support\ProtectedAuthorizationArtifacts;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Spatie\Permission\Models\Role;
 
@@ -30,7 +32,8 @@ class RoleService
     }
 
     /**
-     * @param RoleListFilters $filters
+     * @param array $filters
+     * @return LengthAwarePaginator
      */
     public function list(array $filters): LengthAwarePaginator
     {
@@ -38,7 +41,8 @@ class RoleService
     }
 
     /**
-     * @param RoleWritePayload $payload
+     * @param array $payload
+     * @return Role
      */
     public function store(array $payload): Role
     {
@@ -66,11 +70,18 @@ class RoleService
     }
 
     /**
-     * @param RoleWritePayload $payload
+     * @param int $roleId
+     * @param array $payload
+     * @return Role
      */
     public function update(int $roleId, array $payload): Role
     {
         $role = $this->roles->findById($roleId);
+
+        if (ProtectedAuthorizationArtifacts::blocksProtectedRoleIdentityUpdate($role, $payload)) {
+            throw ProtectedAuthorizationArtifactException::roleIdentityUpdate($role->name);
+        }
+
         $permissionIds = array_values(array_map('intval', $payload['permission_ids'] ?? []));
         $updatedRole = $this->roles->update($role, [
             'name' => $payload['name'],
@@ -94,9 +105,17 @@ class RoleService
         return $updatedRole;
     }
 
+    /**
+     * @param int $roleId
+     * @return void
+     */
     public function delete(int $roleId): void
     {
         $role = $this->roles->findById($roleId);
+
+        if (ProtectedAuthorizationArtifacts::isProtectedRole($role)) {
+            throw ProtectedAuthorizationArtifactException::roleDeletion($role->name);
+        }
 
         $this->auditLogService->logClientAdminCrud(
             resource: 'role',
