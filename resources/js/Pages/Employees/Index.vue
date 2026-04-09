@@ -626,23 +626,24 @@ onMounted(loadEmployees);
         </div>
 
         <CreateEmployeeDialog
-            v-model:visible="showCreateDialog"
+            :visible="showCreateDialog"
             :companies="companies"
             :form="form"
             :errors="formErrors"
             :submitting="submitting"
+            @update:visible="(value) => value ? (showCreateDialog = value) : closeCreateDialog()"
             @submit="submitCreate"
-            @close="closeCreateDialog"
         />
         <EditEmployeeDialog
-            v-model:visible="showEditDialog"
-            :employee="editingEmployee"
+            :visible="showEditDialog"
             :companies="companies"
             :form="form"
             :errors="formErrors"
             :submitting="submitting"
+            @update:visible="(value) => value ? (showEditDialog = value) : closeEditDialog()"
             @submit="submitUpdate"
-            @close="closeEditDialog"
         />
     </AuthenticatedLayout>
 </template>
+
+

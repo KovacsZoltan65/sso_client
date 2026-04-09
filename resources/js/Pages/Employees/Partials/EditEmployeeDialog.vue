@@ -4,6 +4,7 @@ import EmployeeForm from "./EmployeeForm.vue";
 
 const props = defineProps({
     visible: { type: Boolean, default: false },
+    companies: { type: Array, default: () => [] },
     form: { type: Object, required: true },
     errors: { type: Object, default: () => ({}) },
     submitting: { type: Boolean, default: false },
@@ -28,6 +29,7 @@ function closeDialog() {
     >
         <EmployeeForm
             :form="form"
+            :companies="companies"
             :errors="errors"
             :submitting="submitting"
             submit-label="Mentes"
@@ -36,3 +38,4 @@ function closeDialog() {
         />
     </Dialog>
 </template>
+

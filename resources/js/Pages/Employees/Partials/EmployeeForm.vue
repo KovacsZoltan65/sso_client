@@ -1,24 +1,11 @@
 <script setup>
-import { computed } from "vue";
+import InputError from "@/Components/InputError.vue";
 import Button from "primevue/button";
 import Checkbox from "primevue/checkbox";
-import Dialog from "primevue/dialog";
 import InputText from "primevue/inputtext";
 import Select from "primevue/select";
 
-const props = defineProps({
-    visible: {
-        type: Boolean,
-        default: false,
-    },
-    mode: {
-        type: String,
-        default: "create",
-    },
-    employee: {
-        type: Object,
-        default: null,
-    },
+defineProps({
     companies: {
         type: Array,
         default: () => [],
@@ -35,121 +22,116 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    submitLabel: {
+        type: String,
+        required: true,
+    },
 });
 
-const emit = defineEmits(["update:visible", "submit", "close"]);
-
-const isEdit = computed(() => props.mode === "edit");
-
-const title = computed(() =>
-    isEdit.value ? "Alkalmazott szerkesztése" : "Új alkalmazott"
-);
-
-function closeDialog() {
-    emit("update:visible", false);
-    emit("close");
-}
-
-function submitForm() {
-    emit("submit");
-}
+defineEmits(["submit", "cancel"]);
 </script>
 
 <template>
-    <Dialog
-        :visible="visible"
-        modal
-        :header="title"
-        :style="{ width: '42rem' }"
-        @update:visible="emit('update:visible', $event)"
-        @hide="closeDialog"
-    >
-        <div class="grid">
-            <div class="col-12 md:col-6">
-                <label class="mb-2 block">Cég</label>
+    <form class="space-y-5" @submit.prevent="$emit('submit')">
+        <div class="grid gap-5 md:grid-cols-2">
+            <div class="space-y-2">
+                <label class="text-sm font-semibold text-slate-900" for="employee-company-id">Ceg</label>
                 <Select
+                    id="employee-company-id"
                     v-model="form.company_id"
                     :options="companies"
                     optionLabel="name"
                     optionValue="id"
-                    placeholder="Válassz céget"
+                    placeholder="Valassz ceget"
                     class="w-full"
+                    :invalid="Boolean(errors.company_id?.length)"
                 />
-                <small v-if="errors.company_id" class="p-error">
-                    {{ errors.company_id[0] }}
-                </small>
+                <InputError :message="errors.company_id?.[0]" />
             </div>
 
-            <div class="col-12 md:col-6">
-                <label class="mb-2 block">Azonosító</label>
-                <InputText v-model="form.employee_number" class="w-full" />
-                <small v-if="errors.employee_number" class="p-error">
-                    {{ errors.employee_number[0] }}
-                </small>
+            <div class="space-y-2">
+                <label class="text-sm font-semibold text-slate-900" for="employee-number">Azonosito</label>
+                <InputText
+                    id="employee-number"
+                    v-model="form.employee_number"
+                    fluid
+                    autocomplete="off"
+                    :invalid="Boolean(errors.employee_number?.length)"
+                />
+                <InputError :message="errors.employee_number?.[0]" />
             </div>
 
-            <div class="col-12 md:col-6">
-                <label class="mb-2 block">Név</label>
-                <InputText v-model="form.name" class="w-full" />
-                <small v-if="errors.name" class="p-error">
-                    {{ errors.name[0] }}
-                </small>
+            <div class="space-y-2">
+                <label class="text-sm font-semibold text-slate-900" for="employee-name">Nev</label>
+                <InputText
+                    id="employee-name"
+                    v-model="form.name"
+                    fluid
+                    autocomplete="off"
+                    :invalid="Boolean(errors.name?.length)"
+                />
+                <InputError :message="errors.name?.[0]" />
             </div>
 
-            <div class="col-12 md:col-6">
-                <label class="mb-2 block">E-mail</label>
-                <InputText v-model="form.email" class="w-full" />
-                <small v-if="errors.email" class="p-error">
-                    {{ errors.email[0] }}
-                </small>
+            <div class="space-y-2">
+                <label class="text-sm font-semibold text-slate-900" for="employee-email">E-mail</label>
+                <InputText
+                    id="employee-email"
+                    v-model="form.email"
+                    fluid
+                    autocomplete="off"
+                    :invalid="Boolean(errors.email?.length)"
+                />
+                <InputError :message="errors.email?.[0]" />
             </div>
 
-            <div class="col-12 md:col-6">
-                <label class="mb-2 block">Telefonszám</label>
-                <InputText v-model="form.phone" class="w-full" />
-                <small v-if="errors.phone" class="p-error">
-                    {{ errors.phone[0] }}
-                </small>
+            <div class="space-y-2">
+                <label class="text-sm font-semibold text-slate-900" for="employee-phone">Telefonszam</label>
+                <InputText
+                    id="employee-phone"
+                    v-model="form.phone"
+                    fluid
+                    autocomplete="off"
+                    :invalid="Boolean(errors.phone?.length)"
+                />
+                <InputError :message="errors.phone?.[0]" />
             </div>
 
-            <div class="col-12 md:col-6">
-                <label class="mb-2 block">Pozíció</label>
-                <InputText v-model="form.position" class="w-full" />
-                <small v-if="errors.position" class="p-error">
-                    {{ errors.position[0] }}
-                </small>
-            </div>
-
-            <div class="col-12">
-                <div class="flex items-center gap-2">
-                    <Checkbox
-                        v-model="form.is_active"
-                        binary
-                        inputId="employee_is_active"
-                    />
-                    <label for="employee_is_active">Aktív</label>
-                </div>
-                <small v-if="errors.is_active" class="p-error">
-                    {{ errors.is_active[0] }}
-                </small>
+            <div class="space-y-2">
+                <label class="text-sm font-semibold text-slate-900" for="employee-position">Pozicio</label>
+                <InputText
+                    id="employee-position"
+                    v-model="form.position"
+                    fluid
+                    autocomplete="off"
+                    :invalid="Boolean(errors.position?.length)"
+                />
+                <InputError :message="errors.position?.[0]" />
             </div>
         </div>
 
-        <template #footer>
-            <div class="flex justify-end gap-2">
-                <Button
-                    label="Mégse"
-                    severity="secondary"
-                    text
-                    :disabled="submitting"
-                    @click="closeDialog"
+        <div class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+            <div class="flex items-center gap-3">
+                <Checkbox
+                    v-model="form.is_active"
+                    binary
+                    inputId="employee-is-active"
                 />
-                <Button
-                    :label="isEdit ? 'Mentés' : 'Létrehozás'"
-                    :loading="submitting"
-                    @click="submitForm"
-                />
+                <label for="employee-is-active" class="text-sm font-medium text-slate-800">Aktiv</label>
             </div>
-        </template>
-    </Dialog>
+        </div>
+        <InputError :message="errors.is_active?.[0]" />
+
+        <div class="flex justify-end gap-3 border-t border-slate-200 pt-4">
+            <Button
+                type="button"
+                label="Megse"
+                severity="secondary"
+                text
+                :disabled="submitting"
+                @click="$emit('cancel')"
+            />
+            <Button type="submit" :label="submitLabel" :loading="submitting" />
+        </div>
+    </form>
 </template>
