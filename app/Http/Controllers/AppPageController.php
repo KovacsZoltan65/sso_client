@@ -4,20 +4,19 @@ namespace App\Http\Controllers;
 
 use App\Services\Sso\SsoClientService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 use Spatie\Activitylog\Models\Activity;
+use Spatie\Permission\Models\Permission;
 
 class AppPageController extends Controller
 {
     public function __construct(
         private readonly SsoClientService $ssoClientService,
-    ) {}
+    ) {
+    }
 
-    /**
-     * @param Request $request
-     * @return \Inertia\Response
-     */
     public function myAccount(Request $request): Response
     {
         return Inertia::render('Account/Show', [
@@ -30,10 +29,6 @@ class AppPageController extends Controller
         ]);
     }
 
-    /**
-     * @param Request $request
-     * @return \Inertia\Response
-     */
     public function users(Request $request): Response
     {
         return Inertia::render('Users/Index', [
@@ -49,10 +44,6 @@ class AppPageController extends Controller
         ]);
     }
 
-    /**
-     * @param Request $request
-     * @return \Inertia\Response
-     */
     public function companies(Request $request): Response
     {
         return Inertia::render('Companies/Index', [
@@ -71,25 +62,54 @@ class AppPageController extends Controller
         ]);
     }
 
-    /**
-     * @return \Inertia\Response
-     */
-    public function roles(): Response
+    public function roles(Request $request): Response
     {
-        return $this->placeholder(
-            title: 'Roles',
-            description: 'Role management will sit on top of spatie/laravel-permission and stay independent from the upstream SSO source of truth.',
-            tags: ['RBAC', 'Seeded base roles', 'Admin only'],
-        );
+        return Inertia::render('Roles/Index', [
+            'rolesApi' => [
+                'endpoints' => [
+                    'index' => route('api.roles.index'),
+                    'store' => route('api.roles.store'),
+                ],
+            ],
+            'permissions' => [
+                'view' => $request->user()?->can('roles.view') ?? false,
+                'create' => $request->user()?->can('roles.create') ?? false,
+                'update' => $request->user()?->can('roles.update') ?? false,
+                'delete' => $request->user()?->can('roles.delete') ?? false,
+            ],
+            'permissionOptions' => Permission::query()
+                ->orderBy('name')
+                ->get(['id', 'name'])
+                ->map(fn (Permission $permission) => [
+                    'value' => (int) $permission->id,
+                    'label' => Str::headline((string) Str::of($permission->name)->afterLast('.')),
+                    'helper' => $permission->name,
+                    'groupKey' => (string) Str::of($permission->name)->before('.'),
+                    'groupLabel' => Str::headline((string) Str::of($permission->name)->before('.')->replace(['-', '_'], ' ')),
+                    'action' => (string) Str::of($permission->name)->afterLast('.'),
+                    'itemLabel' => Str::headline((string) Str::of($permission->name)->afterLast('.')),
+                ])
+                ->values()
+                ->all(),
+        ]);
     }
 
-    public function permissions(): Response
+    public function permissions(Request $request): Response
     {
-        return $this->placeholder(
-            title: 'Permissions',
-            description: 'Permission visibility is already wired in the UI; this page is the placeholder for future granular administration.',
-            tags: ['Spatie', 'Convention based', 'UI aware'],
-        );
+        return Inertia::render('Permissions/Index', [
+            'permissionsApi' => [
+                'endpoints' => [
+                    'index' => route('api.permissions.index'),
+                    'store' => route('api.permissions.store'),
+                ],
+            ],
+            'permissions' => [
+                'view' => $request->user()?->can('permissions.view') ?? false,
+                'create' => $request->user()?->can('permissions.create') ?? false,
+                'update' => $request->user()?->can('permissions.update') ?? false,
+                'delete' => $request->user()?->can('permissions.delete') ?? false,
+            ],
+        ]);
     }
 
     public function ssoStatus(): Response
@@ -121,18 +141,6 @@ class AppPageController extends Controller
                     'causer' => $activity->causer?->only(['id', 'name', 'email']),
                     'created_at' => optional($activity->created_at)?->toDateTimeString(),
                 ]),
-        ]);
-    }
-
-    /**
-     * @param  array<int, string>  $tags
-     */
-    private function placeholder(string $title, string $description, array $tags): Response
-    {
-        return Inertia::render('App/PlaceholderPage', [
-            'title' => $title,
-            'description' => $description,
-            'tags' => $tags,
         ]);
     }
 }

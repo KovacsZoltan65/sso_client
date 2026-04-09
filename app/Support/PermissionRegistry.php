@@ -13,23 +13,30 @@ class PermissionRegistry
             'dashboard.view',
             'profile.manage',
             'account.view',
-            
+
             'companies.view',
             'companies.create',
             'companies.update',
             'companies.delete',
-            
+
             'employees.view',
             'employees.create',
             'employees.update',
             'employees.delete',
-            
+
             'users.view',
             'users.manage',
+
             'roles.view',
-            'roles.manage',
+            'roles.create',
+            'roles.update',
+            'roles.delete',
+
             'permissions.view',
-            'permissions.manage',
+            'permissions.create',
+            'permissions.update',
+            'permissions.delete',
+
             'sso-status.view',
             'audit-logs.view',
         ];
@@ -48,9 +55,20 @@ class PermissionRegistry
             'companies.create',
             'companies.update',
             'companies.delete',
+            'employees.view',
+            'employees.create',
+            'employees.update',
+            'employees.delete',
             'users.view',
+            'users.manage',
             'roles.view',
+            'roles.create',
+            'roles.update',
+            'roles.delete',
             'permissions.view',
+            'permissions.create',
+            'permissions.update',
+            'permissions.delete',
             'sso-status.view',
             'audit-logs.view',
         ];

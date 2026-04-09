@@ -13,6 +13,8 @@ class AuditLogService
     public const LOG_CLIENT_ACCOUNT = 'client.account';
     public const LOG_CLIENT_ADMIN_COMPANY = 'client.admin.company';
     public const LOG_CLIENT_ADMIN_USER = 'client.admin.user';
+    public const LOG_CLIENT_ADMIN_ROLE = 'client.admin.role';
+    public const LOG_CLIENT_ADMIN_PERMISSION = 'client.admin.permission';
     public const LOG_CLIENT_API = 'client.api';
     public const LOG_CLIENT_SECURITY = 'client.security';
 
@@ -24,6 +26,8 @@ class AuditLogService
         self::LOG_CLIENT_ACCOUNT,
         self::LOG_CLIENT_ADMIN_COMPANY,
         self::LOG_CLIENT_ADMIN_USER,
+        self::LOG_CLIENT_ADMIN_ROLE,
+        self::LOG_CLIENT_ADMIN_PERMISSION,
         self::LOG_CLIENT_API,
         self::LOG_CLIENT_SECURITY,
     ];
@@ -46,6 +50,8 @@ class AuditLogService
         'provider_error_description',
         'target_company_id',
         'target_local_user_id',
+        'target_role_id',
+        'target_permission_id',
         'affected_count',
         'api_endpoint',
         'http_status',
@@ -63,6 +69,9 @@ class AuditLogService
         'metadata_key',
         'trigger',
         'deleted_count',
+        'guard_name',
+        'permission_count',
+        'role_count',
     ];
 
     /**
@@ -175,6 +184,8 @@ class AuditLogService
         $logName = match ($resource) {
             'company' => self::LOG_CLIENT_ADMIN_COMPANY,
             'user' => self::LOG_CLIENT_ADMIN_USER,
+            'role' => self::LOG_CLIENT_ADMIN_ROLE,
+            'permission' => self::LOG_CLIENT_ADMIN_PERMISSION,
             default => throw new InvalidArgumentException(sprintf('Unsupported client admin resource [%s].', $resource)),
         };
 

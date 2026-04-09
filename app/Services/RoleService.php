@@ -1,0 +1,116 @@
+<?php
+
+namespace App\Services;
+
+use App\Repositories\Contracts\RoleRepositoryInterface;
+use App\Services\Audit\AuditLogService;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Spatie\Permission\Models\Role;
+
+/**
+ * @phpstan-type RoleListFilters array{
+ *     search?: string|null,
+ *     page?: int|string|null,
+ *     per_page?: int|string|null,
+ *     sort_field?: string|null,
+ *     sort_order?: string|null
+ * }
+ * @phpstan-type RoleWritePayload array{
+ *     name: string,
+ *     guard_name: string,
+ *     permission_ids?: array<int, int>
+ * }
+ */
+class RoleService
+{
+    public function __construct(
+        private readonly RoleRepositoryInterface $roles,
+        private readonly AuditLogService $auditLogService,
+    ) {
+    }
+
+    /**
+     * @param RoleListFilters $filters
+     */
+    public function list(array $filters): LengthAwarePaginator
+    {
+        return $this->roles->paginateForIndex($filters);
+    }
+
+    /**
+     * @param RoleWritePayload $payload
+     */
+    public function store(array $payload): Role
+    {
+        $permissionIds = array_values(array_map('intval', $payload['permission_ids'] ?? []));
+        $role = $this->roles->create([
+            'name' => $payload['name'],
+            'guard_name' => $payload['guard_name'] ?? 'web',
+        ], $permissionIds);
+
+        $this->auditLogService->logClientAdminCrud(
+            resource: 'role',
+            action: 'created',
+            description: 'Client role created.',
+            subject: $role,
+            causer: auth()->user(),
+            properties: [
+                'target_role_id' => (int) $role->id,
+                'updated_fields' => ['name', 'guard_name', 'permission_ids'],
+                'guard_name' => $role->guard_name,
+                'permission_count' => (int) $role->permissions_count,
+            ],
+        );
+
+        return $role;
+    }
+
+    /**
+     * @param RoleWritePayload $payload
+     */
+    public function update(int $roleId, array $payload): Role
+    {
+        $role = $this->roles->findById($roleId);
+        $permissionIds = array_values(array_map('intval', $payload['permission_ids'] ?? []));
+        $updatedRole = $this->roles->update($role, [
+            'name' => $payload['name'],
+            'guard_name' => $payload['guard_name'] ?? $role->guard_name,
+        ], $permissionIds);
+
+        $this->auditLogService->logClientAdminCrud(
+            resource: 'role',
+            action: 'updated',
+            description: 'Client role updated.',
+            subject: $updatedRole,
+            causer: auth()->user(),
+            properties: [
+                'target_role_id' => (int) $updatedRole->id,
+                'updated_fields' => ['name', 'guard_name', 'permission_ids'],
+                'guard_name' => $updatedRole->guard_name,
+                'permission_count' => (int) $updatedRole->permissions_count,
+            ],
+        );
+
+        return $updatedRole;
+    }
+
+    public function delete(int $roleId): void
+    {
+        $role = $this->roles->findById($roleId);
+
+        $this->auditLogService->logClientAdminCrud(
+            resource: 'role',
+            action: 'deleted',
+            description: 'Client role deleted.',
+            subject: $role,
+            causer: auth()->user(),
+            properties: [
+                'target_role_id' => (int) $role->id,
+                'guard_name' => $role->guard_name,
+                'permission_count' => (int) $role->permissions_count,
+            ],
+        );
+
+        $this->roles->delete($role);
+    }
+}
