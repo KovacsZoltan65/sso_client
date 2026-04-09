@@ -4,13 +4,41 @@ declare(strict_types=1);
 
 namespace App\Http\Resources;
 
+use App\Models\Company;
+use DateTime;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/**
+ * @property int $id
+ * @property int $company_id
+ * @property Company $company
+ * @property string $employee_number
+ * @property string $name
+ * @property string $email
+ * @property string $phone
+ * @property string $position
+ * @property boolean $is_active
+ * @property DateTime $created_at
+ * @property DateTime $updated_at
+ */
 class EmployeeResource extends JsonResource
 {
     /**
-     * @return array<string, mixed>
+     * @param Request $request
+     * @return array{
+     *      company_id: mixed, 
+     *      company_name: mixed, 
+     *      created_at: mixed, 
+     *      email: mixed, 
+     *      employee_number: mixed, 
+     *      id: mixed, 
+     *      is_active: mixed, 
+     *      name: mixed, 
+     *      phone: mixed, 
+     *      position: mixed, 
+     *      updated_at: mixed
+     * }
      */
     public function toArray(Request $request): array
     {
