@@ -7,7 +7,7 @@ use App\Models\User;
 use App\Services\Audit\AuditLogService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
-use Spatie\Permission\Models\Permission;
+use App\Models\Permission;
 use Tests\TestCase;
 
 class AuditLogsApiTest extends TestCase

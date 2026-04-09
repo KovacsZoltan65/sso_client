@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Permission\Traits\HasRoles;
 
 #[Fillable([
@@ -26,8 +28,11 @@ class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory;
+    use LogsActivity;
     use HasRoles;
     use Notifiable;
+
+    protected static array $recordEvents = ['updated'];
 
     protected string $guard_name = 'web';
 
@@ -43,6 +48,18 @@ class User extends Authenticatable
             'last_authenticated_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->useLogName('client.admin.user')
+            ->logOnly([
+                'local_status',
+                'notes',
+            ])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs();
     }
 
 }

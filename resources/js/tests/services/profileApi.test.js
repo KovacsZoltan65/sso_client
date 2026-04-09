@@ -93,6 +93,50 @@ describe('profileApi', () => {
         }));
     });
 
+    it('preserves forbidden responses for callers that render safe authorization feedback', async () => {
+        axiosMock.mockRejectedValueOnce({
+            response: {
+                status: 403,
+                data: {
+                    message: 'Forbidden.',
+                    data: [],
+                    meta: {},
+                    errors: {},
+                },
+            },
+        });
+
+        await expect(updateProfile(profileApi, { name: 'Blocked User' }, 'csrf-token')).rejects.toEqual(expect.objectContaining({
+            name: 'ProfileApiError',
+            message: 'Forbidden.',
+            status: 403,
+        }));
+    });
+
+    it('preserves generic server failures for callers that need a safe fallback message', async () => {
+        axiosMock.mockRejectedValueOnce({
+            response: {
+                status: 500,
+                data: {
+                    message: 'Server error.',
+                    data: [],
+                    meta: {},
+                    errors: {},
+                },
+            },
+        });
+
+        await expect(updatePassword(profileApi, {
+            current_password: 'password',
+            password: 'new-password',
+            password_confirmation: 'new-password',
+        }, 'csrf-token')).rejects.toEqual(expect.objectContaining({
+            name: 'ProfileApiError',
+            message: 'Server error.',
+            status: 500,
+        }));
+    });
+
     it('exposes a dedicated error type for callers that want structured handling', () => {
         const error = new ProfileApiError('boom', {
             status: 403,

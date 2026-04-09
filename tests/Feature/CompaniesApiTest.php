@@ -7,7 +7,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Spatie\Activitylog\Models\Activity;
-use Spatie\Permission\Models\Permission;
+use App\Models\Permission;
 use Tests\TestCase;
 
 class CompaniesApiTest extends TestCase
@@ -73,9 +73,13 @@ class CompaniesApiTest extends TestCase
             'is_active' => true,
         ]);
 
+        $company = Company::query()->where('code', 'ACME')->firstOrFail();
+
         $this->assertDatabaseHas('activity_log', [
             'log_name' => 'client.admin.company',
-            'event' => 'client_admin.company.created',
+            'subject_type' => Company::class,
+            'subject_id' => $company->id,
+            'description' => 'created',
         ]);
     }
 
@@ -128,10 +132,24 @@ class CompaniesApiTest extends TestCase
             'is_active' => false,
         ]);
 
-        $this->assertDatabaseHas('activity_log', [
-            'log_name' => 'client.admin.company',
-            'event' => 'client_admin.company.updated',
-        ]);
+        $activity = Activity::query()
+            ->where('log_name', 'client.admin.company')
+            ->where('subject_type', Company::class)
+            ->where('subject_id', $company->id)
+            ->where('description', 'updated')
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($activity);
+        $this->assertSame($user->id, $activity->causer_id);
+        $this->assertSame(User::class, $activity->causer_type);
+        $this->assertSame('Acme Zrt.', $activity->properties['attributes']['name']);
+        $this->assertSame('Acme Kft.', $activity->properties['old']['name']);
+        $this->assertSame(false, $activity->properties['attributes']['is_active']);
+        $this->assertSame(true, $activity->properties['old']['is_active']);
+        $this->assertSame('hello@acme.test', $activity->properties['attributes']['email']);
+        $this->assertArrayNotHasKey('code', $activity->properties['old']);
+        $this->assertArrayNotHasKey('code', $activity->properties['attributes']);
     }
 
     #[Test]
@@ -149,9 +167,9 @@ class CompaniesApiTest extends TestCase
 
         $existingLogs = Activity::query()
             ->where('log_name', 'client.admin.company')
-            ->where('event', 'client_admin.company.updated')
             ->where('subject_type', Company::class)
             ->where('subject_id', $company->id)
+            ->where('description', 'updated')
             ->count();
 
         $this->actingAs($user)
@@ -169,9 +187,9 @@ class CompaniesApiTest extends TestCase
             $existingLogs,
             Activity::query()
                 ->where('log_name', 'client.admin.company')
-                ->where('event', 'client_admin.company.updated')
                 ->where('subject_type', Company::class)
                 ->where('subject_id', $company->id)
+                ->where('description', 'updated')
                 ->count(),
         );
     }
@@ -193,15 +211,10 @@ class CompaniesApiTest extends TestCase
 
         $this->assertDatabaseHas('activity_log', [
             'log_name' => 'client.admin.company',
-            'event' => 'client_admin.company.deleted',
+            'subject_type' => Company::class,
+            'subject_id' => $company->id,
+            'description' => 'deleted',
         ]);
-
-        $activity = Activity::query()
-            ->where('event', 'client_admin.company.deleted')
-            ->latest()
-            ->firstOrFail();
-
-        $this->assertArrayNotHasKey('client_secret', $activity->properties->toArray());
     }
 
     #[Test]

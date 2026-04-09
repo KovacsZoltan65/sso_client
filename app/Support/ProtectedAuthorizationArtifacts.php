@@ -2,8 +2,8 @@
 
 namespace App\Support;
 
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
+use App\Models\Permission;
+use App\Models\Role;
 
 class ProtectedAuthorizationArtifacts
 {

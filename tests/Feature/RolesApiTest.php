@@ -2,13 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Models\Permission;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use PHPUnit\Framework\Attributes\Test;
 use Spatie\Activitylog\Models\Activity;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class RolesApiTest extends TestCase
@@ -101,7 +101,9 @@ class RolesApiTest extends TestCase
 
         $this->assertDatabaseHas('activity_log', [
             'log_name' => 'client.admin.role',
-            'event' => 'client_admin.role.created',
+            'subject_type' => Role::class,
+            'subject_id' => $role->id,
+            'description' => 'created',
         ]);
     }
 
@@ -145,6 +147,21 @@ class RolesApiTest extends TestCase
 
         $this->assertSame('team-lead', $role->name);
         $this->assertSame([$permissionB->id], $role->permissions()->pluck('id')->all());
+
+        $activity = Activity::query()
+            ->where('log_name', 'client.admin.role')
+            ->where('subject_type', Role::class)
+            ->where('subject_id', $role->id)
+            ->where('description', 'updated')
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($activity);
+        $this->assertSame($user->id, $activity->causer_id);
+        $this->assertSame(User::class, $activity->causer_type);
+        $this->assertSame('team-lead', $activity->properties['attributes']['name']);
+        $this->assertSame('operator', $activity->properties['old']['name']);
+        $this->assertArrayNotHasKey('guard_name', $activity->properties['old']);
     }
 
     #[Test]
@@ -157,9 +174,9 @@ class RolesApiTest extends TestCase
 
         $existingLogs = Activity::query()
             ->where('log_name', 'client.admin.role')
-            ->where('event', 'client_admin.role.updated')
             ->where('subject_type', Role::class)
             ->where('subject_id', $role->id)
+            ->where('description', 'updated')
             ->count();
 
         $this->actingAs($user)
@@ -174,9 +191,9 @@ class RolesApiTest extends TestCase
             $existingLogs,
             Activity::query()
                 ->where('log_name', 'client.admin.role')
-                ->where('event', 'client_admin.role.updated')
                 ->where('subject_type', Role::class)
                 ->where('subject_id', $role->id)
+                ->where('description', 'updated')
                 ->count(),
         );
     }
@@ -284,6 +301,13 @@ class RolesApiTest extends TestCase
 
         $this->assertDatabaseMissing(config('permission.table_names.roles'), [
             'id' => $role->id,
+        ]);
+
+        $this->assertDatabaseHas('activity_log', [
+            'log_name' => 'client.admin.role',
+            'subject_type' => Role::class,
+            'subject_id' => $role->id,
+            'description' => 'deleted',
         ]);
     }
 

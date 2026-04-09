@@ -2,13 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Models\Permission;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use PHPUnit\Framework\Attributes\Test;
 use Spatie\Activitylog\Models\Activity;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 class PermissionsApiTest extends TestCase
@@ -90,7 +90,8 @@ class PermissionsApiTest extends TestCase
 
         $this->assertDatabaseHas('activity_log', [
             'log_name' => 'client.admin.permission',
-            'event' => 'client_admin.permission.created',
+            'subject_type' => Permission::class,
+            'description' => 'created',
         ]);
     }
 
@@ -128,6 +129,21 @@ class PermissionsApiTest extends TestCase
             'id' => $permission->id,
             'name' => 'roles.attach',
         ]);
+
+        $activity = Activity::query()
+            ->where('log_name', 'client.admin.permission')
+            ->where('subject_type', Permission::class)
+            ->where('subject_id', $permission->id)
+            ->where('description', 'updated')
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($activity);
+        $this->assertSame($user->id, $activity->causer_id);
+        $this->assertSame(User::class, $activity->causer_type);
+        $this->assertSame('roles.attach', $activity->properties['attributes']['name']);
+        $this->assertSame('roles.assign', $activity->properties['old']['name']);
+        $this->assertArrayNotHasKey('guard_name', $activity->properties['old']);
     }
 
     #[Test]
@@ -138,9 +154,9 @@ class PermissionsApiTest extends TestCase
 
         $existingLogs = Activity::query()
             ->where('log_name', 'client.admin.permission')
-            ->where('event', 'client_admin.permission.updated')
             ->where('subject_type', Permission::class)
             ->where('subject_id', $permission->id)
+            ->where('description', 'updated')
             ->count();
 
         $this->actingAs($user)
@@ -154,9 +170,9 @@ class PermissionsApiTest extends TestCase
             $existingLogs,
             Activity::query()
                 ->where('log_name', 'client.admin.permission')
-                ->where('event', 'client_admin.permission.updated')
                 ->where('subject_type', Permission::class)
                 ->where('subject_id', $permission->id)
+                ->where('description', 'updated')
                 ->count(),
         );
     }
@@ -246,6 +262,13 @@ class PermissionsApiTest extends TestCase
         ]);
 
         $this->assertCount(0, $role->fresh()->permissions);
+
+        $this->assertDatabaseHas('activity_log', [
+            'log_name' => 'client.admin.permission',
+            'subject_type' => Permission::class,
+            'subject_id' => $permission->id,
+            'description' => 'deleted',
+        ]);
     }
 
     private function userWithPermission(string $permission): User

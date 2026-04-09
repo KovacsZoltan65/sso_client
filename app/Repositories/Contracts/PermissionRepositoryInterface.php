@@ -3,7 +3,7 @@
 namespace App\Repositories\Contracts;
 
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-use Spatie\Permission\Models\Permission;
+use App\Models\Permission;
 
 /**
  * @phpstan-type PermissionListFilters array{

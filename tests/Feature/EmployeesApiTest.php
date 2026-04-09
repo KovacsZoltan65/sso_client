@@ -8,7 +8,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Spatie\Activitylog\Models\Activity;
-use Spatie\Permission\Models\Permission;
+use App\Models\Permission;
 use Tests\TestCase;
 
 class EmployeesApiTest extends TestCase

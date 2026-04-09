@@ -200,4 +200,66 @@ describe('Profile/Edit', () => {
         expect(wrapper.text()).toContain('Password confirmation must match.');
         expect(axiosMock).toHaveBeenCalledTimes(1);
     });
+
+    it('renders a safe toast when the remote profile update returns a forbidden response', async () => {
+        setPageProps(profilePageProps());
+        axiosMock
+            .mockResolvedValueOnce({
+                data: {
+                    message: 'Profile retrieved successfully.',
+                    data: {
+                        name: 'Canonical User',
+                        email: 'canonical@example.test',
+                    },
+                    meta: {
+                        csrf_token: 'csrf-token',
+                    },
+                    errors: {},
+                },
+            })
+            .mockRejectedValueOnce({
+                response: {
+                    status: 403,
+                    data: {
+                        message: 'Forbidden.',
+                        data: [],
+                        meta: {},
+                        errors: {},
+                    },
+                },
+            });
+
+        const wrapper = mount(ProfileEditPage, {
+            props: {
+                authUser: {
+                    name: 'Local Session Name',
+                    email: 'session@example.test',
+                },
+                profileApi: {
+                    enabled: true,
+                    endpoints: {
+                        show: 'https://sso-server.test/api/profile',
+                        update: 'https://sso-server.test/api/profile',
+                        updatePassword: 'https://sso-server.test/api/profile/password',
+                    },
+                },
+            },
+            global: {
+                stubs: {
+                    AuthenticatedLayout: { template: '<div><slot name="header" /><slot /></div>' },
+                    PageHeader: { template: '<div><slot /></div>' },
+                },
+            },
+        });
+
+        await flushPromises();
+        await wrapper.get('#profile-name').setValue('Blocked User');
+        await wrapper.get('form').trigger('submit');
+        await flushPromises();
+
+        expect(toastAddMock).toHaveBeenCalledWith(expect.objectContaining({
+            severity: 'error',
+            detail: 'Forbidden.',
+        }));
+    });
 });

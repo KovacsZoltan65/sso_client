@@ -3,7 +3,7 @@
 namespace App\Policies;
 
 use App\Models\User;
-use Spatie\Permission\Models\Permission;
+use App\Models\Permission;
 
 class PermissionPolicy
 {

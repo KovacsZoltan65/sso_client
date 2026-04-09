@@ -3,7 +3,7 @@
 namespace App\Repositories\Contracts;
 
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-use Spatie\Permission\Models\Role;
+use App\Models\Role;
 
 /**
  * @phpstan-type RoleListFilters array{

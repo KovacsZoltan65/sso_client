@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\User;
 use App\Repositories\Contracts\UserRepositoryInterface;
-use App\Services\Audit\AuditLogService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 /**
@@ -27,7 +26,6 @@ class UserAdminService
 {
     public function __construct(
         private readonly UserRepositoryInterface $users,
-        private readonly AuditLogService $auditLogService,
     ) {
     }
 
@@ -62,49 +60,6 @@ class UserAdminService
      */
     public function update(User $user, array $attributes): User
     {
-        $original = [
-            'local_status' => $user->local_status,
-            'notes' => $user->notes,
-        ];
-        $updatedUser = $this->users->updateLocalMetadata($user, $attributes);
-        $changedFields = $this->changedFields($original, [
-            'local_status' => $updatedUser->local_status,
-            'notes' => $updatedUser->notes,
-        ]);
-
-        if ($changedFields !== []) {
-            $this->auditLogService->logClientAdminCrud(
-                resource: 'user',
-                action: 'updated',
-                description: 'Client local user metadata updated.',
-                subject: $updatedUser,
-                causer: auth()->user(),
-                properties: [
-                    'target_local_user_id' => $updatedUser->id,
-                    'updated_fields' => $changedFields,
-                    'status' => (string) ($updatedUser->local_status ?? 'unknown'),
-                ],
-            );
-        }
-
-        return $updatedUser;
-    }
-
-    /**
-     * @param  array<string, mixed>  $before
-     * @param  array<string, mixed>  $after
-     * @return list<string>
-     */
-    private function changedFields(array $before, array $after): array
-    {
-        $changed = [];
-
-        foreach ($before as $field => $value) {
-            if (($after[$field] ?? null) !== $value) {
-                $changed[] = $field;
-            }
-        }
-
-        return $changed;
+        return $this->users->updateLocalMetadata($user, $attributes);
     }
 }

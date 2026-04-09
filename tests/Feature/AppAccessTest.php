@@ -7,7 +7,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use PHPUnit\Framework\Attributes\Group;
 use Spatie\Activitylog\Models\Activity;
-use Spatie\Permission\Models\Permission;
+use App\Models\Permission;
 use Tests\TestCase;
 
 class AppAccessTest extends TestCase

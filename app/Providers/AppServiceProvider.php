@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use App\Models\Company;
+use App\Models\Permission;
+use App\Models\Role;
 use App\Policies\AuditLogPolicy;
 use App\Policies\CompanyPolicy;
 use App\Policies\PermissionPolicy;
@@ -22,8 +24,6 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 use Spatie\Activitylog\Models\Activity;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
 
 class AppServiceProvider extends ServiceProvider
 {

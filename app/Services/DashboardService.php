@@ -7,8 +7,8 @@ use App\Models\User;
 use App\Repositories\Contracts\UserRepositoryInterface;
 use App\Services\Sso\SsoClientService;
 use Spatie\Activitylog\Models\Activity;
-use Spatie\Permission\Models\Permission;
-use Spatie\Permission\Models\Role;
+use App\Models\Permission;
+use App\Models\Role;
 
 class DashboardService
 {

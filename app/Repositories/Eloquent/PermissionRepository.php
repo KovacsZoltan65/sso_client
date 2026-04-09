@@ -2,11 +2,11 @@
 
 namespace App\Repositories\Eloquent;
 
+use App\Models\Permission;
 use App\Repositories\Contracts\PermissionRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Spatie\Permission\Models\Permission;
 
 class PermissionRepository extends BaseRepository implements PermissionRepositoryInterface
 {

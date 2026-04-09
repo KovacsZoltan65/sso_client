@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { redirectToReauthTarget } from '@/Services/reauthContract';
 
 export class ProfileApiError extends Error {
     constructor(message, { status = 500, errors = {}, meta = {} } = {}) {
@@ -21,11 +22,15 @@ function normalizeEnvelope(payload = {}) {
 
 function toProfileApiError(error) {
     const payload = normalizeEnvelope(error?.response?.data ?? {});
+    const status = error?.response?.status ?? 500;
+    if (status === 401 && typeof window !== 'undefined') {
+        redirectToReauthTarget(payload);
+    }
 
     return new ProfileApiError(
         payload.message || 'Profile request failed.',
         {
-            status: error?.response?.status ?? 500,
+            status,
             errors: payload.errors,
             meta: payload.meta,
         },

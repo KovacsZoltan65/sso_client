@@ -6,7 +6,7 @@ use App\Models\User;
 use App\Repositories\Contracts\UserRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
-use Spatie\Permission\Models\Role;
+use App\Models\Role;
 
 /**
  * @phpstan-type UserAdminFilters array{

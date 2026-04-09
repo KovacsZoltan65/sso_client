@@ -7,7 +7,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use PHPUnit\Framework\Attributes\Test;
 use Spatie\Activitylog\Models\Activity;
-use Spatie\Permission\Models\Permission;
+use App\Models\Permission;
 use Tests\TestCase;
 
 class UsersApiTest extends TestCase
@@ -111,17 +111,22 @@ class UsersApiTest extends TestCase
             'notes' => 'Needs follow-up review.',
         ]);
 
-        $this->assertDatabaseHas('activity_log', [
-            'log_name' => 'client.admin.user',
-            'event' => 'client_admin.user.updated',
-        ]);
-
         $activity = Activity::query()
-            ->where('event', 'client_admin.user.updated')
-            ->latest()
-            ->firstOrFail();
+            ->where('log_name', 'client.admin.user')
+            ->where('subject_type', User::class)
+            ->where('subject_id', $target->id)
+            ->where('description', 'updated')
+            ->latest('id')
+            ->first();
 
-        $this->assertArrayNotHasKey('access_token', $activity->properties->toArray());
+        $this->assertNotNull($activity);
+        $this->assertSame($manager->id, $activity->causer_id);
+        $this->assertSame(User::class, $activity->causer_type);
+        $this->assertSame('inactive', $activity->properties['attributes']['local_status']);
+        $this->assertSame('active', $activity->properties['old']['local_status']);
+        $this->assertSame('Needs follow-up review.', $activity->properties['attributes']['notes']);
+        $this->assertArrayNotHasKey('name', $activity->properties['old']);
+        $this->assertArrayNotHasKey('email', $activity->properties['old']);
     }
 
     #[Test]
@@ -135,9 +140,9 @@ class UsersApiTest extends TestCase
 
         $existingLogs = Activity::query()
             ->where('log_name', 'client.admin.user')
-            ->where('event', 'client_admin.user.updated')
             ->where('subject_type', User::class)
             ->where('subject_id', $target->id)
+            ->where('description', 'updated')
             ->count();
 
         $this->actingAs($manager)
@@ -151,9 +156,9 @@ class UsersApiTest extends TestCase
             $existingLogs,
             Activity::query()
                 ->where('log_name', 'client.admin.user')
-                ->where('event', 'client_admin.user.updated')
                 ->where('subject_type', User::class)
                 ->where('subject_id', $target->id)
+                ->where('description', 'updated')
                 ->count(),
         );
     }

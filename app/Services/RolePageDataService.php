@@ -3,7 +3,7 @@
 namespace App\Services;
 
 use Illuminate\Support\Str;
-use Spatie\Permission\Models\Permission;
+use App\Models\Permission;
 
 class RolePageDataService
 {

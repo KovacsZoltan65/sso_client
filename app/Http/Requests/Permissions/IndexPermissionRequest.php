@@ -4,7 +4,7 @@ namespace App\Http\Requests\Permissions;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
-use Spatie\Permission\Models\Permission;
+use App\Models\Permission;
 
 class IndexPermissionRequest extends FormRequest
 {

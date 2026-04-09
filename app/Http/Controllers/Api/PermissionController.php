@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Models\Permission;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Permissions\IndexPermissionRequest;
 use App\Http\Requests\Permissions\StorePermissionRequest;
@@ -12,7 +13,6 @@ use App\Support\ProtectedAuthorizationArtifacts;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Spatie\Permission\Models\Permission;
 
 class PermissionController extends Controller
 {

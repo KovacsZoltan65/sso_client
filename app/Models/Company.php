@@ -2,9 +2,10 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 /**
  * @property string $name Cég neve
@@ -17,6 +18,7 @@ use Illuminate\Database\Eloquent\Model;
 class Company extends Model
 {
     use HasFactory;
+    use LogsActivity;
 
     protected $fillable = [
         'name',
@@ -36,5 +38,21 @@ class Company extends Model
         return [
             'is_active' => 'boolean',
         ];
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->useLogName('client.admin.company')
+            ->logOnly([
+                'name',
+                'code',
+                'email',
+                'phone',
+                'address',
+                'is_active',
+            ])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs();
     }
 }
