@@ -574,7 +574,7 @@ onMounted(loadCompanies);
             :form="form"
             :errors="formErrors"
             :submitting="submitting"
-            @update:visible="showCreateDialog = $event"
+            @update:visible="(value) => value ? (showCreateDialog = value) : closeCreateDialog()"
             @submit="submitCreate"
         />
         <EditCompanyDialog
@@ -582,8 +582,9 @@ onMounted(loadCompanies);
             :form="form"
             :errors="formErrors"
             :submitting="submitting"
-            @update:visible="showEditDialog = $event"
+            @update:visible="(value) => value ? (showEditDialog = value) : closeEditDialog()"
             @submit="submitUpdate"
         />
     </AuthenticatedLayout>
 </template>
+
