@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use PHPUnit\Framework\Attributes\Test;
+use Spatie\Activitylog\Models\Activity;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -144,6 +145,40 @@ class RolesApiTest extends TestCase
 
         $this->assertSame('team-lead', $role->name);
         $this->assertSame([$permissionB->id], $role->permissions()->pluck('id')->all());
+    }
+
+    #[Test]
+    public function roles_update_does_not_create_an_audit_entry_when_identity_and_permissions_are_unchanged(): void
+    {
+        $user = $this->userWithPermission('roles.update');
+        $permission = Permission::findOrCreate('companies.view', 'web');
+        $role = Role::findOrCreate('operator', 'web');
+        $role->syncPermissions([$permission]);
+
+        $existingLogs = Activity::query()
+            ->where('log_name', 'client.admin.role')
+            ->where('event', 'client_admin.role.updated')
+            ->where('subject_type', Role::class)
+            ->where('subject_id', $role->id)
+            ->count();
+
+        $this->actingAs($user)
+            ->putJson("/api/roles/{$role->id}", [
+                'name' => 'operator',
+                'guard_name' => 'web',
+                'permission_ids' => [$permission->id],
+            ])
+            ->assertOk();
+
+        $this->assertSame(
+            $existingLogs,
+            Activity::query()
+                ->where('log_name', 'client.admin.role')
+                ->where('event', 'client_admin.role.updated')
+                ->where('subject_type', Role::class)
+                ->where('subject_id', $role->id)
+                ->count(),
+        );
     }
 
     #[Test]

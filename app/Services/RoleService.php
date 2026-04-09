@@ -77,6 +77,11 @@ class RoleService
     public function update(int $roleId, array $payload): Role
     {
         $role = $this->roles->findById($roleId);
+        $original = [
+            'name' => $role->name,
+            'guard_name' => $role->guard_name,
+            'permission_ids' => $role->permissions->pluck('id')->map(fn ($id) => (int) $id)->sort()->values()->all(),
+        ];
 
         if (ProtectedAuthorizationArtifacts::blocksProtectedRoleIdentityUpdate($role, $payload)) {
             throw ProtectedAuthorizationArtifactException::roleIdentityUpdate($role->name);
@@ -87,20 +92,27 @@ class RoleService
             'name' => $payload['name'],
             'guard_name' => $payload['guard_name'] ?? $role->guard_name,
         ], $permissionIds);
+        $changedFields = $this->changedFields($original, [
+            'name' => $updatedRole->name,
+            'guard_name' => $updatedRole->guard_name,
+            'permission_ids' => $updatedRole->permissions->pluck('id')->map(fn ($id) => (int) $id)->sort()->values()->all(),
+        ]);
 
-        $this->auditLogService->logClientAdminCrud(
-            resource: 'role',
-            action: 'updated',
-            description: 'Client role updated.',
-            subject: $updatedRole,
-            causer: auth()->user(),
-            properties: [
-                'target_role_id' => (int) $updatedRole->id,
-                'updated_fields' => ['name', 'guard_name', 'permission_ids'],
-                'guard_name' => $updatedRole->guard_name,
-                'permission_count' => (int) $updatedRole->permissions_count,
-            ],
-        );
+        if ($changedFields !== []) {
+            $this->auditLogService->logClientAdminCrud(
+                resource: 'role',
+                action: 'updated',
+                description: 'Client role updated.',
+                subject: $updatedRole,
+                causer: auth()->user(),
+                properties: [
+                    'target_role_id' => (int) $updatedRole->id,
+                    'updated_fields' => $changedFields,
+                    'guard_name' => $updatedRole->guard_name,
+                    'permission_count' => (int) $updatedRole->permissions_count,
+                ],
+            );
+        }
 
         return $updatedRole;
     }
@@ -131,5 +143,23 @@ class RoleService
         );
 
         $this->roles->delete($role);
+    }
+
+    /**
+     * @param  array{name: string, guard_name: string, permission_ids: list<int>}  $before
+     * @param  array{name: string, guard_name: string, permission_ids: list<int>}  $after
+     * @return list<string>
+     */
+    private function changedFields(array $before, array $after): array
+    {
+        $changed = [];
+
+        foreach ($before as $field => $value) {
+            if (($after[$field] ?? null) !== $value) {
+                $changed[] = $field;
+            }
+        }
+
+        return $changed;
     }
 }

@@ -135,6 +135,48 @@ class CompaniesApiTest extends TestCase
     }
 
     #[Test]
+    public function companies_update_does_not_create_an_audit_entry_when_nothing_changes(): void
+    {
+        $user = $this->userWithPermission('companies.update');
+        $company = Company::factory()->create([
+            'name' => 'Acme Kft.',
+            'code' => 'ACME',
+            'email' => 'hello@acme.test',
+            'phone' => '12345',
+            'address' => 'Gyor',
+            'is_active' => false,
+        ]);
+
+        $existingLogs = Activity::query()
+            ->where('log_name', 'client.admin.company')
+            ->where('event', 'client_admin.company.updated')
+            ->where('subject_type', Company::class)
+            ->where('subject_id', $company->id)
+            ->count();
+
+        $this->actingAs($user)
+            ->putJson("/api/companies/{$company->id}", [
+                'name' => 'Acme Kft.',
+                'code' => 'ACME',
+                'email' => 'hello@acme.test',
+                'phone' => '12345',
+                'address' => 'Gyor',
+                'is_active' => false,
+            ])
+            ->assertOk();
+
+        $this->assertSame(
+            $existingLogs,
+            Activity::query()
+                ->where('log_name', 'client.admin.company')
+                ->where('event', 'client_admin.company.updated')
+                ->where('subject_type', Company::class)
+                ->where('subject_id', $company->id)
+                ->count(),
+        );
+    }
+
+    #[Test]
     public function companies_delete_removes_the_selected_company(): void
     {
         $user = $this->userWithPermission('companies.delete');

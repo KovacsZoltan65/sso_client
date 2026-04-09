@@ -77,21 +77,32 @@ class CompanyService
     public function update(int $companyId, array $payload): Company
     {
         $company = $this->companies->findById($companyId);
+        $original = $company->only([
+            'name',
+            'code',
+            'email',
+            'phone',
+            'address',
+            'is_active',
+        ]);
 
         $updatedCompany = $this->companies->update($company, $payload);
+        $changedFields = $this->changedFields($original, $updatedCompany->only(array_keys($original)));
 
-        $this->auditLogService->logClientAdminCrud(
-            resource: 'company',
-            action: 'updated',
-            description: 'Client company updated.',
-            subject: $updatedCompany,
-            causer: auth()->user(),
-            properties: [
-                'target_company_id' => $updatedCompany->id,
-                'updated_fields' => array_keys($payload),
-                'status' => $updatedCompany->is_active ? 'active' : 'inactive',
-            ],
-        );
+        if ($changedFields !== []) {
+            $this->auditLogService->logClientAdminCrud(
+                resource: 'company',
+                action: 'updated',
+                description: 'Client company updated.',
+                subject: $updatedCompany,
+                causer: auth()->user(),
+                properties: [
+                    'target_company_id' => $updatedCompany->id,
+                    'updated_fields' => $changedFields,
+                    'status' => $updatedCompany->is_active ? 'active' : 'inactive',
+                ],
+            );
+        }
 
         return $updatedCompany;
     }
@@ -117,5 +128,23 @@ class CompanyService
         );
 
         $this->companies->delete($company);
+    }
+
+    /**
+     * @param  array<string, mixed>  $before
+     * @param  array<string, mixed>  $after
+     * @return list<string>
+     */
+    private function changedFields(array $before, array $after): array
+    {
+        $changed = [];
+
+        foreach ($before as $field => $value) {
+            if (($after[$field] ?? null) !== $value) {
+                $changed[] = $field;
+            }
+        }
+
+        return $changed;
     }
 }

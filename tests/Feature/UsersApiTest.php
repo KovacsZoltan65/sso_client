@@ -125,6 +125,40 @@ class UsersApiTest extends TestCase
     }
 
     #[Test]
+    public function users_update_does_not_create_an_audit_entry_when_local_metadata_is_unchanged(): void
+    {
+        $manager = $this->userWithPermission('users.manage');
+        $target = User::factory()->create([
+            'local_status' => 'inactive',
+            'notes' => 'Needs follow-up review.',
+        ]);
+
+        $existingLogs = Activity::query()
+            ->where('log_name', 'client.admin.user')
+            ->where('event', 'client_admin.user.updated')
+            ->where('subject_type', User::class)
+            ->where('subject_id', $target->id)
+            ->count();
+
+        $this->actingAs($manager)
+            ->putJson("/api/users/{$target->id}", [
+                'local_status' => 'inactive',
+                'notes' => 'Needs follow-up review.',
+            ])
+            ->assertOk();
+
+        $this->assertSame(
+            $existingLogs,
+            Activity::query()
+                ->where('log_name', 'client.admin.user')
+                ->where('event', 'client_admin.user.updated')
+                ->where('subject_type', User::class)
+                ->where('subject_id', $target->id)
+                ->count(),
+        );
+    }
+
+    #[Test]
     public function users_update_requires_manage_permission(): void
     {
         $viewer = $this->userWithPermission('users.view');

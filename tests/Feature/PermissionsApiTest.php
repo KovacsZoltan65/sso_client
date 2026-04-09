@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use PHPUnit\Framework\Attributes\Test;
+use Spatie\Activitylog\Models\Activity;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -127,6 +128,37 @@ class PermissionsApiTest extends TestCase
             'id' => $permission->id,
             'name' => 'roles.attach',
         ]);
+    }
+
+    #[Test]
+    public function permissions_update_does_not_create_an_audit_entry_when_nothing_changes(): void
+    {
+        $user = $this->userWithPermission('permissions.update');
+        $permission = Permission::findOrCreate('roles.assign', 'web');
+
+        $existingLogs = Activity::query()
+            ->where('log_name', 'client.admin.permission')
+            ->where('event', 'client_admin.permission.updated')
+            ->where('subject_type', Permission::class)
+            ->where('subject_id', $permission->id)
+            ->count();
+
+        $this->actingAs($user)
+            ->putJson("/api/permissions/{$permission->id}", [
+                'name' => 'roles.assign',
+                'guard_name' => 'web',
+            ])
+            ->assertOk();
+
+        $this->assertSame(
+            $existingLogs,
+            Activity::query()
+                ->where('log_name', 'client.admin.permission')
+                ->where('event', 'client_admin.permission.updated')
+                ->where('subject_type', Permission::class)
+                ->where('subject_id', $permission->id)
+                ->count(),
+        );
     }
 
     #[Test]
