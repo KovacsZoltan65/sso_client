@@ -5,6 +5,7 @@ import { toastAddMock } from '../setup';
 import { setPageProps } from '../mocks/inertia';
 
 const fetchAuditLogsMock = vi.fn();
+const showAuditLogMock = vi.fn();
 
 vi.mock('@/Services/auditLogService', () => ({
     AuditLogApiError: class AuditLogApiError extends Error {
@@ -17,6 +18,7 @@ vi.mock('@/Services/auditLogService', () => ({
         }
     },
     fetchAuditLogs: (...args) => fetchAuditLogsMock(...args),
+    showAuditLog: (...args) => showAuditLogMock(...args),
 }));
 
 const auditLogsApi = {
@@ -36,6 +38,42 @@ function makeEnvelope(items = [], pagination = {}) {
                 total: pagination.total ?? items.length,
             },
         },
+        errors: {},
+    };
+}
+
+function makeDetailEnvelope(overrides = {}) {
+    return {
+        message: 'Audit log retrieved successfully.',
+        data: {
+            audit_log: {
+                id: 11,
+                event: 'client_admin.company.updated',
+                description: 'Company updated.',
+                log_name: 'client.admin.company',
+                subject_type: 'Company',
+                subject_type_fqn: 'App\\Models\\Company',
+                subject_id: 5,
+                subject: { id: 5, type: 'Company', display: 'Acme Kft.' },
+                causer: { id: 2, name: 'Alice', email: 'alice@example.test', type: 'User' },
+                properties: {
+                    ip_address: '127.0.0.1',
+                    updated_fields: ['name'],
+                },
+                context: {
+                    ip_address: '127.0.0.1',
+                    user_agent: 'Vitest Browser',
+                    route: 'api.audit-logs.show',
+                    reason: null,
+                    status: null,
+                    result: 'success',
+                },
+                created_at: '2026-04-09 10:00:00',
+                updated_at: '2026-04-09 10:05:00',
+                ...overrides,
+            },
+        },
+        meta: {},
         errors: {},
     };
 }
@@ -67,6 +105,7 @@ describe('AuditLogs/Index', () => {
     beforeEach(() => {
         vi.useFakeTimers();
         fetchAuditLogsMock.mockReset();
+        showAuditLogMock.mockReset();
         toastAddMock.mockReset();
     });
 
@@ -172,5 +211,126 @@ describe('AuditLogs/Index', () => {
 
         resolveRequest(makeEnvelope());
         await flushPromises();
+    });
+
+    it('opens the detail dialog and loads the selected audit log', async () => {
+        fetchAuditLogsMock.mockResolvedValueOnce(makeEnvelope([
+            {
+                id: 11,
+                event: 'client_admin.company.updated',
+                description: 'Company updated.',
+                subject_type: 'Company',
+                subject_id: 5,
+                causer: { id: 2, name: 'Alice' },
+                created_at: '2026-04-09 10:00:00',
+            },
+        ]));
+        showAuditLogMock.mockResolvedValueOnce(makeDetailEnvelope());
+
+        const wrapper = mountPage();
+        await flushPromises();
+
+        const detailsButton = wrapper.findAll('button').find((node) => node.text() === 'Reszletek');
+        await detailsButton.trigger('click');
+        await flushPromises();
+
+        expect(showAuditLogMock).toHaveBeenCalledWith(auditLogsApi, 11);
+        expect(wrapper.text()).toContain('Company updated.');
+        expect(wrapper.text()).toContain('Vitest Browser');
+    });
+
+    it('renders structured property sections for common audit payloads', async () => {
+        fetchAuditLogsMock.mockResolvedValueOnce(makeEnvelope([
+            {
+                id: 11,
+                event: 'client_admin.company.updated',
+                description: 'Company updated.',
+                subject_type: 'Company',
+                subject_id: 5,
+                causer: { id: 2, name: 'Alice' },
+                created_at: '2026-04-09 10:00:00',
+            },
+        ]));
+        showAuditLogMock.mockResolvedValueOnce(makeDetailEnvelope({
+            properties: {
+                old: {
+                    name: 'Acme Kft.',
+                    is_active: false,
+                },
+                attributes: {
+                    name: 'Acme Zrt.',
+                    is_active: true,
+                },
+            },
+        }));
+
+        const wrapper = mountPage();
+        await flushPromises();
+
+        const detailsButton = wrapper.findAll('button').find((node) => node.text() === 'Reszletek');
+        await detailsButton.trigger('click');
+        await flushPromises();
+
+        expect(wrapper.text()).toContain('Korabbi ertekek');
+        expect(wrapper.text()).toContain('Uj ertekek');
+        expect(wrapper.text()).toContain('Acme Kft.');
+        expect(wrapper.text()).toContain('Acme Zrt.');
+        expect(wrapper.text()).toContain('Properties (raw JSON)');
+    });
+
+    it('keeps the raw json fallback for unrecognized properties payloads', async () => {
+        fetchAuditLogsMock.mockResolvedValueOnce(makeEnvelope([
+            {
+                id: 11,
+                event: 'client_admin.company.updated',
+                description: 'Company updated.',
+                subject_type: 'Company',
+                subject_id: 5,
+                causer: { id: 2, name: 'Alice' },
+                created_at: '2026-04-09 10:00:00',
+            },
+        ]));
+        showAuditLogMock.mockResolvedValueOnce(makeDetailEnvelope({
+            properties: {
+                updated_fields: ['name'],
+                custom_note: 'manual audit note',
+            },
+        }));
+
+        const wrapper = mountPage();
+        await flushPromises();
+
+        const detailsButton = wrapper.findAll('button').find((node) => node.text() === 'Reszletek');
+        await detailsButton.trigger('click');
+        await flushPromises();
+
+        expect(wrapper.text()).not.toContain('Korabbi ertekek');
+        expect(wrapper.text()).not.toContain('Uj ertekek');
+        expect(wrapper.text()).toContain('Properties');
+        expect(wrapper.text()).toContain('manual audit note');
+    });
+
+    it('shows an error toast and keeps the dialog closed when detail loading fails', async () => {
+        fetchAuditLogsMock.mockResolvedValueOnce(makeEnvelope([
+            {
+                id: 11,
+                event: 'client_admin.company.updated',
+                description: 'Company updated.',
+                subject_type: 'Company',
+                subject_id: 5,
+                causer: { id: 2, name: 'Alice' },
+                created_at: '2026-04-09 10:00:00',
+            },
+        ]));
+        showAuditLogMock.mockRejectedValueOnce(new Error('A reszletek betoltese sikertelen volt.'));
+
+        const wrapper = mountPage();
+        await flushPromises();
+
+        const detailsButton = wrapper.findAll('button').find((node) => node.text() === 'Reszletek');
+        await detailsButton.trigger('click');
+        await flushPromises();
+
+        expect(toastAddMock).toHaveBeenCalledWith(expect.objectContaining({ severity: 'error' }));
     });
 });

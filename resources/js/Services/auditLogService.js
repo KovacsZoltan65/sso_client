@@ -23,7 +23,7 @@ function toAuditLogApiError(error) {
     const payload = normalizeEnvelope(error?.response?.data ?? {});
 
     return new AuditLogApiError(
-        payload.message || 'Az audit logok betoltese sikertelen volt.',
+        payload.message || 'Az audit log muvelet sikertelen volt.',
         {
             status: error?.response?.status ?? 500,
             errors: payload.errors,
@@ -32,8 +32,14 @@ function toAuditLogApiError(error) {
     );
 }
 
-function buildAuditLogUrl(auditLogsApi) {
-    return auditLogsApi?.endpoints?.index ?? '/api/audit-logs';
+function buildAuditLogUrl(auditLogsApi, auditLogId = null) {
+    const baseUrl = auditLogsApi?.endpoints?.index ?? '/api/audit-logs';
+
+    if (auditLogId === null) {
+        return baseUrl;
+    }
+
+    return `${baseUrl}/${auditLogId}`;
 }
 
 async function request(url, params = {}) {
@@ -57,4 +63,8 @@ async function request(url, params = {}) {
 
 export function fetchAuditLogs(auditLogsApi, params = {}) {
     return request(buildAuditLogUrl(auditLogsApi), params);
+}
+
+export function showAuditLog(auditLogsApi, auditLogId) {
+    return request(buildAuditLogUrl(auditLogsApi, auditLogId));
 }

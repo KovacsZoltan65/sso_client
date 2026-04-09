@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Repositories\Contracts\AuditLogRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Spatie\Activitylog\Models\Activity;
 
 /**
@@ -28,7 +29,8 @@ class AuditLogRepository extends BaseRepository implements AuditLogRepositoryInt
     }
 
     /**
-     * @param AuditLogListFilters $filters
+     * @param array $filters
+     * @return \Illuminate\Pagination\LengthAwarePaginator
      */
     public function paginateForIndex(array $filters): LengthAwarePaginator
     {
@@ -42,7 +44,7 @@ class AuditLogRepository extends BaseRepository implements AuditLogRepositoryInt
             ? (int) $filters['user_id']
             : null;
 
-        $query = $this->model->newQuery()->with('causer');
+        $query = $this->model->newQuery()->with(['causer', 'subject']);
 
         if ($global !== '') {
             $query->where(function (Builder $builder) use ($global): void {
@@ -95,5 +97,22 @@ class AuditLogRepository extends BaseRepository implements AuditLogRepositoryInt
             ->orderBy($sortField, $sortOrder)
             ->paginate($perPage)
             ->withQueryString();
+    }
+
+    /**
+     * @param int $auditLogId
+     * @return Activity
+     */
+    public function findById(int $auditLogId): Activity
+    {
+        $activity = $this->model->newQuery()
+            ->with(['causer', 'subject'])
+            ->find($auditLogId);
+
+        if (! $activity instanceof Activity) {
+            throw (new ModelNotFoundException())->setModel(Activity::class, [$auditLogId]);
+        }
+
+        return $activity;
     }
 }

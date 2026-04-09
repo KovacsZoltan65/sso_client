@@ -73,6 +73,9 @@ Route::prefix('api')->middleware(['auth'])->group(function () {
     Route::get('/audit-logs', [AuditLogController::class, 'index'])
         ->middleware('permission:audit-logs.view')
         ->name('api.audit-logs.index');
+    Route::get('/audit-logs/{auditLog}', [AuditLogController::class, 'show'])
+        ->middleware('permission:audit-logs.view')
+        ->name('api.audit-logs.show');
 
     Route::get('/users', [UserController::class, 'index'])
         ->middleware('permission:users.view')

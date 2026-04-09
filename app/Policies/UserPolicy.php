@@ -8,6 +8,8 @@ class UserPolicy
 {
     /**
      * Eldönti, hogy a felhasználó listázhatja-e a felhasználókat.
+     * @param User $user
+     * @return bool
      */
     public function viewAny(User $user): bool
     {
@@ -16,6 +18,9 @@ class UserPolicy
 
     /**
      * Eldönti, hogy a felhasználó megtekinthet-e egy adott felhasználót.
+     * @param User $user
+     * @param User $targetUser
+     * @return bool
      */
     public function view(User $user, User $targetUser): bool
     {
@@ -24,6 +29,9 @@ class UserPolicy
 
     /**
      * Eldönti, hogy a felhasználó frissítheti-e a célfelhasználó helyi adatait.
+     * @param User $user
+     * @param User $targetUser
+     * @return bool
      */
     public function update(User $user, User $targetUser): bool
     {

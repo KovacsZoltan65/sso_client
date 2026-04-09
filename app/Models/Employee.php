@@ -6,21 +6,24 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 /**
- * @property int $company_id Cég azonosító
- * @property string $employee_number Dolgozó azonosító
- * @property string $name Dolgozó név
- * @property string $email Dolgozó email címe
- * @property string $phone Dolgozó telefonszáma
- * @property string $position Dolgozó pozíciója
- * @property boolean $is_active Aktív
+ * @property int $company_id Ceg azonosito
+ * @property string $employee_number Dolgozo azonosito
+ * @property string $name Dolgozo nev
+ * @property string|null $email Dolgozo email cime
+ * @property string|null $phone Dolgozo telefonszama
+ * @property string|null $position Dolgozo pozicioja
+ * @property bool $is_active Aktiv
  */
 class Employee extends Model
 {
     use HasFactory;
+    use LogsActivity;
     use SoftDeletes;
 
     /**
@@ -46,5 +49,22 @@ class Employee extends Model
     public function company(): BelongsTo
     {
         return $this->belongsTo(Company::class);
+    }
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->useLogName('client.admin.employee')
+            ->logOnly([
+                'company_id',
+                'employee_number',
+                'name',
+                'email',
+                'phone',
+                'position',
+                'is_active',
+            ])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs();
     }
 }

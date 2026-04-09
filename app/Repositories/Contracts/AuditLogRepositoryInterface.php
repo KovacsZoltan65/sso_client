@@ -3,6 +3,7 @@
 namespace App\Repositories\Contracts;
 
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Spatie\Activitylog\Models\Activity;
 
 /**
  * @phpstan-type AuditLogListFilters array{
@@ -19,7 +20,14 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 interface AuditLogRepositoryInterface
 {
     /**
-     * @param AuditLogListFilters $filters
+     * @param array $filters
+     * @return void
      */
     public function paginateForIndex(array $filters): LengthAwarePaginator;
+
+    /**
+     * @param int $auditLogId
+     * @return void
+     */
+    public function findById(int $auditLogId): Activity;
 }

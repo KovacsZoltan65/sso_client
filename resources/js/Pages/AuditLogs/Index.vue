@@ -2,9 +2,11 @@
 import EmptyStatePanel from '@/Components/EmptyStatePanel.vue';
 import AdminTableCard from '@/Components/Admin/AdminTableCard.vue';
 import AdminTableToolbar from '@/Components/Admin/AdminTableToolbar.vue';
+import RowActionMenu from '@/Components/Admin/RowActionMenu.vue';
 import PageHeader from '@/Components/PageHeader.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { AuditLogApiError, fetchAuditLogs } from '@/Services/auditLogService';
+import AuditLogViewDialog from '@/Pages/AuditLogs/Partials/AuditLogViewDialog.vue';
+import { AuditLogApiError, fetchAuditLogs, showAuditLog } from '@/Services/auditLogService';
 import { Head } from '@inertiajs/vue3';
 import Button from 'primevue/button';
 import Column from 'primevue/column';
@@ -24,6 +26,9 @@ const toast = useToast();
 
 const items = ref([]);
 const loading = ref(false);
+const detailLoading = ref(false);
+const showDetailDialog = ref(false);
+const selectedAuditLog = ref(null);
 
 const filters = reactive({
     global: '',
@@ -67,6 +72,35 @@ async function loadAuditLogs() {
     } finally {
         loading.value = false;
     }
+}
+
+async function openDetailDialog(entry) {
+    detailLoading.value = true;
+    selectedAuditLog.value = null;
+
+    try {
+        const envelope = await showAuditLog(props.auditLogsApi, entry.id);
+        selectedAuditLog.value = envelope.data.audit_log ?? null;
+        showDetailDialog.value = true;
+    } catch (error) {
+        handleApiError(error, 'Az audit log reszleteinek betoltese sikertelen volt.');
+    } finally {
+        detailLoading.value = false;
+    }
+}
+
+function closeDetailDialog() {
+    showDetailDialog.value = false;
+    selectedAuditLog.value = null;
+}
+
+function setDetailDialogVisible(visible) {
+    if (visible) {
+        showDetailDialog.value = true;
+        return;
+    }
+
+    closeDetailDialog();
 }
 
 async function refreshAuditLogs() {
@@ -154,6 +188,16 @@ function userLabel(entry) {
     return entry.causer?.name || entry.causer?.email || entry.causer?.display || 'System';
 }
 
+function auditLogActionItems(entry) {
+    return [
+        {
+            label: 'Reszletek',
+            icon: 'pi pi-eye',
+            command: () => openDetailDialog(entry),
+        },
+    ];
+}
+
 watch(
     () => filters.global,
     () => {
@@ -211,7 +255,7 @@ onMounted(loadAuditLogs);
                                     :canBulkDelete="false"
                                     :selectedCount="0"
                                     :selectableCount="0"
-                                    :busy="loading"
+                                    :busy="loading || detailLoading"
                                     @refresh="refreshAuditLogs"
                                 >
                                     <template #search>
@@ -270,6 +314,11 @@ onMounted(loadAuditLogs);
                                     {{ formatDate(data.created_at) }}
                                 </template>
                             </Column>
+                            <Column header="Muveletek" :style="{ width: '120px' }">
+                                <template #body="{ data }">
+                                    <RowActionMenu :items="auditLogActionItems(data)" :disabled="detailLoading" />
+                                </template>
+                            </Column>
                         </DataTable>
                     </div>
 
@@ -292,8 +341,8 @@ onMounted(loadAuditLogs);
                                 icon="pi pi-refresh"
                                 severity="secondary"
                                 outlined
-                                :loading="loading"
-                                :disabled="loading"
+                                :loading="loading || detailLoading"
+                                :disabled="loading || detailLoading"
                                 @click="refreshAuditLogs"
                             />
                         </div>
@@ -337,6 +386,17 @@ onMounted(loadAuditLogs);
                                         <dd>{{ formatDate(entry.created_at) }}</dd>
                                     </div>
                                 </dl>
+
+                                <div class="mt-5 flex justify-end">
+                                    <Button
+                                        label="Reszletek"
+                                        icon="pi pi-eye"
+                                        severity="secondary"
+                                        text
+                                        :disabled="detailLoading"
+                                        @click="openDetailDialog(entry)"
+                                    />
+                                </div>
                             </article>
                         </template>
 
@@ -350,5 +410,12 @@ onMounted(loadAuditLogs);
                 </div>
             </AdminTableCard>
         </div>
+
+        <AuditLogViewDialog
+            :visible="showDetailDialog"
+            :audit-log="selectedAuditLog"
+            :loading="detailLoading"
+            @update:visible="setDetailDialogVisible"
+        />
     </AuthenticatedLayout>
 </template>

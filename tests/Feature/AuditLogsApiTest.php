@@ -99,6 +99,64 @@ class AuditLogsApiTest extends TestCase
             ->assertJsonPath('data.items.0.id', min($first->id, $second->id));
     }
 
+    #[Test]
+    public function audit_logs_show_returns_the_detail_payload_for_authorized_users(): void
+    {
+        $viewer = $this->userWithPermission('audit-logs.view');
+        $company = Company::factory()->create(['name' => 'Alpha Kft.']);
+        $causer = User::factory()->create(['name' => 'Alice Auditor', 'email' => 'alice@example.test']);
+        $activity = $this->createActivity(
+            'client_admin.company.updated',
+            'Alpha company updated.',
+            $company,
+            $causer,
+            AuditLogService::LOG_CLIENT_ADMIN_COMPANY,
+            [
+                'ip_address' => '127.0.0.1',
+                'user_agent' => 'Vitest Browser',
+                'route' => 'api.audit-logs.show',
+                'status' => 'active',
+                'result' => 'success',
+                'updated_fields' => ['name'],
+            ],
+        );
+
+        $this->actingAs($viewer)
+            ->getJson('/api/audit-logs/' . $activity->id)
+            ->assertOk()
+            ->assertJsonPath('message', 'Audit log retrieved successfully.')
+            ->assertJsonPath('data.audit_log.id', $activity->id)
+            ->assertJsonPath('data.audit_log.log_name', AuditLogService::LOG_CLIENT_ADMIN_COMPANY)
+            ->assertJsonPath('data.audit_log.causer.name', 'Alice Auditor')
+            ->assertJsonPath('data.audit_log.subject_type', 'Company')
+            ->assertJsonPath('data.audit_log.context.ip_address', '127.0.0.1')
+            ->assertJsonPath('data.audit_log.properties.updated_fields.0', 'name');
+    }
+
+    #[Test]
+    public function audit_logs_show_requires_view_permission(): void
+    {
+        $user = User::factory()->create();
+        $activity = $this->createActivity('client_admin.company.created', 'Alpha company created.');
+
+        $this->actingAs($user)
+            ->getJson('/api/audit-logs/' . $activity->id)
+            ->assertForbidden()
+            ->assertJson([
+                'message' => 'Forbidden.',
+            ]);
+    }
+
+    #[Test]
+    public function audit_logs_show_returns_not_found_for_missing_records(): void
+    {
+        $viewer = $this->userWithPermission('audit-logs.view');
+
+        $this->actingAs($viewer)
+            ->getJson('/api/audit-logs/999999')
+            ->assertNotFound();
+    }
+
     private function userWithPermission(string $permission): User
     {
         Permission::findOrCreate($permission, 'web');
@@ -115,6 +173,7 @@ class AuditLogsApiTest extends TestCase
         mixed $subject = null,
         ?User $causer = null,
         string $logName = AuditLogService::LOG_CLIENT_ADMIN_COMPANY,
+        array $properties = [],
     ): mixed {
         $entry = activity($logName)->event($event);
 
@@ -124,6 +183,10 @@ class AuditLogsApiTest extends TestCase
 
         if ($causer !== null) {
             $entry->causedBy($causer);
+        }
+
+        if ($properties !== []) {
+            $entry->withProperties($properties);
         }
 
         $entry->log($description);
