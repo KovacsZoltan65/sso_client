@@ -1,10 +1,13 @@
 <script setup>
 import EmptyStatePanel from "@/Components/EmptyStatePanel.vue";
 import AdminTableCard from "@/Components/Admin/AdminTableCard.vue";
+import BaseDataTable from "@/Components/Admin/BaseDataTable.vue";
+import AdminTableSummary from "@/Components/Admin/AdminTableSummary.vue";
 import AdminTableToolbar from "@/Components/Admin/AdminTableToolbar.vue";
 import PageHeader from "@/Components/PageHeader.vue";
 import RowActionMenu from "@/Components/Admin/RowActionMenu.vue";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
+import { useAdminTableState } from "@/Composables/useAdminTableState";
 import {
     EmployeeApiError,
     createEmployee,
@@ -16,20 +19,15 @@ import { Head } from "@inertiajs/vue3";
 import Button from "primevue/button";
 import Column from "primevue/column";
 import ConfirmDialog from "primevue/confirmdialog";
-import DataTable from "primevue/datatable";
 import InputText from "primevue/inputtext";
 import Select from "primevue/select";
 import Tag from "primevue/tag";
 import { useConfirm } from "primevue/useconfirm";
 import { useToast } from "primevue/usetoast";
-import { computed, onMounted, reactive, ref, watch } from "vue";
+import { onMounted, reactive, ref, watch } from "vue";
 
 import CreateEmployeeDialog from "./Partials/CreateEmployeeDialog.vue";
 import EditEmployeeDialog from "./Partials/EditEmployeeDialog.vue";
-
-//import EmployeeFormModal from "./Partials/EmployeeFormModal.vue";
-
-import { IconField, InputIcon } from "primevue";
 
 const props = defineProps({
     employeesApi: { type: Object, required: true },
@@ -47,18 +45,31 @@ const showEditDialog = ref(false);
 const editingEmployee = ref(null);
 const submitting = ref(false);
 
-const filters = reactive({
-    search: "",
-    company_id: null,
-    is_active: null,
-});
-
-const tableState = reactive({
-    page: 1,
-    perPage: 10,
-    total: 0,
-    sortField: "created_at",
-    sortOrder: -1,
+const {
+    state: tableState,
+    filters,
+    first,
+    lastPage,
+    resetPagination,
+    setPageFromEvent,
+    setSortFromEvent,
+    applyMeta,
+    buildFetchParams,
+} = useAdminTableState({
+    initialSortField: "created_at",
+    initialSortOrder: -1,
+    initialFilters: {
+        search: "",
+        company_id: null,
+        is_active: null,
+    },
+    paramNames: {
+        page: "page",
+        perPage: "per_page",
+        sortField: "sort_field",
+        sortOrder: "sort_order",
+    },
+    serializeSortOrder: (value) => value,
 });
 
 const form = reactive(defaultForm());
@@ -75,8 +86,6 @@ const compactSelectPt = {
     label: { class: "flex min-h-11 items-center py-0" },
     dropdown: { class: "w-11" },
 };
-
-const firstRecordIndex = computed(() => (tableState.page - 1) * tableState.perPage);
 
 let searchDebounceId = null;
 
@@ -105,7 +114,7 @@ function resetForm(employee = null) {
                   position: employee.position ?? "",
                   is_active: Boolean(employee.is_active),
               }
-            : defaultForm()
+            : defaultForm(),
     );
 
     clearFormErrors();
@@ -118,15 +127,13 @@ function clearFormErrors() {
 }
 
 function getRequestParams() {
-    return {
-        page: tableState.page,
-        per_page: tableState.perPage,
-        sort_field: tableState.sortField,
-        sort_order: tableState.sortOrder,
-        global: filters.search || undefined,
-        company_id: filters.company_id ?? undefined,
-        status: filters.is_active,
-    };
+    return buildFetchParams({
+        filters: {
+            global: filters.search || undefined,
+            company_id: filters.company_id ?? undefined,
+            status: filters.is_active,
+        },
+    });
 }
 
 async function loadEmployees() {
@@ -135,11 +142,7 @@ async function loadEmployees() {
     try {
         const envelope = await listEmployees(props.employeesApi, getRequestParams());
         employees.value = envelope.data.items ?? [];
-
-        const pagination = envelope.meta.pagination ?? {};
-        tableState.total = pagination.total ?? 0;
-        tableState.page = pagination.current_page ?? tableState.page;
-        tableState.perPage = pagination.per_page ?? tableState.perPage;
+        applyMeta(envelope.meta.pagination ?? {});
     } catch (error) {
         handleApiError(error, "Az alkalmazottak betoltese sikertelen volt.");
     } finally {
@@ -182,7 +185,7 @@ async function submitCreate() {
             life: 3000,
         });
         closeCreateDialog();
-        tableState.page = 1;
+        resetPagination();
         await loadEmployees();
     } catch (error) {
         handleMutationError(error, "Az alkalmazott letrehozasa sikertelen volt.");
@@ -276,22 +279,18 @@ async function refreshEmployees() {
 }
 
 function handleTablePage(event) {
-    tableState.page = (event.page ?? 0) + 1;
-    tableState.perPage = event.rows ?? tableState.perPage;
+    setPageFromEvent(event);
     loadEmployees();
 }
 
 function handleTableSort(event) {
-    tableState.sortField = event.sortField ?? "created_at";
-    tableState.sortOrder = event.sortOrder === 1 ? 1 : -1;
-    tableState.page = 1;
+    setSortFromEvent(event, "created_at");
     loadEmployees();
 }
 
 function handleApiError(error, fallbackMessage) {
     if (error instanceof EmployeeApiError && error.status === 401) {
-        const redirectTarget =
-            error.meta.reauth_to || error.meta.redirect_to || route("login");
+        const redirectTarget = error.meta.reauth_to || error.meta.redirect_to || route("login");
         window.location.assign(redirectTarget);
         return;
     }
@@ -334,17 +333,17 @@ function formatDate(value) {
 watch(
     () => filters.company_id,
     () => {
-        tableState.page = 1;
+        resetPagination();
         loadEmployees();
-    }
+    },
 );
 
 watch(
     () => filters.is_active,
     () => {
-        tableState.page = 1;
+        resetPagination();
         loadEmployees();
-    }
+    },
 );
 
 watch(
@@ -355,10 +354,10 @@ watch(
         }
 
         searchDebounceId = window.setTimeout(() => {
-            tableState.page = 1;
+            resetPagination();
             loadEmployees();
         }, 350);
-    }
+    },
 );
 
 onMounted(loadEmployees);
@@ -379,73 +378,58 @@ onMounted(loadEmployees);
             <AdminTableCard>
                 <div class="admin-table-shell">
                     <div class="hidden min-h-0 flex-1 lg:flex">
-                        <DataTable
+                        <BaseDataTable
                             :value="employees"
                             :loading="loading"
-                            class="admin-datatable"
-                            scrollable
-                            scroll-height="flex"
-                            lazy
-                            paginator
+                            loading-message="Alkalmazottak betoltese folyamatban..."
+                            empty-message="Nincs megjelenitheto alkalmazott."
                             removable-sort
                             data-key="id"
                             :rows="tableState.perPage"
-                            :first="firstRecordIndex"
-                            :total-records="tableState.total"
+                            :first="first"
+                            :total-records="tableState.totalRecords"
                             :sort-field="tableState.sortField"
                             :sort-order="tableState.sortOrder"
-                            paginator-template="RowsPerPageDropdown FirstPageLink PrevPageLink CurrentPageReport NextPageLink LastPageLink"
-                            current-page-report-template="{first} - {last} / {totalRecords}"
                             :rows-per-page-options="[10, 25, 50]"
                             @page="handleTablePage"
                             @sort="handleTableSort"
                         >
                             <template #header>
                                 <AdminTableToolbar
+                                    searchable
+                                    :search-value="filters.search"
+                                    searchContainerClass="w-full lg:flex-1 lg:min-w-0"
+                                    search-placeholder="Kereses nev, e-mail, pozicio vagy azonosito alapjan"
                                     :canCreate="permissions.create"
                                     createLabel="Uj alkalmazott"
                                     :canBulkDelete="false"
                                     :selectedCount="0"
                                     :selectableCount="0"
                                     :busy="loading || submitting"
-                                    searchContainerClass="w-full lg:flex-1 lg:min-w-0"
+                                    @update:searchValue="filters.search = $event"
                                     @create="openCreateDialog"
                                     @refresh="refreshEmployees"
                                 >
-                                    <template #search>
-                                        <div class="flex w-full min-w-0 flex-wrap items-start gap-3">
-                                            <IconField class="min-w-[18rem] flex-1">
-                                                <InputIcon
-                                                    class="pi pi-search text-slate-400"
-                                                />
-                                                <InputText
-                                                    v-model="filters.search"
-                                                    fluid
-                                                    placeholder="Kereses nev, e-mail, pozicio vagy azonosito alapjan"
-                                                    class="w-full"
-                                                />
-                                            </IconField>
+                                    <template #filters>
+                                        <Select
+                                            v-model="filters.company_id"
+                                            :options="companies"
+                                            option-label="name"
+                                            option-value="id"
+                                            placeholder="Ceg"
+                                            show-clear
+                                            class="w-full sm:w-56"
+                                        />
 
-                                            <Select
-                                                v-model="filters.company_id"
-                                                :options="companies"
-                                                option-label="name"
-                                                option-value="id"
-                                                placeholder="Ceg"
-                                                show-clear
-                                                class="min-w-[12rem] flex-none"
-                                            />
-
-                                            <Select
-                                                v-model="filters.is_active"
-                                                :options="statusOptions"
-                                                option-label="label"
-                                                option-value="value"
-                                                placeholder="Statusz"
-                                                show-clear
-                                                class="min-w-[12rem] flex-none"
-                                            />
-                                        </div>
+                                        <Select
+                                            v-model="filters.is_active"
+                                            :options="statusOptions"
+                                            option-label="label"
+                                            option-value="value"
+                                            placeholder="Statusz"
+                                            show-clear
+                                            class="w-full sm:w-56"
+                                        />
                                     </template>
                                 </AdminTableToolbar>
                             </template>
@@ -468,10 +452,7 @@ onMounted(loadEmployees);
                             <Column field="company_name" header="Ceg" sortable />
                             <Column field="is_active" header="Statusz" sortable>
                                 <template #body="{ data }">
-                                    <Tag
-                                        :value="statusLabel(data.is_active)"
-                                        :severity="statusSeverity(data.is_active)"
-                                    />
+                                    <Tag :value="statusLabel(data.is_active)" :severity="statusSeverity(data.is_active)" />
                                 </template>
                             </Column>
                             <Column field="created_at" header="Letrehozva" sortable>
@@ -484,15 +465,13 @@ onMounted(loadEmployees);
                                     <RowActionMenu :items="employeeActionItems(data)" />
                                 </template>
                             </Column>
-                        </DataTable>
+                        </BaseDataTable>
                     </div>
 
                     <div class="space-y-4 p-6 lg:hidden">
                         <div class="grid gap-3">
                             <div class="relative">
-                                <i
-                                    class="pi pi-search pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-sm text-slate-400"
-                                />
+                                <i class="pi pi-search pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-sm text-slate-400" />
                                 <InputText
                                     v-model="filters.search"
                                     fluid
@@ -525,51 +504,20 @@ onMounted(loadEmployees);
                         </div>
 
                         <div class="flex flex-wrap items-center justify-end gap-3">
-                            <Button
-                                label="Frissites"
-                                icon="pi pi-refresh"
-                                severity="secondary"
-                                outlined
-                                :loading="loading || submitting"
-                                :disabled="loading || submitting"
-                                @click="refreshEmployees"
-                            />
-                            <Button
-                                v-if="permissions.create"
-                                label="Uj alkalmazott"
-                                icon="pi pi-plus"
-                                severity="primary"
-                                :disabled="loading || submitting"
-                                @click="openCreateDialog"
-                            />
+                            <Button label="Frissites" icon="pi pi-refresh" severity="secondary" outlined :loading="loading || submitting" :disabled="loading || submitting" @click="refreshEmployees" />
+                            <Button v-if="permissions.create" label="Uj alkalmazott" icon="pi pi-plus" severity="primary" :disabled="loading || submitting" @click="openCreateDialog" />
                         </div>
 
-                        <div
-                            v-if="loading"
-                            class="rounded-2xl border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-500"
-                        >
-                            Betoltes folyamatban...
-                        </div>
+                        <div v-if="loading" class="rounded-2xl border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-500">Betoltes folyamatban...</div>
 
                         <template v-else-if="employees.length > 0">
-                            <article
-                                v-for="employee in employees"
-                                :key="employee.id"
-                                class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"
-                            >
+                            <article v-for="employee in employees" :key="employee.id" class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
                                 <div class="flex items-start justify-between gap-3">
                                     <div>
-                                        <h3 class="text-lg font-semibold text-slate-950">
-                                            {{ employee.name }}
-                                        </h3>
-                                        <p class="mt-1 text-sm text-slate-500">
-                                            {{ employee.employee_number || "-" }}
-                                        </p>
+                                        <h3 class="text-lg font-semibold text-slate-950">{{ employee.name }}</h3>
+                                        <p class="mt-1 text-sm text-slate-500">{{ employee.employee_number || "-" }}</p>
                                     </div>
-                                    <Tag
-                                        :value="statusLabel(employee.is_active)"
-                                        :severity="statusSeverity(employee.is_active)"
-                                    />
+                                    <Tag :value="statusLabel(employee.is_active)" :severity="statusSeverity(employee.is_active)" />
                                 </div>
 
                                 <dl class="mt-4 grid gap-3 text-sm text-slate-600">
@@ -578,15 +526,11 @@ onMounted(loadEmployees);
                                         <dd>{{ employee.email || "-" }}</dd>
                                     </div>
                                     <div>
-                                        <dt class="font-medium text-slate-900">
-                                            Telefon
-                                        </dt>
+                                        <dt class="font-medium text-slate-900">Telefon</dt>
                                         <dd>{{ employee.phone || "-" }}</dd>
                                     </div>
                                     <div>
-                                        <dt class="font-medium text-slate-900">
-                                            Pozicio
-                                        </dt>
+                                        <dt class="font-medium text-slate-900">Pozicio</dt>
                                         <dd>{{ employee.position || "-" }}</dd>
                                     </div>
                                     <div>
@@ -594,25 +538,18 @@ onMounted(loadEmployees);
                                         <dd>{{ employee.company_name || "-" }}</dd>
                                     </div>
                                     <div>
-                                        <dt class="font-medium text-slate-900">
-                                            Letrehozva
-                                        </dt>
+                                        <dt class="font-medium text-slate-900">Letrehozva</dt>
                                         <dd>{{ formatDate(employee.created_at) }}</dd>
                                     </div>
                                 </dl>
 
                                 <div class="mt-5 flex justify-end">
-                                    <RowActionMenu
-                                        :items="employeeActionItems(employee)"
-                                    />
+                                    <RowActionMenu :items="employeeActionItems(employee)" />
                                 </div>
                             </article>
                         </template>
 
-                        <div
-                            v-else
-                            class="rounded-3xl border border-dashed border-slate-300 bg-slate-50 px-5 py-8"
-                        >
+                        <div v-else class="rounded-3xl border border-dashed border-slate-300 bg-slate-50 px-5 py-8">
                             <EmptyStatePanel
                                 title="Nincs megjelenitheto alkalmazott"
                                 description="A jelenlegi szurok mellett nincs talalat. Modositsd a keresest vagy hozz letre uj alkalmazottat."
@@ -621,6 +558,16 @@ onMounted(loadEmployees);
                         </div>
                     </div>
                 </div>
+
+                <template #footer>
+                    <AdminTableSummary
+                        :page="tableState.page"
+                        :per-page="tableState.perPage"
+                        :total="tableState.totalRecords"
+                        :last-page="lastPage"
+                        item-label="alkalmazott"
+                    />
+                </template>
             </AdminTableCard>
         </div>
 
@@ -644,8 +591,3 @@ onMounted(loadEmployees);
         />
     </AuthenticatedLayout>
 </template>
-
-
-
-
-

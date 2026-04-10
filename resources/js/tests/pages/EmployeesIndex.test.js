@@ -152,6 +152,23 @@ describe('Employees/Index', () => {
         expect(wrapper.find('#employee-position').exists()).toBe(true);
     });
 
+    it('uses the numeric employee sort_order contract on initial load', async () => {
+        listEmployeesMock.mockResolvedValueOnce(makeEnvelope([makeEmployee()]));
+
+        mountPage();
+        await flushPromises();
+
+        expect(listEmployeesMock).toHaveBeenCalledWith(
+            employeesApi,
+            expect.objectContaining({
+                page: 1,
+                per_page: 10,
+                sort_field: 'created_at',
+                sort_order: -1,
+            }),
+        );
+    });
+
     it('renders the EmployeeForm inside the edit dialog', async () => {
         listEmployeesMock.mockResolvedValueOnce(makeEnvelope([makeEmployee()]));
 

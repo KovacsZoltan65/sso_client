@@ -1,10 +1,13 @@
 <script setup>
 import EmptyStatePanel from "@/Components/EmptyStatePanel.vue";
 import AdminTableCard from "@/Components/Admin/AdminTableCard.vue";
+import BaseDataTable from "@/Components/Admin/BaseDataTable.vue";
+import AdminTableSummary from "@/Components/Admin/AdminTableSummary.vue";
 import AdminTableToolbar from "@/Components/Admin/AdminTableToolbar.vue";
 import PageHeader from "@/Components/PageHeader.vue";
 import RowActionMenu from "@/Components/Admin/RowActionMenu.vue";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
+import { useAdminTableState } from "@/Composables/useAdminTableState";
 import {
     RoleApiError,
     createRole,
@@ -16,14 +19,11 @@ import { Head } from "@inertiajs/vue3";
 import Button from "primevue/button";
 import Column from "primevue/column";
 import ConfirmDialog from "primevue/confirmdialog";
-import DataTable from "primevue/datatable";
 import InputText from "primevue/inputtext";
 import Tag from "primevue/tag";
 import { useConfirm } from "primevue/useconfirm";
 import { useToast } from "primevue/usetoast";
-import { computed, onMounted, reactive, ref, watch } from "vue";
-import { IconField, InputIcon } from "primevue";
-
+import { onMounted, reactive, ref, watch } from "vue";
 import CreateRoleDialog from "./Partials/CreateRoleDialog.vue";
 import EditRoleDialog from "./Partials/EditRoleDialog.vue";
 
@@ -43,11 +43,33 @@ const showEditDialog = ref(false);
 const editingRole = ref(null);
 const submitting = ref(false);
 
-const filters = reactive({ search: "" });
-const tableState = reactive({ page: 1, perPage: 10, total: 0, sortField: "created_at", sortOrder: "desc" });
+const {
+    state: tableState,
+    filters,
+    first,
+    lastPage,
+    resetPagination,
+    setPageFromEvent,
+    setSortFromEvent,
+    applyMeta,
+    buildFetchParams,
+} = useAdminTableState({
+    initialSortField: "created_at",
+    initialSortOrder: -1,
+    initialFilters: {
+        search: "",
+    },
+    paramNames: {
+        page: "page",
+        perPage: "per_page",
+        sortField: "sort_field",
+        sortOrder: "sort_order",
+    },
+    serializeSortOrder: (value) => (value === 1 ? "asc" : "desc"),
+});
+
 const form = reactive(defaultForm());
 const formErrors = reactive({});
-const firstRecordIndex = computed(() => (tableState.page - 1) * tableState.perPage);
 let searchDebounceId = null;
 
 function defaultForm() {
@@ -64,7 +86,11 @@ function clearFormErrors() {
 }
 
 function getRequestParams() {
-    return { page: tableState.page, per_page: tableState.perPage, sort_field: tableState.sortField, sort_order: tableState.sortOrder, search: filters.search || undefined };
+    return buildFetchParams({
+        filters: {
+            search: filters.search || undefined,
+        },
+    });
 }
 
 async function loadRoles() {
@@ -72,10 +98,7 @@ async function loadRoles() {
     try {
         const envelope = await listRoles(props.rolesApi, getRequestParams());
         roles.value = envelope.data.items ?? [];
-        const pagination = envelope.meta.pagination ?? {};
-        tableState.total = pagination.total ?? 0;
-        tableState.page = pagination.current_page ?? tableState.page;
-        tableState.perPage = pagination.per_page ?? tableState.perPage;
+        applyMeta(envelope.meta.pagination ?? {});
     } catch (error) {
         handleApiError(error, "A role lista betoltese sikertelen volt.");
     } finally {
@@ -83,10 +106,27 @@ async function loadRoles() {
     }
 }
 
-function openCreateDialog() { resetForm(); showCreateDialog.value = true; }
-function openEditDialog(role) { editingRole.value = role; resetForm(role); showEditDialog.value = true; }
-function closeCreateDialog() { showCreateDialog.value = false; resetForm(); }
-function closeEditDialog() { showEditDialog.value = false; editingRole.value = null; resetForm(); }
+function openCreateDialog() {
+    resetForm();
+    showCreateDialog.value = true;
+}
+
+function openEditDialog(role) {
+    editingRole.value = role;
+    resetForm(role);
+    showEditDialog.value = true;
+}
+
+function closeCreateDialog() {
+    showCreateDialog.value = false;
+    resetForm();
+}
+
+function closeEditDialog() {
+    showEditDialog.value = false;
+    editingRole.value = null;
+    resetForm();
+}
 
 async function submitCreate() {
     submitting.value = true;
@@ -95,7 +135,7 @@ async function submitCreate() {
         await createRole(props.rolesApi, form);
         toast.add({ severity: "success", summary: "Sikeres muvelet", detail: "A role letrehozasa sikeres volt.", life: 3000 });
         closeCreateDialog();
-        tableState.page = 1;
+        resetPagination();
         await loadRoles();
     } catch (error) {
         handleMutationError(error, "A role letrehozasa sikertelen volt.");
@@ -136,7 +176,9 @@ function confirmDelete(role) {
             try {
                 await deleteRole(props.rolesApi, role.id);
                 toast.add({ severity: "success", summary: "Sikeres muvelet", detail: "A role torlese sikeres volt.", life: 3000 });
-                if (roles.value.length === 1 && tableState.page > 1) tableState.page -= 1;
+                if (roles.value.length === 1 && tableState.page > 1) {
+                    tableState.page -= 1;
+                }
                 await loadRoles();
             } catch (error) {
                 handleApiError(error, "A role torlese sikertelen volt.");
@@ -157,8 +199,15 @@ async function refreshRoles() {
     toast.add({ severity: "success", summary: "Sikeres muvelet", detail: "A role lista frissult.", life: 2500 });
 }
 
-function handleTablePage(event) { tableState.page = (event.page ?? 0) + 1; tableState.perPage = event.rows ?? tableState.perPage; loadRoles(); }
-function handleTableSort(event) { tableState.sortField = event.sortField ?? "created_at"; tableState.sortOrder = event.sortOrder === 1 ? "asc" : "desc"; tableState.page = 1; loadRoles(); }
+function handleTablePage(event) {
+    setPageFromEvent(event);
+    loadRoles();
+}
+
+function handleTableSort(event) {
+    setSortFromEvent(event, "created_at");
+    loadRoles();
+}
 
 function handleApiError(error, fallbackMessage) {
     if (error instanceof RoleApiError && error.status === 401) {
@@ -185,7 +234,10 @@ function formatDate(value) {
 
 watch(() => filters.search, () => {
     if (searchDebounceId) window.clearTimeout(searchDebounceId);
-    searchDebounceId = window.setTimeout(() => { tableState.page = 1; loadRoles(); }, 350);
+    searchDebounceId = window.setTimeout(() => {
+        resetPagination();
+        loadRoles();
+    }, 350);
 });
 
 onMounted(loadRoles);
@@ -203,36 +255,37 @@ onMounted(loadRoles);
             <AdminTableCard>
                 <div class="admin-table-shell">
                     <div class="hidden min-h-0 flex-1 lg:flex">
-                        <DataTable
+                        <BaseDataTable
                             :value="roles"
                             :loading="loading"
-                            class="admin-datatable"
-                            scrollable
-                            scroll-height="flex"
-                            lazy
-                            paginator
+                            loading-message="Role-ok betoltese folyamatban..."
+                            empty-message="Nincs megjelenitheto role."
                             removable-sort
                             data-key="id"
                             :rows="tableState.perPage"
-                            :first="firstRecordIndex"
-                            :total-records="tableState.total"
+                            :first="first"
+                            :total-records="tableState.totalRecords"
                             :sort-field="tableState.sortField"
-                            :sort-order="tableState.sortOrder === 'asc' ? 1 : -1"
-                            paginator-template="RowsPerPageDropdown FirstPageLink PrevPageLink CurrentPageReport NextPageLink LastPageLink"
-                            current-page-report-template="{first} - {last} / {totalRecords}"
+                            :sort-order="tableState.sortOrder"
                             :rows-per-page-options="[10, 25, 50]"
                             @page="handleTablePage"
                             @sort="handleTableSort"
                         >
                             <template #header>
-                                <AdminTableToolbar :canCreate="permissions.create" createLabel="Uj role" :canBulkDelete="false" :selectedCount="0" :selectableCount="0" :busy="loading || submitting" @create="openCreateDialog" @refresh="refreshRoles">
-                                    <template #search>
-                                        <IconField class="w-full">
-                                            <InputIcon class="pi pi-search text-slate-400" />
-                                            <InputText v-model="filters.search" fluid placeholder="Kereses role nev vagy guard alapjan" class="w-full" />
-                                        </IconField>
-                                    </template>
-                                </AdminTableToolbar>
+                                <AdminTableToolbar
+                                    searchable
+                                    :search-value="filters.search"
+                                    search-placeholder="Kereses role nev vagy guard alapjan"
+                                    :canCreate="permissions.create"
+                                    createLabel="Uj role"
+                                    :canBulkDelete="false"
+                                    :selectedCount="0"
+                                    :selectableCount="0"
+                                    :busy="loading || submitting"
+                                    @update:searchValue="filters.search = $event"
+                                    @create="openCreateDialog"
+                                    @refresh="refreshRoles"
+                                />
                             </template>
 
                             <template #empty>
@@ -252,15 +305,21 @@ onMounted(loadRoles);
                             </Column>
                             <Column field="guard_name" header="Guard" sortable />
                             <Column field="permissions_count" header="Permissions" sortable>
-                                <template #body="{ data }"><Tag :value="String(data.permissions_count ?? 0)" severity="info" /></template>
+                                <template #body="{ data }">
+                                    <Tag :value="String(data.permissions_count ?? 0)" severity="info" />
+                                </template>
                             </Column>
                             <Column field="created_at" header="Letrehozva" sortable>
-                                <template #body="{ data }">{{ formatDate(data.created_at) }}</template>
+                                <template #body="{ data }">
+                                    {{ formatDate(data.created_at) }}
+                                </template>
                             </Column>
                             <Column header="Muveletek" :style="{ width: '120px' }">
-                                <template #body="{ data }"><RowActionMenu :items="roleActionItems(data)" /></template>
+                                <template #body="{ data }">
+                                    <RowActionMenu :items="roleActionItems(data)" />
+                                </template>
                             </Column>
-                        </DataTable>
+                        </BaseDataTable>
                     </div>
 
                     <div class="space-y-4 p-6 lg:hidden">
@@ -294,7 +353,7 @@ onMounted(loadRoles);
                                 <dl class="mt-4 grid gap-3 text-sm text-slate-600">
                                     <div>
                                         <dt class="font-semibold text-slate-900">Permissionok</dt>
-                                        <dd>{{ role.permission_names?.join(', ') || '-' }}</dd>
+                                        <dd>{{ role.permission_names?.join(", ") || "-" }}</dd>
                                     </div>
                                     <div>
                                         <dt class="font-semibold text-slate-900">Letrehozva</dt>
@@ -312,6 +371,16 @@ onMounted(loadRoles);
                         <EmptyStatePanel v-else title="Nincs megjelenitheto role" description="A jelenlegi szurok mellett nincs talalat. Modositsd a keresest vagy hozz letre uj role-t." :tags="['Roles', 'Local RBAC']" />
                     </div>
                 </div>
+
+                <template #footer>
+                    <AdminTableSummary
+                        :page="tableState.page"
+                        :per-page="tableState.perPage"
+                        :total="tableState.totalRecords"
+                        :last-page="lastPage"
+                        item-label="role"
+                    />
+                </template>
             </AdminTableCard>
         </div>
 

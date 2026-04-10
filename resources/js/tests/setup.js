@@ -1,6 +1,6 @@
 import { config } from '@vue/test-utils';
 import { afterEach, beforeEach, vi } from 'vitest';
-import { defineComponent, h } from 'vue';
+import { defineComponent, h, ref } from 'vue';
 import { axiosMock, resetAxiosMock } from './mocks/axios';
 import { getPage, resetInertiaMocks } from './mocks/inertia';
 
@@ -67,6 +67,49 @@ vi.mock('@inertiajs/vue3', () => ({
 }));
 
 vi.mock('primevue/button', () => ({ default: ButtonStub }));
+vi.mock('primevue/menu', () => ({ default: defineComponent({
+    inheritAttrs: false,
+    props: {
+        model: {
+            type: Array,
+            default: () => [],
+        },
+        popup: {
+            type: Boolean,
+            default: false,
+        },
+        appendTo: {
+            type: String,
+            default: null,
+        },
+        pt: {
+            type: Object,
+            default: () => ({}),
+        },
+    },
+    setup(props, { attrs, expose }) {
+        const open = ref(false);
+
+        expose({
+            toggle: () => {
+                open.value = !open.value;
+            },
+            hide: () => {
+                open.value = false;
+            },
+        });
+
+        return () => open.value ? h('div', {
+            ...attrs,
+            'data-menu-popup': props.popup ? 'true' : 'false',
+            'data-menu-append-to': props.appendTo ?? '',
+        }, props.model.map((item) => h('button', {
+            type: 'button',
+            disabled: Boolean(item.disabled),
+            onClick: () => item.command?.({ item }),
+        }, item.label))) : null;
+    },
+}) }));
 vi.mock('primevue/inputtext', () => ({ default: defineComponent({
     inheritAttrs: false,
     props: {

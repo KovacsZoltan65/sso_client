@@ -1,10 +1,13 @@
 <script setup>
 import EmptyStatePanel from "@/Components/EmptyStatePanel.vue";
 import AdminTableCard from "@/Components/Admin/AdminTableCard.vue";
+import BaseDataTable from "@/Components/Admin/BaseDataTable.vue";
+import AdminTableSummary from "@/Components/Admin/AdminTableSummary.vue";
 import AdminTableToolbar from "@/Components/Admin/AdminTableToolbar.vue";
 import PageHeader from "@/Components/PageHeader.vue";
 import RowActionMenu from "@/Components/Admin/RowActionMenu.vue";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
+import { useAdminTableState } from "@/Composables/useAdminTableState";
 import {
     PermissionApiError,
     createPermission,
@@ -16,13 +19,11 @@ import { Head } from "@inertiajs/vue3";
 import Button from "primevue/button";
 import Column from "primevue/column";
 import ConfirmDialog from "primevue/confirmdialog";
-import DataTable from "primevue/datatable";
 import InputText from "primevue/inputtext";
 import Tag from "primevue/tag";
 import { useConfirm } from "primevue/useconfirm";
 import { useToast } from "primevue/usetoast";
-import { computed, onMounted, reactive, ref, watch } from "vue";
-import { IconField, InputIcon } from "primevue";
+import { onMounted, reactive, ref, watch } from "vue";
 
 import CreatePermissionDialog from "./Partials/CreatePermissionDialog.vue";
 import EditPermissionDialog from "./Partials/EditPermissionDialog.vue";
@@ -42,11 +43,33 @@ const showEditDialog = ref(false);
 const editingPermission = ref(null);
 const submitting = ref(false);
 
-const filters = reactive({ search: "" });
-const tableState = reactive({ page: 1, perPage: 10, total: 0, sortField: "created_at", sortOrder: "desc" });
+const {
+    state: tableState,
+    filters,
+    first,
+    lastPage,
+    resetPagination,
+    setPageFromEvent,
+    setSortFromEvent,
+    applyMeta,
+    buildFetchParams,
+} = useAdminTableState({
+    initialSortField: "created_at",
+    initialSortOrder: -1,
+    initialFilters: {
+        search: "",
+    },
+    paramNames: {
+        page: "page",
+        perPage: "per_page",
+        sortField: "sort_field",
+        sortOrder: "sort_order",
+    },
+    serializeSortOrder: (value) => (value === 1 ? "asc" : "desc"),
+});
+
 const form = reactive(defaultForm());
 const formErrors = reactive({});
-const firstRecordIndex = computed(() => (tableState.page - 1) * tableState.perPage);
 let searchDebounceId = null;
 
 function defaultForm() {
@@ -63,7 +86,11 @@ function clearFormErrors() {
 }
 
 function getRequestParams() {
-    return { page: tableState.page, per_page: tableState.perPage, sort_field: tableState.sortField, sort_order: tableState.sortOrder, search: filters.search || undefined };
+    return buildFetchParams({
+        filters: {
+            search: filters.search || undefined,
+        },
+    });
 }
 
 async function loadPermissions() {
@@ -71,10 +98,7 @@ async function loadPermissions() {
     try {
         const envelope = await listPermissions(props.permissionsApi, getRequestParams());
         items.value = envelope.data.items ?? [];
-        const pagination = envelope.meta.pagination ?? {};
-        tableState.total = pagination.total ?? 0;
-        tableState.page = pagination.current_page ?? tableState.page;
-        tableState.perPage = pagination.per_page ?? tableState.perPage;
+        applyMeta(envelope.meta.pagination ?? {});
     } catch (error) {
         handleApiError(error, "A permission lista betoltese sikertelen volt.");
     } finally {
@@ -82,10 +106,27 @@ async function loadPermissions() {
     }
 }
 
-function openCreateDialog() { resetForm(); showCreateDialog.value = true; }
-function openEditDialog(permission) { editingPermission.value = permission; resetForm(permission); showEditDialog.value = true; }
-function closeCreateDialog() { showCreateDialog.value = false; resetForm(); }
-function closeEditDialog() { showEditDialog.value = false; editingPermission.value = null; resetForm(); }
+function openCreateDialog() {
+    resetForm();
+    showCreateDialog.value = true;
+}
+
+function openEditDialog(permission) {
+    editingPermission.value = permission;
+    resetForm(permission);
+    showEditDialog.value = true;
+}
+
+function closeCreateDialog() {
+    showCreateDialog.value = false;
+    resetForm();
+}
+
+function closeEditDialog() {
+    showEditDialog.value = false;
+    editingPermission.value = null;
+    resetForm();
+}
 
 async function submitCreate() {
     submitting.value = true;
@@ -94,7 +135,7 @@ async function submitCreate() {
         await createPermission(props.permissionsApi, form);
         toast.add({ severity: "success", summary: "Sikeres muvelet", detail: "A permission letrehozasa sikeres volt.", life: 3000 });
         closeCreateDialog();
-        tableState.page = 1;
+        resetPagination();
         await loadPermissions();
     } catch (error) {
         handleMutationError(error, "A permission letrehozasa sikertelen volt.");
@@ -105,6 +146,7 @@ async function submitCreate() {
 
 async function submitUpdate() {
     if (!editingPermission.value) return;
+
     submitting.value = true;
     clearFormErrors();
     try {
@@ -135,7 +177,11 @@ function confirmDelete(permission) {
             try {
                 await deletePermission(props.permissionsApi, permission.id);
                 toast.add({ severity: "success", summary: "Sikeres muvelet", detail: "A permission torlese sikeres volt.", life: 3000 });
-                if (items.value.length === 1 && tableState.page > 1) tableState.page -= 1;
+
+                if (items.value.length === 1 && tableState.page > 1) {
+                    tableState.page -= 1;
+                }
+
                 await loadPermissions();
             } catch (error) {
                 handleApiError(error, "A permission torlese sikertelen volt.");
@@ -156,8 +202,15 @@ async function refreshPermissions() {
     toast.add({ severity: "success", summary: "Sikeres muvelet", detail: "A permission lista frissult.", life: 2500 });
 }
 
-function handleTablePage(event) { tableState.page = (event.page ?? 0) + 1; tableState.perPage = event.rows ?? tableState.perPage; loadPermissions(); }
-function handleTableSort(event) { tableState.sortField = event.sortField ?? "created_at"; tableState.sortOrder = event.sortOrder === 1 ? "asc" : "desc"; tableState.page = 1; loadPermissions(); }
+function handleTablePage(event) {
+    setPageFromEvent(event);
+    loadPermissions();
+}
+
+function handleTableSort(event) {
+    setSortFromEvent(event, "created_at");
+    loadPermissions();
+}
 
 function handleApiError(error, fallbackMessage) {
     if (error instanceof PermissionApiError && error.status === 401) {
@@ -165,7 +218,13 @@ function handleApiError(error, fallbackMessage) {
         window.location.assign(redirectTarget);
         return;
     }
-    toast.add({ severity: "error", summary: "Hiba tortent", detail: error instanceof PermissionApiError ? error.message : fallbackMessage, life: 4000 });
+
+    toast.add({
+        severity: "error",
+        summary: "Hiba tortent",
+        detail: error instanceof PermissionApiError ? error.message : fallbackMessage,
+        life: 4000,
+    });
 }
 
 function handleMutationError(error, fallbackMessage) {
@@ -173,6 +232,7 @@ function handleMutationError(error, fallbackMessage) {
         Object.assign(formErrors, error.errors ?? {});
         return;
     }
+
     handleApiError(error, fallbackMessage);
 }
 
@@ -184,7 +244,10 @@ function formatDate(value) {
 
 watch(() => filters.search, () => {
     if (searchDebounceId) window.clearTimeout(searchDebounceId);
-    searchDebounceId = window.setTimeout(() => { tableState.page = 1; loadPermissions(); }, 350);
+    searchDebounceId = window.setTimeout(() => {
+        resetPagination();
+        loadPermissions();
+    }, 350);
 });
 
 onMounted(loadPermissions);
@@ -202,36 +265,37 @@ onMounted(loadPermissions);
             <AdminTableCard>
                 <div class="admin-table-shell">
                     <div class="hidden min-h-0 flex-1 lg:flex">
-                        <DataTable
+                        <BaseDataTable
                             :value="items"
                             :loading="loading"
-                            class="admin-datatable"
-                            scrollable
-                            scroll-height="flex"
-                            lazy
-                            paginator
+                            loading-message="Permissionok betoltese folyamatban..."
+                            empty-message="Nincs megjelenitheto permission."
                             removable-sort
                             data-key="id"
                             :rows="tableState.perPage"
-                            :first="firstRecordIndex"
-                            :total-records="tableState.total"
+                            :first="first"
+                            :total-records="tableState.totalRecords"
                             :sort-field="tableState.sortField"
-                            :sort-order="tableState.sortOrder === 'asc' ? 1 : -1"
-                            paginator-template="RowsPerPageDropdown FirstPageLink PrevPageLink CurrentPageReport NextPageLink LastPageLink"
-                            current-page-report-template="{first} - {last} / {totalRecords}"
+                            :sort-order="tableState.sortOrder"
                             :rows-per-page-options="[10, 25, 50]"
                             @page="handleTablePage"
                             @sort="handleTableSort"
                         >
                             <template #header>
-                                <AdminTableToolbar :canCreate="permissions.create" createLabel="Uj permission" :canBulkDelete="false" :selectedCount="0" :selectableCount="0" :busy="loading || submitting" @create="openCreateDialog" @refresh="refreshPermissions">
-                                    <template #search>
-                                        <IconField class="w-full">
-                                            <InputIcon class="pi pi-search text-slate-400" />
-                                            <InputText v-model="filters.search" fluid placeholder="Kereses permission nev vagy guard alapjan" class="w-full" />
-                                        </IconField>
-                                    </template>
-                                </AdminTableToolbar>
+                                <AdminTableToolbar
+                                    searchable
+                                    :search-value="filters.search"
+                                    search-placeholder="Kereses permission nev vagy guard alapjan"
+                                    :canCreate="permissions.create"
+                                    createLabel="Uj permission"
+                                    :canBulkDelete="false"
+                                    :selectedCount="0"
+                                    :selectableCount="0"
+                                    :busy="loading || submitting"
+                                    @update:searchValue="filters.search = $event"
+                                    @create="openCreateDialog"
+                                    @refresh="refreshPermissions"
+                                />
                             </template>
 
                             <template #empty>
@@ -251,15 +315,21 @@ onMounted(loadPermissions);
                             </Column>
                             <Column field="guard_name" header="Guard" sortable />
                             <Column field="roles_count" header="Roles" sortable>
-                                <template #body="{ data }"><Tag :value="String(data.roles_count ?? 0)" severity="info" /></template>
+                                <template #body="{ data }">
+                                    <Tag :value="String(data.roles_count ?? 0)" severity="info" />
+                                </template>
                             </Column>
                             <Column field="created_at" header="Letrehozva" sortable>
-                                <template #body="{ data }">{{ formatDate(data.created_at) }}</template>
+                                <template #body="{ data }">
+                                    {{ formatDate(data.created_at) }}
+                                </template>
                             </Column>
                             <Column header="Muveletek" :style="{ width: '120px' }">
-                                <template #body="{ data }"><RowActionMenu :items="permissionActionItems(data)" /></template>
+                                <template #body="{ data }">
+                                    <RowActionMenu :items="permissionActionItems(data)" />
+                                </template>
                             </Column>
-                        </DataTable>
+                        </BaseDataTable>
                     </div>
 
                     <div class="space-y-4 p-6 lg:hidden">
@@ -307,6 +377,16 @@ onMounted(loadPermissions);
                         <EmptyStatePanel v-else title="Nincs megjelenitheto permission" description="A jelenlegi szurok mellett nincs talalat. Modositsd a keresest vagy hozz letre uj permissiont." :tags="['Permissions', 'Local RBAC']" />
                     </div>
                 </div>
+
+                <template #footer>
+                    <AdminTableSummary
+                        :page="tableState.page"
+                        :per-page="tableState.perPage"
+                        :total="tableState.totalRecords"
+                        :last-page="lastPage"
+                        item-label="permission"
+                    />
+                </template>
             </AdminTableCard>
         </div>
 
