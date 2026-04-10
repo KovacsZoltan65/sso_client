@@ -1,10 +1,13 @@
 <script setup>
 import EmptyStatePanel from "@/Components/EmptyStatePanel.vue";
 import AdminTableCard from "@/Components/Admin/AdminTableCard.vue";
+import BaseDataTable from "@/Components/Admin/BaseDataTable.vue";
+import AdminTableSummary from "@/Components/Admin/AdminTableSummary.vue";
 import AdminTableToolbar from "@/Components/Admin/AdminTableToolbar.vue";
 import PageHeader from "@/Components/PageHeader.vue";
 import RowActionMenu from "@/Components/Admin/RowActionMenu.vue";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
+import { useAdminTableState } from "@/Composables/useAdminTableState";
 import {
     CompanyApiError,
     createCompany,
@@ -16,16 +19,14 @@ import { Head } from "@inertiajs/vue3";
 import Button from "primevue/button";
 import Column from "primevue/column";
 import ConfirmDialog from "primevue/confirmdialog";
-import DataTable from "primevue/datatable";
 import InputText from "primevue/inputtext";
 import Select from "primevue/select";
 import Tag from "primevue/tag";
 import { useConfirm } from "primevue/useconfirm";
 import { useToast } from "primevue/usetoast";
-import { computed, onMounted, reactive, ref, watch } from "vue";
+import { onMounted, reactive, ref, watch } from "vue";
 import CreateCompanyDialog from "./Partials/CreateCompanyDialog.vue";
 import EditCompanyDialog from "./Partials/EditCompanyDialog.vue";
-import { IconField, InputIcon } from "primevue";
 
 const props = defineProps({
     companiesApi: { type: Object, required: true },
@@ -42,17 +43,23 @@ const showEditDialog = ref(false);
 const editingCompany = ref(null);
 const submitting = ref(false);
 
-const filters = reactive({
-    search: "",
-    is_active: null,
-});
-
-const tableState = reactive({
-    page: 1,
-    perPage: 10,
-    total: 0,
-    sortField: "created_at",
-    sortOrder: "desc",
+const {
+    state: tableState,
+    filters,
+    first,
+    lastPage,
+    resetPagination,
+    setPageFromEvent,
+    setSortFromEvent,
+    applyMeta,
+    buildFetchParams,
+} = useAdminTableState({
+    initialSortField: "created_at",
+    initialSortOrder: -1,
+    initialFilters: {
+        search: "",
+        is_active: null,
+    },
 });
 
 const form = reactive(defaultForm());
@@ -64,7 +71,6 @@ const statusOptions = [
     { label: "Inaktiv", value: false },
 ];
 
-const firstRecordIndex = computed(() => (tableState.page - 1) * tableState.perPage);
 const compactSelectPt = {
     root: { class: "min-h-11" },
     label: { class: "flex min-h-11 items-center py-0" },
@@ -109,14 +115,12 @@ function clearFormErrors() {
 }
 
 function getRequestParams() {
-    return {
-        page: tableState.page,
-        per_page: tableState.perPage,
-        sort_field: tableState.sortField,
-        sort_order: tableState.sortOrder,
-        search: filters.search || undefined,
-        is_active: filters.is_active,
-    };
+    return buildFetchParams({
+        filters: {
+            search: filters.search || undefined,
+            is_active: filters.is_active,
+        },
+    });
 }
 
 async function loadCompanies() {
@@ -125,11 +129,7 @@ async function loadCompanies() {
     try {
         const envelope = await listCompanies(props.companiesApi, getRequestParams());
         companies.value = envelope.data.items ?? [];
-
-        const pagination = envelope.meta.pagination ?? {};
-        tableState.total = pagination.total ?? 0;
-        tableState.page = pagination.current_page ?? tableState.page;
-        tableState.perPage = pagination.per_page ?? tableState.perPage;
+        applyMeta(envelope.meta.pagination ?? {});
     } catch (error) {
         handleApiError(error, "A cegek betoltese sikertelen volt.");
     } finally {
@@ -172,7 +172,7 @@ async function submitCreate() {
             life: 3000,
         });
         closeCreateDialog();
-        tableState.page = 1;
+        resetPagination();
         await loadCompanies();
     } catch (error) {
         handleMutationError(error, "A ceg letrehozasa sikertelen volt.");
@@ -266,15 +266,12 @@ async function refreshCompanies() {
 }
 
 function handleTablePage(event) {
-    tableState.page = (event.page ?? 0) + 1;
-    tableState.perPage = event.rows ?? tableState.perPage;
+    setPageFromEvent(event);
     loadCompanies();
 }
 
 function handleTableSort(event) {
-    tableState.sortField = event.sortField ?? "created_at";
-    tableState.sortOrder = event.sortOrder === 1 ? "asc" : "desc";
-    tableState.page = 1;
+    setSortFromEvent(event, "created_at");
     loadCompanies();
 }
 
@@ -324,7 +321,7 @@ function formatDate(value) {
 watch(
     () => filters.is_active,
     () => {
-        tableState.page = 1;
+        resetPagination();
         loadCompanies();
     }
 );
@@ -337,7 +334,7 @@ watch(
         }
 
         searchDebounceId = window.setTimeout(() => {
-            tableState.page = 1;
+            resetPagination();
             loadCompanies();
         }, 350);
     }
@@ -361,50 +358,47 @@ onMounted(loadCompanies);
             <AdminTableCard>
                 <div class="admin-table-shell">
                     <div class="hidden min-h-0 flex-1 lg:flex">
-                        <DataTable
+                        <BaseDataTable
                             :value="companies"
                             :loading="loading"
-                            class="admin-datatable"
-                            scrollable
-                            scroll-height="flex"
-                            lazy
-                            paginator
+                            loading-message="Cegek betoltese folyamatban..."
+                            empty-message="Nincs megjelenitheto ceg."
                             removable-sort
                             data-key="id"
                             :rows="tableState.perPage"
-                            :first="firstRecordIndex"
-                            :total-records="tableState.total"
+                            :first="first"
+                            :total-records="tableState.totalRecords"
                             :sort-field="tableState.sortField"
-                            :sort-order="tableState.sortOrder === 'asc' ? 1 : -1"
-                            paginator-template="RowsPerPageDropdown FirstPageLink PrevPageLink CurrentPageReport NextPageLink LastPageLink"
-                            current-page-report-template="{first} - {last} / {totalRecords}"
+                            :sort-order="tableState.sortOrder"
                             :rows-per-page-options="[10, 25, 50]"
                             @page="handleTablePage"
                             @sort="handleTableSort"
                         >
                             <template #header>
                                 <AdminTableToolbar
+                                    searchable
+                                    :search-value="filters.search"
+                                    search-placeholder="Kereses nev, kod vagy e-mail alapjan"
                                     :canCreate="permissions.create"
                                     createLabel="Uj ceg"
                                     :canBulkDelete="false"
                                     :selectedCount="0"
                                     :selectableCount="0"
                                     :busy="loading || submitting"
+                                    @update:searchValue="filters.search = $event"
                                     @create="openCreateDialog"
                                     @refresh="refreshCompanies"
                                 >
-                                    <template #search>
-                                        <IconField class="w-full">
-                                            <InputIcon
-                                                class="pi pi-search text-slate-400"
-                                            />
-                                            <InputText
-                                                v-model="filters.search"
-                                                fluid
-                                                placeholder="Kereses nev, kod vagy e-mail alapjan"
-                                                class="w-full"
-                                            />
-                                        </IconField>
+                                    <template #filters>
+                                        <Select
+                                            v-model="filters.is_active"
+                                            :options="statusOptions"
+                                            class="w-full sm:w-56"
+                                            option-label="label"
+                                            option-value="value"
+                                            placeholder="Statusz"
+                                            show-clear
+                                        />
                                     </template>
                                 </AdminTableToolbar>
                             </template>
@@ -441,7 +435,7 @@ onMounted(loadCompanies);
                                     <RowActionMenu :items="companyActionItems(data)" />
                                 </template>
                             </Column>
-                        </DataTable>
+                        </BaseDataTable>
                     </div>
 
                     <div class="space-y-4 p-6 lg:hidden">
@@ -566,6 +560,16 @@ onMounted(loadCompanies);
                         />
                     </div>
                 </div>
+
+                <template #footer>
+                    <AdminTableSummary
+                        :page="tableState.page"
+                        :per-page="tableState.perPage"
+                        :total="tableState.totalRecords"
+                        :last-page="lastPage"
+                        item-label="ceg"
+                    />
+                </template>
             </AdminTableCard>
         </div>
 

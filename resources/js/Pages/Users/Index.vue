@@ -1,6 +1,7 @@
 <script setup>
 import EmptyStatePanel from "@/Components/EmptyStatePanel.vue";
 import AdminTableCard from "@/Components/Admin/AdminTableCard.vue";
+import BaseDataTable from "@/Components/Admin/BaseDataTable.vue";
 import AdminTableToolbar from "@/Components/Admin/AdminTableToolbar.vue";
 import PageHeader from "@/Components/PageHeader.vue";
 import RowActionMenu from "@/Components/Admin/RowActionMenu.vue";
@@ -12,7 +13,6 @@ import { Head } from "@inertiajs/vue3";
 import { FilterMatchMode } from "@primevue/core/api";
 import Button from "primevue/button";
 import Column from "primevue/column";
-import DataTable from "primevue/datatable";
 import InputText from "primevue/inputtext";
 import Select from "primevue/select";
 import Tag from "primevue/tag";
@@ -392,13 +392,13 @@ onMounted(loadUsers);
             <AdminTableCard>
                 <div class="admin-table-shell">
                 <div class="hidden min-h-0 flex-1 lg:flex">
-                    <DataTable
+                    <BaseDataTable
                         :value="users"
                         v-model:filters="tableFilters"
                         :loading="loading"
-                        class="admin-datatable"
+                        loading-message="Felhasznalok betoltese folyamatban..."
+                        empty-message="Nincs megjelenitheto felhasznalo."
                         scrollable
-                        scroll-height="flex"
                         lazy
                         paginator
                         removable-sort
@@ -530,7 +530,7 @@ onMounted(loadUsers);
                             <RowActionMenu :items="userActionItems(data)" />
                         </template>
                     </Column>
-                    </DataTable>
+                    </BaseDataTable>
                 </div>
 
                 <div class="space-y-4 p-6 lg:hidden">

@@ -20,6 +20,10 @@ const props = defineProps({
 
 defineEmits(['update:visible']);
 
+// The detail dialog prefers human-readable audit payload sections when it can
+// recognize common activitylog structures. We keep the raw JSON fallback so
+// unfamiliar payloads remain inspectable instead of disappearing behind
+// over-eager formatting rules.
 const structuredPropertySections = computed(() => {
     const properties = props.auditLog?.properties;
 
@@ -51,6 +55,8 @@ function isPlainObject(value) {
     return Object.prototype.toString.call(value) === '[object Object]';
 }
 
+// We intentionally keep the recognition logic conservative: only plain-object
+// sections with known keys are promoted into dedicated UI blocks.
 function buildPropertySection(key, label, value) {
     if (!isPlainObject(value) || Object.keys(value).length === 0) {
         return null;
@@ -66,6 +72,8 @@ function buildPropertySection(key, label, value) {
     };
 }
 
+// Values are stringified consistently so diff-like sections and the raw JSON
+// fallback tell the same story to the admin, even for nested arrays/objects.
 function formatPropertyValue(value) {
     if (value === null || value === undefined || value === '') {
         return '-';

@@ -1,21 +1,22 @@
 <script setup>
 import EmptyStatePanel from '@/Components/EmptyStatePanel.vue';
 import AdminTableCard from '@/Components/Admin/AdminTableCard.vue';
+import BaseDataTable from '@/Components/Admin/BaseDataTable.vue';
+import AdminTableSummary from '@/Components/Admin/AdminTableSummary.vue';
 import AdminTableToolbar from '@/Components/Admin/AdminTableToolbar.vue';
 import RowActionMenu from '@/Components/Admin/RowActionMenu.vue';
 import PageHeader from '@/Components/PageHeader.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import { useAdminTableState } from '@/Composables/useAdminTableState';
 import AuditLogViewDialog from '@/Pages/AuditLogs/Partials/AuditLogViewDialog.vue';
 import { AuditLogApiError, fetchAuditLogs, showAuditLog } from '@/Services/auditLogService';
 import { Head } from '@inertiajs/vue3';
 import Button from 'primevue/button';
 import Column from 'primevue/column';
-import DataTable from 'primevue/datatable';
 import InputText from 'primevue/inputtext';
 import Tag from 'primevue/tag';
 import { useToast } from 'primevue/usetoast';
-import { computed, onMounted, reactive, ref, watch } from 'vue';
-import { IconField, InputIcon } from 'primevue';
+import { onMounted, ref, watch } from 'vue';
 
 const props = defineProps({
     auditLogsApi: { type: Object, required: true },
@@ -30,30 +31,32 @@ const detailLoading = ref(false);
 const showDetailDialog = ref(false);
 const selectedAuditLog = ref(null);
 
-const filters = reactive({
-    global: '',
+const {
+    state: tableState,
+    filters,
+    first,
+    lastPage,
+    resetPagination,
+    setPageFromEvent,
+    setSortFromEvent,
+    applyMeta,
+    buildFetchParams,
+} = useAdminTableState({
+    initialSortField: 'created_at',
+    initialSortOrder: -1,
+    initialFilters: {
+        global: '',
+    },
 });
-
-const lazyParams = reactive({
-    page: 1,
-    perPage: 10,
-    total: 0,
-    sortField: 'created_at',
-    sortOrder: 'desc',
-});
-
-const firstRecordIndex = computed(() => (lazyParams.page - 1) * lazyParams.perPage);
 
 let searchDebounceId = null;
 
 function getRequestParams() {
-    return {
-        page: lazyParams.page,
-        per_page: lazyParams.perPage,
-        sort_field: lazyParams.sortField,
-        sort_order: lazyParams.sortOrder,
-        global: filters.global || undefined,
-    };
+    return buildFetchParams({
+        filters: {
+            global: filters.global || undefined,
+        },
+    });
 }
 
 async function loadAuditLogs() {
@@ -62,11 +65,7 @@ async function loadAuditLogs() {
     try {
         const envelope = await fetchAuditLogs(props.auditLogsApi, getRequestParams());
         items.value = envelope.data.items ?? [];
-
-        const pagination = envelope.meta.pagination ?? {};
-        lazyParams.total = pagination.total ?? 0;
-        lazyParams.page = pagination.current_page ?? lazyParams.page;
-        lazyParams.perPage = pagination.per_page ?? lazyParams.perPage;
+        applyMeta(envelope.meta.pagination ?? {});
     } catch (error) {
         handleApiError(error, 'Az audit logok betoltese sikertelen volt.');
     } finally {
@@ -115,15 +114,12 @@ async function refreshAuditLogs() {
 }
 
 function handleTablePage(event) {
-    lazyParams.page = (event.page ?? 0) + 1;
-    lazyParams.perPage = event.rows ?? lazyParams.perPage;
+    setPageFromEvent(event);
     loadAuditLogs();
 }
 
 function handleTableSort(event) {
-    lazyParams.sortField = event.sortField ?? 'created_at';
-    lazyParams.sortOrder = event.sortOrder === 1 ? 'asc' : 'desc';
-    lazyParams.page = 1;
+    setSortFromEvent(event, 'created_at');
     loadAuditLogs();
 }
 
@@ -206,7 +202,7 @@ watch(
         }
 
         searchDebounceId = window.setTimeout(() => {
-            lazyParams.page = 1;
+            resetPagination();
             loadAuditLogs();
         }, 350);
     }
@@ -228,47 +224,35 @@ onMounted(loadAuditLogs);
             <AdminTableCard>
                 <div class="admin-table-shell">
                     <div class="hidden min-h-0 flex-1 lg:flex">
-                        <DataTable
+                        <BaseDataTable
                             :value="items"
                             :loading="loading"
-                            class="admin-datatable"
-                            scrollable
-                            scroll-height="flex"
-                            lazy
-                            paginator
+                            loading-message="Audit logok betoltese folyamatban..."
+                            empty-message="Nincs megjelenitheto audit bejegyzes."
                             removable-sort
                             data-key="id"
-                            :rows="lazyParams.perPage"
-                            :first="firstRecordIndex"
-                            :total-records="lazyParams.total"
-                            :sort-field="lazyParams.sortField"
-                            :sort-order="lazyParams.sortOrder === 'asc' ? 1 : -1"
-                            paginator-template="RowsPerPageDropdown FirstPageLink PrevPageLink CurrentPageReport NextPageLink LastPageLink"
-                            current-page-report-template="{first} - {last} / {totalRecords}"
+                            :rows="tableState.perPage"
+                            :first="first"
+                            :total-records="tableState.totalRecords"
+                            :sort-field="tableState.sortField"
+                            :sort-order="tableState.sortOrder"
                             :rows-per-page-options="[10, 25, 50]"
                             @page="handleTablePage"
                             @sort="handleTableSort"
                         >
                             <template #header>
                                 <AdminTableToolbar
+                                    searchable
+                                    :search-value="filters.global"
+                                    search-placeholder="Kereses esemeny, leiras, target vagy felhasznalo alapjan"
                                     :canCreate="false"
                                     :canBulkDelete="false"
                                     :selectedCount="0"
                                     :selectableCount="0"
                                     :busy="loading || detailLoading"
+                                    @update:searchValue="filters.global = $event"
                                     @refresh="refreshAuditLogs"
-                                >
-                                    <template #search>
-                                        <IconField class="w-full">
-                                            <InputIcon class="pi pi-search text-slate-400" />
-                                            <InputText
-                                                v-model="filters.global"
-                                                placeholder="Kereses esemeny, leiras, target vagy felhasznalo alapjan"
-                                                class="w-full"
-                                            />
-                                        </IconField>
-                                    </template>
-                                </AdminTableToolbar>
+                                />
                             </template>
 
                             <template #empty>
@@ -319,7 +303,7 @@ onMounted(loadAuditLogs);
                                     <RowActionMenu :items="auditLogActionItems(data)" :disabled="detailLoading" />
                                 </template>
                             </Column>
-                        </DataTable>
+                        </BaseDataTable>
                     </div>
 
                     <div class="space-y-4 p-6 lg:hidden">
@@ -408,6 +392,16 @@ onMounted(loadAuditLogs);
                         />
                     </div>
                 </div>
+
+                <template #footer>
+                    <AdminTableSummary
+                        :page="tableState.page"
+                        :per-page="tableState.perPage"
+                        :total="tableState.totalRecords"
+                        :last-page="lastPage"
+                        item-label="audit bejegyzes"
+                    />
+                </template>
             </AdminTableCard>
         </div>
 

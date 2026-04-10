@@ -11,6 +11,9 @@ export class ProfileApiError extends Error {
     }
 }
 
+// Normalizes the server envelope so the page can treat profile read/update and
+// password flows as one contract, even when an upstream failure omits optional
+// keys.
 function normalizeEnvelope(payload = {}) {
     return {
         message: payload.message ?? 'Request completed.',
@@ -20,6 +23,9 @@ function normalizeEnvelope(payload = {}) {
     };
 }
 
+// 401 handling is intentionally centralized here so page components do not have
+// to guess reauthentication behavior. The server remains the source of truth
+// for where the user should be redirected next.
 function toProfileApiError(error) {
     const payload = normalizeEnvelope(error?.response?.data ?? {});
     const status = error?.response?.status ?? 500;
@@ -37,6 +43,9 @@ function toProfileApiError(error) {
     );
 }
 
+// Shared request wrapper for the thin self-service client. Persistence,
+// validation, and audit logging stay on the server; this layer only forwards
+// the contract and turns failures into a UI-friendly error object.
 async function request(method, url, { payload = null, csrfToken = null } = {}) {
     try {
         const response = await axios({

@@ -66,6 +66,14 @@ use RuntimeException;
  *     access_token: string,
  *     id_token: string|null
  * }
+ *
+ * Local SSO integration boundary for the client application.
+ *
+ * This service is intentionally broad because it owns the entire authorization
+ * code + OIDC session orchestration on the client side. Profile persistence
+ * and identity authority still live on the server; this layer focuses on
+ * redirects, token exchange, local session wiring, and audit-friendly failure
+ * diagnostics.
  */
 class SsoClientService
 {
