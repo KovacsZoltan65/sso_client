@@ -28,11 +28,17 @@ import { onMounted, reactive, ref, watch } from "vue";
 
 import CreateEmployeeDialog from "./Partials/CreateEmployeeDialog.vue";
 import EditEmployeeDialog from "./Partials/EditEmployeeDialog.vue";
+import { IconField, InputIcon } from "primevue";
 
 const props = defineProps({
     employeesApi: { type: Object, required: true },
     permissions: { type: Object, required: true },
     companies: { type: Array, default: () => [] },
+    searchValue: { type: String, default: "" },
+    searchPlaceholder: {
+        type: String,
+        default: "Kereses nev, e-mail, pozicio vagy azonosito alapjan",
+    },
 });
 
 const toast = useToast();
@@ -114,7 +120,7 @@ function resetForm(employee = null) {
                   position: employee.position ?? "",
                   is_active: Boolean(employee.is_active),
               }
-            : defaultForm(),
+            : defaultForm()
     );
 
     clearFormErrors();
@@ -290,7 +296,8 @@ function handleTableSort(event) {
 
 function handleApiError(error, fallbackMessage) {
     if (error instanceof EmployeeApiError && error.status === 401) {
-        const redirectTarget = error.meta.reauth_to || error.meta.redirect_to || route("login");
+        const redirectTarget =
+            error.meta.reauth_to || error.meta.redirect_to || route("login");
         window.location.assign(redirectTarget);
         return;
     }
@@ -335,7 +342,7 @@ watch(
     () => {
         resetPagination();
         loadEmployees();
-    },
+    }
 );
 
 watch(
@@ -343,7 +350,7 @@ watch(
     () => {
         resetPagination();
         loadEmployees();
-    },
+    }
 );
 
 watch(
@@ -357,7 +364,7 @@ watch(
             resetPagination();
             loadEmployees();
         }, 350);
-    },
+    }
 );
 
 onMounted(loadEmployees);
@@ -399,7 +406,7 @@ onMounted(loadEmployees);
                                     searchable
                                     :search-value="filters.search"
                                     searchContainerClass="w-full lg:flex-1 lg:min-w-0"
-                                    search-placeholder="Kereses nev, e-mail, pozicio vagy azonosito alapjan"
+                                    :search-placeholder="searchPlaceholder"
                                     :canCreate="permissions.create"
                                     createLabel="Uj alkalmazott"
                                     :canBulkDelete="false"
@@ -411,6 +418,7 @@ onMounted(loadEmployees);
                                     @refresh="refreshEmployees"
                                 >
                                     <template #filters>
+                                        <!-- Cégek szűrő -->
                                         <Select
                                             v-model="filters.company_id"
                                             :options="companies"
@@ -421,6 +429,7 @@ onMounted(loadEmployees);
                                             class="w-full sm:w-56"
                                         />
 
+                                        <!-- Státusz szűrő -->
                                         <Select
                                             v-model="filters.is_active"
                                             :options="statusOptions"
@@ -452,7 +461,10 @@ onMounted(loadEmployees);
                             <Column field="company_name" header="Ceg" sortable />
                             <Column field="is_active" header="Statusz" sortable>
                                 <template #body="{ data }">
-                                    <Tag :value="statusLabel(data.is_active)" :severity="statusSeverity(data.is_active)" />
+                                    <Tag
+                                        :value="statusLabel(data.is_active)"
+                                        :severity="statusSeverity(data.is_active)"
+                                    />
                                 </template>
                             </Column>
                             <Column field="created_at" header="Letrehozva" sortable>
@@ -468,17 +480,27 @@ onMounted(loadEmployees);
                         </BaseDataTable>
                     </div>
 
-                    <div class="space-y-4 p-6 lg:hidden">
-                        <div class="grid gap-3">
-                            <div class="relative">
-                                <i class="pi pi-search pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-sm text-slate-400" />
+                    <div class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-6 lg:hidden">
+                        <div class="grid flex-none gap-3">
+                            <!--<div class="relative">
+                                <i
+                                    class="pi pi-search pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-sm text-slate-400"
+                                />
                                 <InputText
                                     v-model="filters.search"
                                     fluid
                                     class="h-11 w-full pl-10"
                                     placeholder="Kereses nev, e-mail, pozicio vagy azonosito alapjan"
                                 />
-                            </div>
+                            </div>-->
+                            <IconField class="w-full">
+                                <InputIcon class="pi pi-search" />
+                                <InputText
+                                    v-model="filters.search"
+                                    :placeholder="searchPlaceholder"
+                                    class="h-11 w-full"
+                                />
+                            </IconField>
 
                             <Select
                                 v-model="filters.company_id"
@@ -503,21 +525,52 @@ onMounted(loadEmployees);
                             />
                         </div>
 
-                        <div class="flex flex-wrap items-center justify-end gap-3">
-                            <Button label="Frissites" icon="pi pi-refresh" severity="secondary" outlined :loading="loading || submitting" :disabled="loading || submitting" @click="refreshEmployees" />
-                            <Button v-if="permissions.create" label="Uj alkalmazott" icon="pi pi-plus" severity="primary" :disabled="loading || submitting" @click="openCreateDialog" />
+                        <div class="flex flex-none flex-wrap items-center justify-end gap-3">
+                            <Button
+                                label="Frissites"
+                                icon="pi pi-refresh"
+                                severity="secondary"
+                                outlined
+                                :loading="loading || submitting"
+                                :disabled="loading || submitting"
+                                @click="refreshEmployees"
+                            />
+                            <Button
+                                v-if="permissions.create"
+                                label="Uj alkalmazott"
+                                icon="pi pi-plus"
+                                severity="primary"
+                                :disabled="loading || submitting"
+                                @click="openCreateDialog"
+                            />
                         </div>
 
-                        <div v-if="loading" class="rounded-2xl border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-500">Betoltes folyamatban...</div>
+                        <div
+                            v-if="loading"
+                            class="rounded-2xl border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-500"
+                        >
+                            Betoltes folyamatban...
+                        </div>
 
                         <template v-else-if="employees.length > 0">
-                            <article v-for="employee in employees" :key="employee.id" class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                            <article
+                                v-for="employee in employees"
+                                :key="employee.id"
+                                class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"
+                            >
                                 <div class="flex items-start justify-between gap-3">
                                     <div>
-                                        <h3 class="text-lg font-semibold text-slate-950">{{ employee.name }}</h3>
-                                        <p class="mt-1 text-sm text-slate-500">{{ employee.employee_number || "-" }}</p>
+                                        <h3 class="text-lg font-semibold text-slate-950">
+                                            {{ employee.name }}
+                                        </h3>
+                                        <p class="mt-1 text-sm text-slate-500">
+                                            {{ employee.employee_number || "-" }}
+                                        </p>
                                     </div>
-                                    <Tag :value="statusLabel(employee.is_active)" :severity="statusSeverity(employee.is_active)" />
+                                    <Tag
+                                        :value="statusLabel(employee.is_active)"
+                                        :severity="statusSeverity(employee.is_active)"
+                                    />
                                 </div>
 
                                 <dl class="mt-4 grid gap-3 text-sm text-slate-600">
@@ -526,11 +579,15 @@ onMounted(loadEmployees);
                                         <dd>{{ employee.email || "-" }}</dd>
                                     </div>
                                     <div>
-                                        <dt class="font-medium text-slate-900">Telefon</dt>
+                                        <dt class="font-medium text-slate-900">
+                                            Telefon
+                                        </dt>
                                         <dd>{{ employee.phone || "-" }}</dd>
                                     </div>
                                     <div>
-                                        <dt class="font-medium text-slate-900">Pozicio</dt>
+                                        <dt class="font-medium text-slate-900">
+                                            Pozicio
+                                        </dt>
                                         <dd>{{ employee.position || "-" }}</dd>
                                     </div>
                                     <div>
@@ -538,18 +595,25 @@ onMounted(loadEmployees);
                                         <dd>{{ employee.company_name || "-" }}</dd>
                                     </div>
                                     <div>
-                                        <dt class="font-medium text-slate-900">Letrehozva</dt>
+                                        <dt class="font-medium text-slate-900">
+                                            Letrehozva
+                                        </dt>
                                         <dd>{{ formatDate(employee.created_at) }}</dd>
                                     </div>
                                 </dl>
 
                                 <div class="mt-5 flex justify-end">
-                                    <RowActionMenu :items="employeeActionItems(employee)" />
+                                    <RowActionMenu
+                                        :items="employeeActionItems(employee)"
+                                    />
                                 </div>
                             </article>
                         </template>
 
-                        <div v-else class="rounded-3xl border border-dashed border-slate-300 bg-slate-50 px-5 py-8">
+                        <div
+                            v-else
+                            class="rounded-3xl border border-dashed border-slate-300 bg-slate-50 px-5 py-8"
+                        >
                             <EmptyStatePanel
                                 title="Nincs megjelenitheto alkalmazott"
                                 description="A jelenlegi szurok mellett nincs talalat. Modositsd a keresest vagy hozz letre uj alkalmazottat."
@@ -577,7 +641,9 @@ onMounted(loadEmployees);
             :form="form"
             :errors="formErrors"
             :submitting="submitting"
-            @update:visible="(value) => value ? (showCreateDialog = value) : closeCreateDialog()"
+            @update:visible="
+                (value) => (value ? (showCreateDialog = value) : closeCreateDialog())
+            "
             @submit="submitCreate"
         />
         <EditEmployeeDialog
@@ -586,7 +652,9 @@ onMounted(loadEmployees);
             :form="form"
             :errors="formErrors"
             :submitting="submitting"
-            @update:visible="(value) => value ? (showEditDialog = value) : closeEditDialog()"
+            @update:visible="
+                (value) => (value ? (showEditDialog = value) : closeEditDialog())
+            "
             @submit="submitUpdate"
         />
     </AuthenticatedLayout>

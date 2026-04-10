@@ -26,6 +26,7 @@ import { useToast } from "primevue/usetoast";
 import { onMounted, reactive, ref, watch } from "vue";
 import CreateRoleDialog from "./Partials/CreateRoleDialog.vue";
 import EditRoleDialog from "./Partials/EditRoleDialog.vue";
+import { IconField, InputIcon } from "primevue";
 
 const props = defineProps({
     rolesApi: { type: Object, required: true },
@@ -322,15 +323,19 @@ onMounted(loadRoles);
                         </BaseDataTable>
                     </div>
 
-                    <div class="space-y-4 p-6 lg:hidden">
-                        <div class="grid gap-3">
-                            <div class="relative">
-                                <i class="pi pi-search pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-sm text-slate-400" />
-                                <InputText v-model="filters.search" fluid class="h-11 w-full pl-10" placeholder="Kereses role nev vagy guard alapjan" />
-                            </div>
+                    <div class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-6 lg:hidden">
+                        <div class="grid flex-none gap-3">
+                            <IconField class="w-full">
+                                <InputIcon class="pi pi-search" />
+                                <InputText
+                                    v-model="filters.search"
+                                    class="h-11 w-full"
+                                    placeholder="Kereses role nev vagy guard alapjan"
+                                />
+                            </IconField>
                         </div>
 
-                        <div class="flex flex-wrap items-center justify-end gap-3">
+                        <div class="flex flex-none flex-wrap items-center justify-end gap-3">
                             <Button label="Frissites" icon="pi pi-refresh" severity="secondary" outlined :loading="loading || submitting" :disabled="loading || submitting" @click="refreshRoles" />
                             <Button v-if="permissions.create" label="Uj role" icon="pi pi-plus" severity="primary" :disabled="loading || submitting" @click="openCreateDialog" />
                         </div>

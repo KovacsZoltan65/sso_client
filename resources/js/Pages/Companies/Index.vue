@@ -27,10 +27,13 @@ import { useToast } from "primevue/usetoast";
 import { onMounted, reactive, ref, watch } from "vue";
 import CreateCompanyDialog from "./Partials/CreateCompanyDialog.vue";
 import EditCompanyDialog from "./Partials/EditCompanyDialog.vue";
+import { IconField, InputIcon } from "primevue";
 
 const props = defineProps({
     companiesApi: { type: Object, required: true },
     permissions: { type: Object, required: true },
+    searchValue: { type: String, default: "" },
+    searchPlaceholder: { type: String, default: "Kereses nev, kod vagy e-mail alapjan" },
 });
 
 const toast = useToast();
@@ -378,7 +381,7 @@ onMounted(loadCompanies);
                                 <AdminTableToolbar
                                     searchable
                                     :search-value="filters.search"
-                                    search-placeholder="Kereses nev, kod vagy e-mail alapjan"
+                                    :search-placeholder="searchPlaceholder"
                                     :canCreate="permissions.create"
                                     createLabel="Uj ceg"
                                     :canBulkDelete="false"
@@ -413,10 +416,15 @@ onMounted(loadCompanies);
                                 </div>
                             </template>
 
+                            <!-- Name -->
                             <Column field="name" header="Cegnev" sortable />
+                            <!-- Code -->
                             <Column field="code" header="Kod" sortable />
+                            <!-- Email -->
                             <Column field="email" header="E-mail" sortable />
+                            <!-- Phone -->
                             <Column field="phone" header="Telefonszam" />
+                            <!-- Is Active -->
                             <Column field="is_active" header="Statusz" sortable>
                                 <template #body="{ data }">
                                     <Tag
@@ -425,11 +433,13 @@ onMounted(loadCompanies);
                                     />
                                 </template>
                             </Column>
+                            <!-- Created At -->
                             <Column field="created_at" header="Letrehozva" sortable>
                                 <template #body="{ data }">
                                     {{ formatDate(data.created_at) }}
                                 </template>
                             </Column>
+                            <!-- Műveletek -->
                             <Column header="Muveletek" :style="{ width: '120px' }">
                                 <template #body="{ data }">
                                     <RowActionMenu :items="companyActionItems(data)" />
@@ -438,19 +448,16 @@ onMounted(loadCompanies);
                         </BaseDataTable>
                     </div>
 
-                    <div class="space-y-4 p-6 lg:hidden">
-                        <div class="grid gap-3">
-                            <div class="relative">
-                                <i
-                                    class="pi pi-search pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-sm text-slate-400"
-                                />
+                    <div class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-6 lg:hidden">
+                        <div class="grid flex-none gap-3">
+                            <IconField class="w-full">
+                                <InputIcon class="pi pi-search" />
                                 <InputText
                                     v-model="filters.search"
-                                    fluid
-                                    class="h-11 w-full pl-10"
-                                    placeholder="Kereses nev, kod vagy e-mail alapjan"
+                                    :placeholder="searchPlaceholder"
+                                    class="h-11 w-full"
                                 />
-                            </div>
+                            </IconField>
 
                             <Select
                                 v-model="filters.is_active"
@@ -464,7 +471,7 @@ onMounted(loadCompanies);
                             />
                         </div>
 
-                        <div class="flex flex-wrap items-center justify-end gap-3">
+                        <div class="flex flex-none flex-wrap items-center justify-end gap-3">
                             <Button
                                 label="Frissites"
                                 icon="pi pi-refresh"
@@ -578,7 +585,9 @@ onMounted(loadCompanies);
             :form="form"
             :errors="formErrors"
             :submitting="submitting"
-            @update:visible="(value) => value ? (showCreateDialog = value) : closeCreateDialog()"
+            @update:visible="
+                (value) => (value ? (showCreateDialog = value) : closeCreateDialog())
+            "
             @submit="submitCreate"
         />
         <EditCompanyDialog
@@ -586,9 +595,10 @@ onMounted(loadCompanies);
             :form="form"
             :errors="formErrors"
             :submitting="submitting"
-            @update:visible="(value) => value ? (showEditDialog = value) : closeEditDialog()"
+            @update:visible="
+                (value) => (value ? (showEditDialog = value) : closeEditDialog())
+            "
             @submit="submitUpdate"
         />
     </AuthenticatedLayout>
 </template>
-

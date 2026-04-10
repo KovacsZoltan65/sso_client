@@ -121,15 +121,15 @@ function getRequestParams() {
 }
 
 function normalizeBooleanFilter(value) {
-    if (value === null || value === undefined || value === '') {
+    if (value === null || value === undefined || value === "") {
         return undefined;
     }
 
-    if (value === true || value === 'true') {
+    if (value === true || value === "true") {
         return true;
     }
 
-    if (value === false || value === 'false') {
+    if (value === false || value === "false") {
         return false;
     }
 
@@ -383,277 +383,286 @@ onMounted(loadUsers);
     <Head title="Users" />
 
     <AuthenticatedLayout>
-            <PageHeader
-                title="Users"
-                description="SSO projection alapju felhasznalolista readonly identity mezokkel es kliens-specifikus helyi metaadatokkal."
-            />
+        <PageHeader
+            title="Users"
+            description="SSO projection alapju felhasznalolista readonly identity mezokkel es kliens-specifikus helyi metaadatokkal."
+        />
 
         <div class="admin-table-page">
             <AdminTableCard>
                 <div class="admin-table-shell">
-                <div class="hidden min-h-0 flex-1 lg:flex">
-                    <BaseDataTable
-                        :value="users"
-                        v-model:filters="tableFilters"
-                        :loading="loading"
-                        loading-message="Felhasznalok betoltese folyamatban..."
-                        empty-message="Nincs megjelenitheto felhasznalo."
-                        scrollable
-                        lazy
-                        paginator
-                        removable-sort
-                        filterDisplay="menu"
-                        data-key="id"
-                        :rows="tableState.perPage"
-                        :first="firstRecordIndex"
-                        :total-records="tableState.total"
-                        :sort-field="tableState.sortField"
-                        :sort-order="tableState.sortOrder === 'asc' ? 1 : -1"
-                        paginator-template="RowsPerPageDropdown FirstPageLink PrevPageLink CurrentPageReport NextPageLink LastPageLink"
-                        current-page-report-template="{first} - {last} / {totalRecords}"
-                        :rows-per-page-options="[10, 25, 50]"
-                        @page="handleTablePage"
-                        @sort="handleTableSort"
-                        @filter="onFilter"
-                    >
-                    <template #header>
-                        <AdminTableToolbar
-                            :canCreate="false"
-                            :canBulkDelete="false"
-                            :selectedCount="0"
-                            :selectableCount="0"
-                            :busy="loading || dialogLoading || submitting"
-                            @refresh="loadUsers"
+                    <div class="hidden min-h-0 flex-1 lg:flex">
+                        <BaseDataTable
+                            :value="users"
+                            v-model:filters="tableFilters"
+                            :loading="loading"
+                            loading-message="Felhasznalok betoltese folyamatban..."
+                            empty-message="Nincs megjelenitheto felhasznalo."
+                            scrollable
+                            lazy
+                            paginator
+                            removable-sort
+                            filterDisplay="menu"
+                            data-key="id"
+                            :rows="tableState.perPage"
+                            :first="firstRecordIndex"
+                            :total-records="tableState.total"
+                            :sort-field="tableState.sortField"
+                            :sort-order="tableState.sortOrder === 'asc' ? 1 : -1"
+                            paginator-template="RowsPerPageDropdown FirstPageLink PrevPageLink CurrentPageReport NextPageLink LastPageLink"
+                            current-page-report-template="{first} - {last} / {totalRecords}"
+                            :rows-per-page-options="[10, 25, 50]"
+                            @page="handleTablePage"
+                            @sort="handleTableSort"
+                            @filter="onFilter"
                         >
-                            <template #search>
-                                <IconField class="w-full">
-                                    <InputIcon class="pi pi-search text-slate-400" />
-                                    <InputText
-                                        v-model="tableFilters.global.value"
-                                        placeholder="Global search"
-                                        class="w-full"
-                                        @update:modelValue="onGlobalFilterInput"
-                                    />
-                                </IconField>
+                            <template #header>
+                                <AdminTableToolbar
+                                    :canCreate="false"
+                                    :canBulkDelete="false"
+                                    :selectedCount="0"
+                                    :selectableCount="0"
+                                    :busy="loading || dialogLoading || submitting"
+                                    @refresh="loadUsers"
+                                >
+                                    <template #search>
+                                        <IconField class="w-full">
+                                            <InputIcon
+                                                class="pi pi-search text-slate-400"
+                                            />
+                                            <InputText
+                                                v-model="tableFilters.global.value"
+                                                placeholder="Global search"
+                                                class="w-full"
+                                                @update:modelValue="onGlobalFilterInput"
+                                            />
+                                        </IconField>
+                                    </template>
+                                </AdminTableToolbar>
                             </template>
-                        </AdminTableToolbar>
-                    </template>
 
-                    <template #empty>
-                        <div class="px-6 py-10">
-                            <EmptyStatePanel
-                                title="Nincs megjelenitheto felhasznalo"
-                                description="A jelenlegi szurok mellett nincs talalat. Modositsd a keresest vagy a szuresi felteteleket."
-                                :tags="['Users', 'SSO projection']"
-                            />
-                        </div>
-                    </template>
-
-                    <Column field="id" header="Local ID" sortable />
-                    <Column field="sso_user_id" header="SSO User ID" sortable />
-                    <Column field="name" header="Nev" sortable />
-                    <Column field="email" header="E-mail" sortable />
-                    <Column
-                        field="local_status"
-                        header="Statusz"
-                        sortable
-                        :showFilterMatchModes="false"
-                        :showFilterOperator="false"
-                        :showAddButton="false"
-                    >
-                        <template #body="{ data }">
-                            <Tag
-                                :value="statusLabel(data.local_status)"
-                                :severity="statusSeverity(data.local_status)"
-                            />
-                        </template>
-
-                        <template #filter="{ filterModel, filterCallback }">
-                            <Select
-                                v-model="filterModel.value"
-                                :options="localStatusOptions"
-                                option-label="label"
-                                option-value="value"
-                                placeholder="Minden statusz"
-                                class="w-full"
-                                @change="filterCallback()"
-                            />
-                        </template>
-                    </Column>
-                    <Column
-                        field="hasSsoLink"
-                        header="Kapcsolat"
-                        :showFilterMatchModes="false"
-                        :showFilterOperator="false"
-                        :showAddButton="false"
-                    >
-                        <template #body="{ data }">
-                            <Tag
-                                :value="ssoLinkLabel(data)"
-                                :severity="ssoLinkSeverity(data)"
-                            />
-                        </template>
-
-                        <template #filter="{ filterModel, filterCallback }">
-                            <Select
-                                v-model="filterModel.value"
-                                :options="linkOptions"
-                                option-label="label"
-                                option-value="value"
-                                placeholder="Minden kapcsolat"
-                                class="w-full"
-                                @change="filterCallback()"
-                            />
-                        </template>
-                    </Column>
-                    <Column
-                        field="last_authenticated_at"
-                        header="Utolso hitelesites"
-                        sortable
-                    >
-                        <template #body="{ data }">
-                            {{ formatDate(data.last_authenticated_at) }}
-                        </template>
-                    </Column>
-                    <Column field="created_at" header="Letrehozva" sortable>
-                        <template #body="{ data }">
-                            {{ formatDate(data.created_at) }}
-                        </template>
-                    </Column>
-                    <Column field="updated_at" header="Frissitve" sortable>
-                        <template #body="{ data }">
-                            {{ formatDate(data.updated_at) }}
-                        </template>
-                    </Column>
-                    <Column header="Muveletek" :style="{ width: '120px' }">
-                        <template #body="{ data }">
-                            <RowActionMenu :items="userActionItems(data)" />
-                        </template>
-                    </Column>
-                    </BaseDataTable>
-                </div>
-
-                <div class="space-y-4 p-6 lg:hidden">
-                    <div class="grid gap-3">
-                        <div class="relative">
-                            <i
-                                class="pi pi-search pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-sm text-slate-400"
-                            />
-                            <InputText
-                                v-model="tableFilters.global.value"
-                                fluid
-                                class="h-11 w-full pl-10"
-                                placeholder="Kereses..."
-                                @update:modelValue="onGlobalFilterInput"
-                            />
-                        </div>
-
-                        <Select
-                            v-model="tableFilters.localStatus.value"
-                            :options="localStatusOptions"
-                            :pt="compactSelectPt"
-                            class="w-full"
-                            option-label="label"
-                            option-value="value"
-                            placeholder="Lokalis statusz"
-                            show-clear
-                        />
-
-                        <Select
-                            v-model="tableFilters.hasSsoLink.value"
-                            :options="linkOptions"
-                            :pt="compactSelectPt"
-                            class="w-full"
-                            option-label="label"
-                            option-value="value"
-                            placeholder="SSO kapcsolat"
-                            show-clear
-                        />
-                    </div>
-
-                    <div class="flex flex-wrap items-center justify-end gap-3">
-                        <Button
-                            label="Frissites"
-                            icon="pi pi-refresh"
-                            severity="secondary"
-                            outlined
-                            :loading="loading || dialogLoading || submitting"
-                            :disabled="loading || dialogLoading || submitting"
-                            @click="refreshUsers"
-                        />
-                    </div>
-
-                    <div
-                        v-if="loading"
-                        class="rounded-2xl border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-500"
-                    >
-                        Betoltes folyamatban...
-                    </div>
-
-                    <template v-else-if="users.length > 0">
-                        <article
-                            v-for="user in users"
-                            :key="user.id"
-                            class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"
-                        >
-                            <div class="flex items-start justify-between gap-3">
-                                <div>
-                                    <h3 class="text-lg font-semibold text-slate-950">
-                                        {{ user.name || "-" }}
-                                    </h3>
-                                    <p class="mt-1 text-sm text-slate-500">
-                                        {{ user.email || "-" }}
-                                    </p>
+                            <template #empty>
+                                <div class="px-6 py-10">
+                                    <EmptyStatePanel
+                                        title="Nincs megjelenitheto felhasznalo"
+                                        description="A jelenlegi szurok mellett nincs talalat. Modositsd a keresest vagy a szuresi felteteleket."
+                                        :tags="['Users', 'SSO projection']"
+                                    />
                                 </div>
-                                <Tag
-                                    :value="statusLabel(user.local_status)"
-                                    :severity="statusSeverity(user.local_status)"
+                            </template>
+
+                            <Column field="id" header="Local ID" sortable />
+                            <Column field="sso_user_id" header="SSO User ID" sortable />
+                            <Column field="name" header="Nev" sortable />
+                            <Column field="email" header="E-mail" sortable />
+                            <Column
+                                field="local_status"
+                                header="Statusz"
+                                sortable
+                                :showFilterMatchModes="false"
+                                :showFilterOperator="false"
+                                :showAddButton="false"
+                            >
+                                <template #body="{ data }">
+                                    <Tag
+                                        :value="statusLabel(data.local_status)"
+                                        :severity="statusSeverity(data.local_status)"
+                                    />
+                                </template>
+
+                                <template #filter="{ filterModel, filterCallback }">
+                                    <Select
+                                        v-model="filterModel.value"
+                                        :options="localStatusOptions"
+                                        option-label="label"
+                                        option-value="value"
+                                        placeholder="Minden statusz"
+                                        class="w-full"
+                                        @change="filterCallback()"
+                                    />
+                                </template>
+                            </Column>
+                            <Column
+                                field="hasSsoLink"
+                                header="Kapcsolat"
+                                :showFilterMatchModes="false"
+                                :showFilterOperator="false"
+                                :showAddButton="false"
+                            >
+                                <template #body="{ data }">
+                                    <Tag
+                                        :value="ssoLinkLabel(data)"
+                                        :severity="ssoLinkSeverity(data)"
+                                    />
+                                </template>
+
+                                <template #filter="{ filterModel, filterCallback }">
+                                    <Select
+                                        v-model="filterModel.value"
+                                        :options="linkOptions"
+                                        option-label="label"
+                                        option-value="value"
+                                        placeholder="Minden kapcsolat"
+                                        class="w-full"
+                                        @change="filterCallback()"
+                                    />
+                                </template>
+                            </Column>
+                            <Column
+                                field="last_authenticated_at"
+                                header="Utolso hitelesites"
+                                sortable
+                            >
+                                <template #body="{ data }">
+                                    {{ formatDate(data.last_authenticated_at) }}
+                                </template>
+                            </Column>
+                            <Column field="created_at" header="Letrehozva" sortable>
+                                <template #body="{ data }">
+                                    {{ formatDate(data.created_at) }}
+                                </template>
+                            </Column>
+                            <Column field="updated_at" header="Frissitve" sortable>
+                                <template #body="{ data }">
+                                    {{ formatDate(data.updated_at) }}
+                                </template>
+                            </Column>
+                            <Column header="Muveletek" :style="{ width: '120px' }">
+                                <template #body="{ data }">
+                                    <RowActionMenu :items="userActionItems(data)" />
+                                </template>
+                            </Column>
+                        </BaseDataTable>
+                    </div>
+
+                    <div class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-6 lg:hidden">
+                        <div class="grid flex-none gap-3">
+                            <IconField class="w-full">
+                                <InputIcon class="pi pi-search" />
+                                <InputText
+                                    v-model="tableFilters.global.value"
+                                    class="h-11 w-full"
+                                    placeholder="Kereses..."
+                                    @update:modelValue="onGlobalFilterInput"
                                 />
-                            </div>
+                            </IconField>
 
-                            <dl class="mt-4 grid gap-3 text-sm text-slate-600">
-                                <div>
-                                    <dt class="font-semibold text-slate-900">Local ID</dt>
-                                    <dd>{{ user.id }}</dd>
-                                </div>
-                                <div>
-                                    <dt class="font-semibold text-slate-900">SSO user ID</dt>
-                                    <dd>{{ user.sso_user_id || "-" }}</dd>
-                                </div>
-                                <div>
-                                    <dt class="font-semibold text-slate-900">Kapcsolat</dt>
-                                    <dd>
-                                        <Tag
-                                            :value="ssoLinkLabel(user)"
-                                            :severity="ssoLinkSeverity(user)"
-                                        />
-                                    </dd>
-                                </div>
-                                <div>
-                                    <dt class="font-semibold text-slate-900">
-                                        Utolso hitelesites
-                                    </dt>
-                                    <dd>{{ formatDate(user.last_authenticated_at) }}</dd>
-                                </div>
-                                <div>
-                                    <dt class="font-semibold text-slate-900">Frissitve</dt>
-                                    <dd>{{ formatDate(user.updated_at) }}</dd>
-                                </div>
-                            </dl>
+                            <Select
+                                v-model="tableFilters.localStatus.value"
+                                :options="localStatusOptions"
+                                :pt="compactSelectPt"
+                                class="w-full"
+                                option-label="label"
+                                option-value="value"
+                                placeholder="Lokalis statusz"
+                                show-clear
+                            />
 
-                            <div class="mt-5 flex justify-end">
-                                <RowActionMenu :items="userActionItems(user)" />
-                            </div>
-                        </article>
-                    </template>
+                            <Select
+                                v-model="tableFilters.hasSsoLink.value"
+                                :options="linkOptions"
+                                :pt="compactSelectPt"
+                                class="w-full"
+                                option-label="label"
+                                option-value="value"
+                                placeholder="SSO kapcsolat"
+                                show-clear
+                            />
+                        </div>
 
-                    <EmptyStatePanel
-                        v-else
-                        title="Nincs megjelenitheto felhasznalo"
-                        description="A jelenlegi szurok mellett nincs talalat. Modositsd a keresest vagy a szuresi felteteleket."
-                        :tags="['Users', 'SSO projection']"
-                    />
-                </div>
+                        <div class="flex flex-none flex-wrap items-center justify-end gap-3">
+                            <Button
+                                label="Frissites"
+                                icon="pi pi-refresh"
+                                severity="secondary"
+                                outlined
+                                :loading="loading || dialogLoading || submitting"
+                                :disabled="loading || dialogLoading || submitting"
+                                @click="refreshUsers"
+                            />
+                        </div>
+
+                        <div
+                            v-if="loading"
+                            class="rounded-2xl border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-500"
+                        >
+                            Betoltes folyamatban...
+                        </div>
+
+                        <template v-else-if="users.length > 0">
+                            <article
+                                v-for="user in users"
+                                :key="user.id"
+                                class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"
+                            >
+                                <div class="flex items-start justify-between gap-3">
+                                    <div>
+                                        <h3 class="text-lg font-semibold text-slate-950">
+                                            {{ user.name || "-" }}
+                                        </h3>
+                                        <p class="mt-1 text-sm text-slate-500">
+                                            {{ user.email || "-" }}
+                                        </p>
+                                    </div>
+                                    <Tag
+                                        :value="statusLabel(user.local_status)"
+                                        :severity="statusSeverity(user.local_status)"
+                                    />
+                                </div>
+
+                                <dl class="mt-4 grid gap-3 text-sm text-slate-600">
+                                    <div>
+                                        <dt class="font-semibold text-slate-900">
+                                            Local ID
+                                        </dt>
+                                        <dd>{{ user.id }}</dd>
+                                    </div>
+                                    <div>
+                                        <dt class="font-semibold text-slate-900">
+                                            SSO user ID
+                                        </dt>
+                                        <dd>{{ user.sso_user_id || "-" }}</dd>
+                                    </div>
+                                    <div>
+                                        <dt class="font-semibold text-slate-900">
+                                            Kapcsolat
+                                        </dt>
+                                        <dd>
+                                            <Tag
+                                                :value="ssoLinkLabel(user)"
+                                                :severity="ssoLinkSeverity(user)"
+                                            />
+                                        </dd>
+                                    </div>
+                                    <div>
+                                        <dt class="font-semibold text-slate-900">
+                                            Utolso hitelesites
+                                        </dt>
+                                        <dd>
+                                            {{ formatDate(user.last_authenticated_at) }}
+                                        </dd>
+                                    </div>
+                                    <div>
+                                        <dt class="font-semibold text-slate-900">
+                                            Frissitve
+                                        </dt>
+                                        <dd>{{ formatDate(user.updated_at) }}</dd>
+                                    </div>
+                                </dl>
+
+                                <div class="mt-5 flex justify-end">
+                                    <RowActionMenu :items="userActionItems(user)" />
+                                </div>
+                            </article>
+                        </template>
+
+                        <EmptyStatePanel
+                            v-else
+                            title="Nincs megjelenitheto felhasznalo"
+                            description="A jelenlegi szurok mellett nincs talalat. Modositsd a keresest vagy a szuresi felteteleket."
+                            :tags="['Users', 'SSO projection']"
+                        />
+                    </div>
                 </div>
             </AdminTableCard>
         </div>
