@@ -2,32 +2,56 @@
 
 ## 1. Bevezető
 
-Az admin list design system celja, hogy az admin tablazatos oldalak ugyanarra a PrimeVue-alapu szerzodesre epuljenek. Ez a standard a leggyakoribb UX es karbantarthatosagi problemakat fogja ossze egy kozos mintaba:
+Az admin listaoldal design system célja, hogy minden admin táblázatos oldal egységes, PrimeVue-alapú szerződésre épüljön.
 
-- paginator boilerplate
-- loading es empty state kovetkezetlenseg
-- toolbar ujraepitese oldalankent
-- summary logika duplikalasa
-- selection es bulk UX szetszorasa
+A standard az alábbi problémákat oldja meg:
 
-Ez a standard **nem** egy framework es **nem** egy univerzalis grid motor. Nem akar minden listaoldalt config-driven objektumokkal generalni. A cel a tiszta, PrimeVue-kompatibilis kozos szerzodes.
+- paginator boilerplate duplikáció
+- loading és empty state inkonzisztencia
+- toolbar újraépítése oldalanként
+- summary logika ismétlése
+- selection és bulk UX szétcsúszása
 
-## 2. Kotelezo epitoelemek
+Ez a standard:
 
-Minden uj vagy atdolgozott admin listaoldal kotelezoen hasznalja:
+- NEM framework
+- NEM univerzális grid motor
+- NEM config-driven generátor
 
-- `BaseDataTable`
-- `useAdminTableState()`
-- `AdminTableToolbar`
-- `AdminTableSummary`
+A cél: egyszerű, stabil, PrimeVue-kompatibilis működési szerződés
 
-Ha az oldalon van bulk muvelet vagy checkbox selection, kotelezo:
+---
 
-- `useAdminTableSelection()`
+## 2. Kötelező szabályok (nem megszeghető)
 
-## 3. Listaoldal szerkezet (canonical pattern)
+- Minden új admin listaoldal KÖTELEZŐEN ezt a standardot követi
+- Legacy oldalak refaktorakor ezt a standardot kell alkalmazni
+- Eltérés csak dokumentált, indokolt esetben engedélyezett
+- Code review során a checklist alapján történik az ellenőrzés
 
-```vue
+---
+
+## 3. Kötelező építőelemek
+
+Minden admin listaoldal:
+
+KÖTELEZŐ:
+
+- BaseDataTable
+- useAdminTableState()
+- AdminTableToolbar
+- AdminTableSummary
+
+HA VAN BULK:
+
+- useAdminTableSelection()
+
+---
+
+## 4. Canonical listaoldal minta
+
+Vue példa:
+
 <script setup>
 import BaseDataTable from "@/Components/Admin/BaseDataTable.vue";
 import AdminTableToolbar from "@/Components/Admin/AdminTableToolbar.vue";
@@ -60,193 +84,210 @@ const {
     selectedIds,
     selectedCount,
     selectableCount,
-    allSelected,
-    partiallySelected,
-    clearSelection,
-    toggleRowSelection,
-    toggleAllSelection,
 } = useAdminTableSelection(computed(() => rows.value));
 
 async function loadRows() {
-    const envelope = await fetchRows(buildFetchParams({
-        filters: {
-            search: filters.search || undefined,
-        },
-    }));
+    const envelope = await fetchRows(
+        buildFetchParams({
+            filters: {
+                search: filters.search || undefined,
+            },
+        }),
+    );
 
     rows.value = envelope.data.items ?? [];
     applyMeta(envelope.meta.pagination ?? {});
-}
-
-function onPage(event) {
-    setPageFromEvent(event);
-    loadRows();
-}
-
-function onSort(event) {
-    setSortFromEvent(event, "created_at");
-    loadRows();
 }
 </script>
 
 <template>
     <AdminTableToolbar />
-
     <BaseDataTable>
         <!-- columns -->
     </BaseDataTable>
-
     <AdminTableSummary />
 </template>
-```
 
-Felelossegek:
+---
 
-- `BaseDataTable`: vizualis es ergonomiai table shell
-- `useAdminTableState()`: pagination, sort es filter state
-- `AdminTableToolbar`: search, filter, action es bulk zona szerkezete
-- `AdminTableSummary`: footer summary fallbackokkal
-- `useAdminTableSelection()`: page-local selection es bulk UX state
+## 5. useAdminTableState contract
 
-Nem ide tartozik:
+Felelős:
 
-- backend business rule
-- endpoint-specifikus validation
-- modal workflow business logika
-- oldal-specifikus delete policy
+- pagination
+- sorting
+- filtering
 
-## 4. useAdminTableState contract
+KÖTELEZŐ:
 
-`useAdminTableState()` kezeli a kozos admin list state-et:
+- fetch paraméterek buildFetchParams()-on keresztül
+- backend meta → applyMeta()
 
-- `page`
-- `perPage`
-- `sortField`
-- `sortOrder`
-- `filters`
-- `first`
-- `lastPage`
-- `totalRecords`
+TILOS:
 
-Fo helper-ek:
-
-- `resetPagination()`
-- `setPageFromEvent(event)`
-- `setSortFromEvent(event, fallbackField)`
-- `applyMeta(meta)`
-- `buildFetchParams({ filters, extra })`
-
-Hasznalat:
-
-- a fetch parameterek mindig `buildFetchParams()`-on keresztul menjenek
-- backend pagination meta mindig `applyMeta()`-val frissitse a state-et
-- search/filter valtozasnal `resetPagination()` utan ujratoltes
-
-Nem szabad beletenni:
-
-- modal visibility state
-- row action menu state
+- modal state
+- action menu state
 - bulk confirm flow
-- endpoint-specifikus hibakezeles
+- API hibakezelés
 
-## 5. Selection + bulk contract
+---
 
-`useAdminTableSelection()` csak akkor hasznalando, ha az oldalon valodi checkbox selection es backend bulk endpoint is van.
+## 6. Selection + bulk contract
 
-Tudatos dontes:
+A selection:
 
-- a selection **page-local**
-- nem globalis, nem multi-page selection
+- page-local
+- nem multi-page
 
-Fo derived state:
+Derived state:
 
-- `selectedRows`
-- `selectedIds`
-- `selectedCount`
-- `selectableCount`
-- `hasSelection`
-- `allSelected`
-- `partiallySelected`
+- selectedIds
+- selectedCount
+- selectableCount
 
-`isRowSelectable(row)` felel az UX-szintu eloszuresert. Ez nem valtja ki a backend policy-t vagy validationt.
+KÖTELEZŐ:
 
-`autoPrune` viselkedes:
+- page change → reset
+- filter change → reset
+- sort change → reset
+- refresh → reset
+- success bulk → reset
 
-- ha a lista ujratoltodik vagy valtozik a sorhalmaz
-- a mar nem letezo vagy mar nem kijelolheto sorok kikerulnek a selectionbol
+TILOS:
 
-Kotelezo szabalyok:
+- saját selection state oldalanként
 
-- `page` valtas -> selection reset
-- `filter` valtas -> selection reset
-- `sort` valtas -> selection reset
-- `refresh` -> selection reset
-- sikeres bulk muvelet -> selection reset
-- nem kijelolheto sor -> disabled checkbox
+---
 
-## 6. Bulk UX szabalyok
+## 7. Bulk UX szabályok
 
-Ha van bulk muvelet:
+KÖTELEZŐ:
 
-- disabled state kotelezo
-- selected count megjelenites kotelezo
-- confirm flow kotelezo
-- success utan kotelezo:
-  - toast
-  - refresh
-  - selection reset
+- disabled state
+- selected count kijelzés
+- confirm dialog
+- success → toast + refresh + reset
 
-Frontend bulk action nem jelenhet meg backend bulk endpoint nelkul.
+TILOS:
 
-## 7. Toolbar szabalyok
+- backend endpoint nélküli bulk action
 
-`AdminTableToolbar` a canonical toolbar szerkezet:
+---
 
-- standard search mezo
-- `filters` slot extra filterelemekhez
-- `actions` slot masodlagos actionokhoz
-- `primary` slot kiemelt actionhoz
-- `bulk` slot oldal-specifikus bulk kiterjeszteshez
+## 8. Toolbar szabályok
 
-A keresomezo nem epulhet ujra oldalankent sajat `IconField` boilerplate-bol, ha a standard toolbar mar eleg.
+AdminTableToolbar:
 
-## 8. Summary szabaly
+- standard search mező
+- filter slot
+- action slot
+- bulk slot
 
-`AdminTableSummary` alapertelmezetten:
+TILOS:
 
-- `Showing X-Y of Z`
-- empty fallback
-- meta hiany eseten safe fallback
+- toolbar újraépítése oldalanként
 
-Az oldal nem tarthat sajat summary szamolast, ha az `AdminTableSummary` eleg.
+---
 
-## 9. Mikor NEM hasznaljuk a bulk contractot
+## 9. Summary szabály
 
-Ne hasznald a bulk contractot:
+AdminTableSummary:
 
-- audit log oldalon
-- read-only listakon
-- ahol nincs backend bulk endpoint
-- ahol a domain szabaly nem tamogat bulk muveletet
+- Showing X–Y of Z
+- fallback meta hiány esetén
 
-## 10. Anti-pattern lista
+TILOS:
 
-❌ Ne legyen:
+- saját summary számolás
 
-- sajat DataTable wrapper oldalankent
-- sajat pagination state
-- sajat selection ref-ek
-- toolbar ujraepitese oldalankent
-- bulk action backend nelkul
-- summary szamolas kezileg, ha a standard eleg
+---
 
-## 11. Checklist
+## 10. Row actions (kötelező minta)
 
-- [ ] `BaseDataTable` hasznalva
-- [ ] `useAdminTableState()` hasznalva
-- [ ] `AdminTableToolbar` hasznalva
-- [ ] `AdminTableSummary` hasznalva
-- [ ] `useAdminTableSelection()` hasznalva, ha van bulk
-- [ ] nincs duplikalt state logika
-- [ ] nincs custom paginator logika
-- [ ] search / filter / sort a standard contractot koveti
+KÖTELEZŐ:
+
+- shared RowActionMenu komponens
+- PrimeVue Menu (popup)
+- appendTo="body"
+- menu.toggle(event)
+
+Példa:
+
+<Menu ref="menu" :model="items" popup appendTo="body" />
+<Button icon="pi pi-ellipsis-v" @click="menu.toggle($event)" />
+
+TILOS:
+
+- saját overlay pozicionálás
+- position: fixed alapú számolás
+- oldalankénti popup implementáció
+
+---
+
+## 11. Mikor NEM használjuk
+
+- audit log
+- read-only listák
+- bulk nélküli domain
+
+---
+
+## 12. Anti-pattern lista
+
+Automatikus code review elutasítás:
+
+- saját DataTable wrapper
+- saját pagination state
+- saját selection ref
+- toolbar újraépítés
+- bulk backend nélkül
+- saját overlay popup
+
+---
+
+## 13. Definition of Done
+
+Egy admin listaoldal csak akkor kész, ha:
+
+- [ ] BaseDataTable használva
+- [ ] useAdminTableState használva
+- [ ] toolbar standard
+- [ ] summary standard
+- [ ] selection contract (ha kell)
+- [ ] nincs duplikált state
+- [ ] nincs custom paginator
+
+---
+
+## 14. Migrációs szabály
+
+Legacy refaktor sorrend:
+
+1. BaseDataTable
+2. useAdminTableState()
+3. AdminTableToolbar
+4. AdminTableSummary
+5. useAdminTableSelection()
+
+---
+
+## 15. Bevezetési stratégia
+
+- új fejlesztés → kötelező standard
+- legacy → fokozatos migráció
+
+Prioritás:
+
+1. bulk oldalak
+2. gyakran használt listák
+3. read-only listák
+
+---
+
+## 16. Kivételek kezelése
+
+Eltérés csak akkor engedélyezett, ha:
+
+- dokumentált
+- indokolt
+- nem hoz létre duplikált rendszert
