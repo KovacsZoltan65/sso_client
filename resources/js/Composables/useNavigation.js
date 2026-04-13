@@ -10,7 +10,7 @@ const items = [
     { label: 'Users', icon: 'pi pi-users', route: 'users.index', permission: 'users.view' },
     { label: 'Roles', icon: 'pi pi-shield', route: 'roles.index', permission: 'roles.view' },
     { label: 'Permissions', icon: 'pi pi-lock', route: 'permissions.index', permission: 'permissions.view' },
-    { label: 'SSO Status', icon: 'pi pi-link', route: 'sso.status', permission: 'sso-status.view' },
+    { label: 'Connection Health', icon: 'pi pi-link', route: 'sso.status', permission: 'sso-status.view' },
     { label: 'Audit Logs', icon: 'pi pi-history', route: 'audit-logs.index', permission: 'audit-logs.view' },
 ];
 

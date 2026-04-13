@@ -52,7 +52,7 @@ describe('useNavigation', () => {
 
         expect(wrapper.text()).toContain('Companies');
         expect(wrapper.text()).toContain('Users');
-        expect(wrapper.text()).toContain('SSO Status');
+        expect(wrapper.text()).toContain('Connection Health');
         expect(wrapper.text()).not.toContain('Roles');
         expect(wrapper.text()).not.toContain('Permissions');
         expect(wrapper.text()).not.toContain('Audit Logs');
