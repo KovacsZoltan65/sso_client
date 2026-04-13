@@ -3,7 +3,7 @@ import AppBrand from '@/Components/AppBrand.vue';
 import AppTopbar from '@/Components/AppTopbar.vue';
 import { useAuth } from '@/Composables/useAuth';
 import { useNavigation } from '@/Composables/useNavigation';
-import { Link, router, usePage } from '@inertiajs/vue3';
+import { Link, usePage } from '@inertiajs/vue3';
 import Toast from 'primevue/toast';
 import { computed, ref, watch } from 'vue';
 
@@ -14,8 +14,27 @@ const { user, logoutUrl } = useAuth();
 
 const ssoStatus = computed(() => page.props.sso.status);
 
+function csrfToken() {
+    return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
+}
+
 const logout = () => {
-    router.post(logoutUrl.value);
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = logoutUrl.value;
+    form.style.display = 'none';
+
+    const token = csrfToken();
+    if (token !== '') {
+        const tokenInput = document.createElement('input');
+        tokenInput.type = 'hidden';
+        tokenInput.name = '_token';
+        tokenInput.value = token;
+        form.appendChild(tokenInput);
+    }
+
+    document.body.appendChild(form);
+    form.submit();
 };
 
 watch(

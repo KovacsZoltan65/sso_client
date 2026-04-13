@@ -9,6 +9,7 @@ use App\Services\Sso\OidcDiscoveryService;
 use App\Services\Sso\OidcSessionMappingCleanupService;
 use App\Services\Sso\OidcUserInfoService;
 use App\Services\Sso\SsoClientService;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -245,7 +246,12 @@ class SsoAuthenticationTest extends TestCase
     {
         $response = $this->get('/login');
 
-        $response->assertOk();
+        $response
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Auth/Login')
+                ->where('loginUrl', route('auth.sso.redirect'))
+            );
     }
 
     #[Group('security')]
@@ -1544,36 +1550,21 @@ class SsoAuthenticationTest extends TestCase
     }
 
     #[Group('security')]
-    public function test_logout_redirects_to_provider_end_session_and_clears_the_authenticated_session(): void
+    public function test_logout_clears_only_the_local_session_and_returns_to_login(): void
     {
         $user = User::factory()->create();
-        $idTokenHint = $this->idToken(overrides: ['sub' => 'server-user-logout']);
 
         $response = $this
             ->actingAs($user)
-            ->withSession($this->oidcSessionContext($idTokenHint, 'server-user-logout'))
+            ->withSession($this->oidcSessionContext($this->idToken(overrides: ['sub' => 'server-user-logout']), 'server-user-logout'))
             ->post('/auth/logout');
 
-        $response->assertRedirect();
+        $response
+            ->assertRedirect(route('login'))
+            ->assertSessionHas('success', 'Sikeres kijelentkezes.');
+
         $this->assertGuest();
-
-        $location = $response->headers->get('Location');
-
-        $this->assertNotNull($location);
-        $this->assertStringStartsWith('https://sso-server.test/oidc/logout?', $location);
-
-        parse_str((string) parse_url($location, PHP_URL_QUERY), $query);
-
-        $this->assertSame($idTokenHint, $query['id_token_hint'] ?? null);
-        $this->assertSame('http://sso-client.test/auth/logout/return', $query['post_logout_redirect_uri'] ?? null);
-        $this->assertNotEmpty($query['state'] ?? null);
-        $this->assertSame($query['state'] ?? null, session(config('sso.logout_state_session_key').'.state'));
-
-        $this->assertDatabaseHas('activity_log', [
-            'log_name' => 'client.auth',
-            'event' => 'client_auth.logout.provider_initiated',
-            'description' => 'Client provider logout initiated.',
-        ]);
+        $this->assertNull(session(config('sso.logout_state_session_key')));
 
         $this->assertDatabaseHas('activity_log', [
             'log_name' => 'client.auth',
@@ -1597,18 +1588,16 @@ class SsoAuthenticationTest extends TestCase
     #[Group('security')]
     public function test_logout_return_completes_cleanly_when_state_matches(): void
     {
-        $user = User::factory()->create();
-        $logoutResponse = $this
-            ->actingAs($user)
-            ->withSession($this->oidcSessionContext($this->idToken()))
-            ->post('/auth/logout');
+        $logoutState = 'provider-logout-state';
 
-        $location = $logoutResponse->headers->get('Location');
-        $this->assertNotNull($location);
-        parse_str((string) parse_url($location, PHP_URL_QUERY), $query);
-        $logoutState = (string) ($query['state'] ?? '');
-
-        $response = $this->get('/auth/logout/return?state='.$logoutState);
+        $response = $this
+            ->withSession([
+                config('sso.logout_state_session_key') => [
+                    'state' => $logoutState,
+                    'initiated_at' => now()->toIso8601String(),
+                ],
+            ])
+            ->get('/auth/logout/return?state='.$logoutState);
 
         $response
             ->assertRedirect(route('login'))
@@ -1627,13 +1616,14 @@ class SsoAuthenticationTest extends TestCase
     #[Group('security')]
     public function test_logout_return_rejects_invalid_state(): void
     {
-        $user = User::factory()->create();
-
-        $this->actingAs($user)
-            ->withSession($this->oidcSessionContext($this->idToken()))
-            ->post('/auth/logout');
-
-        $response = $this->get('/auth/logout/return?state=invalid-logout-state');
+        $response = $this
+            ->withSession([
+                config('sso.logout_state_session_key') => [
+                    'state' => 'expected-logout-state',
+                    'initiated_at' => now()->toIso8601String(),
+                ],
+            ])
+            ->get('/auth/logout/return?state=invalid-logout-state');
 
         $response
             ->assertRedirect(route('login'))
@@ -1653,16 +1643,19 @@ class SsoAuthenticationTest extends TestCase
             'https://sso-server.test/.well-known/openid-configuration' => Http::response($this->discoveryPayload(), 200),
         ]);
 
-        $response = $this
-            ->actingAs(User::factory()->create())
-            ->withSession($this->oidcSessionContext($this->idToken()))
-            ->post('/auth/logout');
+        $service = app(SsoClientService::class);
+        $request = Request::create('/auth/logout', 'POST');
+        $request->setLaravelSession(app('session.store'));
+        $request->session()->put(config('sso.oidc_session_context_key'), [
+            'id_token_hint' => $this->idToken(),
+            'id_token_subject' => '123',
+            'issuer' => 'https://sso-server.test',
+            'sid' => 'sid-current-session',
+            'stored_at' => now()->toIso8601String(),
+        ]);
 
-        $response->assertRedirect();
+        $location = $service->initiateLogout($request);
 
-        $location = $response->headers->get('Location');
-
-        $this->assertNotNull($location);
         $this->assertStringStartsWith('https://sso-server.test/oidc/logout?', $location);
     }
 

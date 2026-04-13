@@ -420,6 +420,17 @@ class SsoClientService
     }
 
     /**
+     * A lokális kliens session lezárása anélkül, hogy a központi SSO sessionhöz hozzányúlna.
+     */
+    public function logoutLocally(Request $request): void
+    {
+        /** @var User|null $user */
+        $user = $request->user();
+
+        $this->clearLocalSession($request, $user);
+    }
+
+    /**
      * A lokális session teljes kijelentkeztetése és az ideiglenes SSO állapot törlése.
      */
     public function initiateLogout(Request $request): string
@@ -1274,9 +1285,9 @@ class SsoClientService
     }
 
     /**
-     * @param LogoutStateContext $logoutContext
+     * @param LogoutStateContext|null $logoutContext
      */
-    private function clearLocalSession(Request $request, ?User $user, array $logoutContext): void
+    private function clearLocalSession(Request $request, ?User $user, ?array $logoutContext = null): void
     {
         if ($user instanceof User) {
             $this->auditLogService->logSuccess(
@@ -1296,7 +1307,11 @@ class SsoClientService
         $request->session()->forget(config('sso.identity_validation_session_key'));
         $request->session()->forget(config('sso.oidc_session_context_key'));
         $request->session()->invalidate();
-        $request->session()->put(config('sso.logout_state_session_key'), $logoutContext);
+
+        if (is_array($logoutContext)) {
+            $request->session()->put(config('sso.logout_state_session_key'), $logoutContext);
+        }
+
         $request->session()->regenerateToken();
 
         if ($user instanceof User) {

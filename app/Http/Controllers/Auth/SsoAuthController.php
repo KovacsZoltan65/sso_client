@@ -60,11 +60,15 @@ class SsoAuthController extends Controller
     }
 
     /**
-     * A provider oldali logout indítása és a lokális session lezárása.
+     * Kizarolag a kliens lokalis sessionjet zarja le. A kozponti SSO session erintetlen marad.
      */
     public function logout(Request $request): RedirectResponse
     {
-        return redirect()->away($this->ssoClientService->initiateLogout($request));
+        $this->ssoClientService->logoutLocally($request);
+
+        return redirect()
+            ->route('login')
+            ->with('success', 'Sikeres kijelentkezes.');
     }
 
     /**
