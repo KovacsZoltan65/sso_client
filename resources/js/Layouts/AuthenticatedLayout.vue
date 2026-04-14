@@ -5,7 +5,7 @@ import { useAuth } from '@/Composables/useAuth';
 import { useNavigation } from '@/Composables/useNavigation';
 import { Link, usePage } from '@inertiajs/vue3';
 import Toast from 'primevue/toast';
-import { computed, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 
 const page = usePage();
 const drawerOpen = ref(false);
@@ -37,12 +37,34 @@ const logout = () => {
     form.submit();
 };
 
+const closeDrawer = () => {
+    drawerOpen.value = false;
+};
+
+const toggleDrawer = () => {
+    drawerOpen.value = !drawerOpen.value;
+};
+
+const handleEscape = (event) => {
+    if (event.key === 'Escape' && drawerOpen.value) {
+        closeDrawer();
+    }
+};
+
 watch(
     () => page.url,
     () => {
-        drawerOpen.value = false;
+        closeDrawer();
     },
 );
+
+onMounted(() => {
+    window.addEventListener('keydown', handleEscape);
+});
+
+onUnmounted(() => {
+    window.removeEventListener('keydown', handleEscape);
+});
 </script>
 
 <template>
@@ -50,6 +72,7 @@ watch(
         <Toast position="top-right" />
 
         <aside
+            id="app-mobile-navigation"
             :class="drawerOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'"
             class="shell-gradient fixed inset-y-0 left-0 z-50 flex w-[18rem] flex-col px-6 py-6 text-white transition-transform duration-200 lg:sticky lg:top-0 lg:z-auto lg:h-screen"
         >
@@ -79,14 +102,15 @@ watch(
             <div
                 v-if="drawerOpen"
                 class="fixed inset-0 z-40 bg-slate-950/50 lg:hidden"
-                @click="drawerOpen = false"
+                @click="closeDrawer"
             />
 
             <AppTopbar
                 class="flex-none"
                 :user="user"
+                :navigation-open="drawerOpen"
                 @logout="logout"
-                @toggle-navigation="drawerOpen = !drawerOpen"
+                @toggle-navigation="toggleDrawer"
             />
 
             <div v-if="$slots.header" class="mb-6 flex-none">

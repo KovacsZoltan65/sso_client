@@ -8,6 +8,10 @@ defineProps({
         type: Object,
         default: null,
     },
+    navigationOpen: {
+        type: Boolean,
+        default: false,
+    },
 });
 
 const emit = defineEmits(['logout', 'toggle-navigation']);
@@ -26,6 +30,9 @@ const goToProfile = () => {
                 severity="contrast"
                 rounded
                 text
+                aria-label="Navigáció megnyitása"
+                aria-controls="app-mobile-navigation"
+                :aria-expanded="String(navigationOpen)"
                 @click="emit('toggle-navigation')"
             />
             <div class="min-w-0">

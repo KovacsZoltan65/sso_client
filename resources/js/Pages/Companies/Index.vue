@@ -6,6 +6,7 @@ import AdminTableSummary from "@/Components/Admin/AdminTableSummary.vue";
 import AdminTableToolbar from "@/Components/Admin/AdminTableToolbar.vue";
 import PageHeader from "@/Components/PageHeader.vue";
 import RowActionMenu from "@/Components/Admin/RowActionMenu.vue";
+import { useAdminSearchBehavior } from "@/Composables/useAdminSearchBehavior";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import { useAdminTableState } from "@/Composables/useAdminTableState";
 import {
@@ -79,8 +80,7 @@ const compactSelectPt = {
     label: { class: "flex min-h-11 items-center py-0" },
     dropdown: { class: "w-11" },
 };
-
-let searchDebounceId = null;
+const searchBehavior = useAdminSearchBehavior();
 
 function defaultForm() {
     return {
@@ -244,6 +244,7 @@ function companyActionItems(company) {
             ? {
                   label: "Szerkesztes",
                   icon: "pi pi-pencil",
+                  isPrimary: true,
                   command: () => openEditDialog(company),
               }
             : null,
@@ -251,6 +252,7 @@ function companyActionItems(company) {
             ? {
                   label: "Torles",
                   icon: "pi pi-trash",
+                  isDangerous: true,
                   command: () => confirmDelete(company),
               }
             : null,
@@ -265,6 +267,28 @@ async function refreshCompanies() {
         summary: "Sikeres muvelet",
         detail: "A ceglista frissult.",
         life: 2500,
+    });
+}
+
+function handleSearchInput(value) {
+    filters.search = value ?? "";
+    searchBehavior.queueSearch(() => {
+        resetPagination();
+        loadCompanies();
+    });
+}
+
+function submitSearch() {
+    searchBehavior.submitSearch(() => {
+        resetPagination();
+        loadCompanies();
+    });
+}
+
+function handleStatusFilterChange() {
+    searchBehavior.applyFilterChange(() => {
+        resetPagination();
+        loadCompanies();
     });
 }
 
@@ -324,22 +348,7 @@ function formatDate(value) {
 watch(
     () => filters.is_active,
     () => {
-        resetPagination();
-        loadCompanies();
-    }
-);
-
-watch(
-    () => filters.search,
-    () => {
-        if (searchDebounceId) {
-            window.clearTimeout(searchDebounceId);
-        }
-
-        searchDebounceId = window.setTimeout(() => {
-            resetPagination();
-            loadCompanies();
-        }, 350);
+        handleStatusFilterChange();
     }
 );
 
@@ -388,7 +397,8 @@ onMounted(loadCompanies);
                                     :selectedCount="0"
                                     :selectableCount="0"
                                     :busy="loading || submitting"
-                                    @update:searchValue="filters.search = $event"
+                                    @update:searchValue="handleSearchInput"
+                                    @submit-search="submitSearch"
                                     @create="openCreateDialog"
                                     @refresh="refreshCompanies"
                                 >
@@ -401,6 +411,7 @@ onMounted(loadCompanies);
                                             option-value="value"
                                             placeholder="Statusz"
                                             show-clear
+                                            @change="handleStatusFilterChange"
                                         />
                                     </template>
                                 </AdminTableToolbar>
@@ -440,7 +451,7 @@ onMounted(loadCompanies);
                                 </template>
                             </Column>
                             <!-- Műveletek -->
-                            <Column header="Muveletek" :style="{ width: '120px' }">
+                            <Column header="Muveletek" :style="{ width: '11rem' }">
                                 <template #body="{ data }">
                                     <RowActionMenu :items="companyActionItems(data)" />
                                 </template>
@@ -453,9 +464,11 @@ onMounted(loadCompanies);
                             <IconField class="w-full">
                                 <InputIcon class="pi pi-search" />
                                 <InputText
-                                    v-model="filters.search"
+                                    :modelValue="filters.search"
                                     :placeholder="searchPlaceholder"
                                     class="h-11 w-full"
+                                    @update:modelValue="handleSearchInput"
+                                    @keyup.enter="submitSearch"
                                 />
                             </IconField>
 
@@ -468,6 +481,7 @@ onMounted(loadCompanies);
                                 option-value="value"
                                 placeholder="Statusz"
                                 show-clear
+                                @change="handleStatusFilterChange"
                             />
                         </div>
 

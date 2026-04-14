@@ -6,6 +6,7 @@ import AdminTableSummary from "@/Components/Admin/AdminTableSummary.vue";
 import AdminTableToolbar from "@/Components/Admin/AdminTableToolbar.vue";
 import PageHeader from "@/Components/PageHeader.vue";
 import RowActionMenu from "@/Components/Admin/RowActionMenu.vue";
+import { useAdminSearchBehavior } from "@/Composables/useAdminSearchBehavior";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import { useAdminTableState } from "@/Composables/useAdminTableState";
 import {
@@ -92,8 +93,7 @@ const compactSelectPt = {
     label: { class: "flex min-h-11 items-center py-0" },
     dropdown: { class: "w-11" },
 };
-
-let searchDebounceId = null;
+const searchBehavior = useAdminSearchBehavior();
 
 function defaultForm() {
     return {
@@ -260,6 +260,7 @@ function employeeActionItems(employee) {
             ? {
                   label: "Szerkesztes",
                   icon: "pi pi-pencil",
+                  isPrimary: true,
                   command: () => openEditDialog(employee),
               }
             : null,
@@ -267,6 +268,7 @@ function employeeActionItems(employee) {
             ? {
                   label: "Torles",
                   icon: "pi pi-trash",
+                  isDangerous: true,
                   command: () => confirmDelete(employee),
               }
             : null,
@@ -281,6 +283,35 @@ async function refreshEmployees() {
         summary: "Sikeres muvelet",
         detail: "Az alkalmazott lista frissult.",
         life: 2500,
+    });
+}
+
+function handleSearchInput(value) {
+    filters.search = value ?? "";
+    searchBehavior.queueSearch(() => {
+        resetPagination();
+        loadEmployees();
+    });
+}
+
+function submitSearch() {
+    searchBehavior.submitSearch(() => {
+        resetPagination();
+        loadEmployees();
+    });
+}
+
+function handleCompanyFilterChange() {
+    searchBehavior.applyFilterChange(() => {
+        resetPagination();
+        loadEmployees();
+    });
+}
+
+function handleStatusFilterChange() {
+    searchBehavior.applyFilterChange(() => {
+        resetPagination();
+        loadEmployees();
     });
 }
 
@@ -340,30 +371,14 @@ function formatDate(value) {
 watch(
     () => filters.company_id,
     () => {
-        resetPagination();
-        loadEmployees();
+        handleCompanyFilterChange();
     }
 );
 
 watch(
     () => filters.is_active,
     () => {
-        resetPagination();
-        loadEmployees();
-    }
-);
-
-watch(
-    () => filters.search,
-    () => {
-        if (searchDebounceId) {
-            window.clearTimeout(searchDebounceId);
-        }
-
-        searchDebounceId = window.setTimeout(() => {
-            resetPagination();
-            loadEmployees();
-        }, 350);
+        handleStatusFilterChange();
     }
 );
 
@@ -472,7 +487,7 @@ onMounted(loadEmployees);
                                     {{ formatDate(data.created_at) }}
                                 </template>
                             </Column>
-                            <Column header="Muveletek" :style="{ width: '120px' }">
+                            <Column header="Muveletek" :style="{ width: '11rem' }">
                                 <template #body="{ data }">
                                     <RowActionMenu :items="employeeActionItems(data)" />
                                 </template>

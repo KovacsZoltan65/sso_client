@@ -6,6 +6,7 @@ import AdminTableSummary from "@/Components/Admin/AdminTableSummary.vue";
 import AdminTableToolbar from "@/Components/Admin/AdminTableToolbar.vue";
 import PageHeader from "@/Components/PageHeader.vue";
 import RowActionMenu from "@/Components/Admin/RowActionMenu.vue";
+import { useAdminSearchBehavior } from "@/Composables/useAdminSearchBehavior";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import { useAdminTableState } from "@/Composables/useAdminTableState";
 import {
@@ -71,7 +72,7 @@ const {
 
 const form = reactive(defaultForm());
 const formErrors = reactive({});
-let searchDebounceId = null;
+const searchBehavior = useAdminSearchBehavior();
 
 function defaultForm() {
     return { name: "", guard_name: "web" };
@@ -193,14 +194,29 @@ function confirmDelete(permission) {
 
 function permissionActionItems(permission) {
     return [
-        props.permissions.update && permission.can?.update !== false ? { label: "Szerkesztes", icon: "pi pi-pencil", command: () => openEditDialog(permission) } : null,
-        props.permissions.delete && permission.can?.delete !== false && !permission.is_protected ? { label: "Torles", icon: "pi pi-trash", command: () => confirmDelete(permission) } : null,
+        props.permissions.update && permission.can?.update !== false ? { label: "Szerkesztes", icon: "pi pi-pencil", isPrimary: true, command: () => openEditDialog(permission) } : null,
+        props.permissions.delete && permission.can?.delete !== false && !permission.is_protected ? { label: "Torles", icon: "pi pi-trash", isDangerous: true, command: () => confirmDelete(permission) } : null,
     ];
 }
 
 async function refreshPermissions() {
     await loadPermissions();
     toast.add({ severity: "success", summary: "Sikeres muvelet", detail: "A permission lista frissult.", life: 2500 });
+}
+
+function handleSearchInput(value) {
+    filters.search = value ?? "";
+    searchBehavior.queueSearch(() => {
+        resetPagination();
+        loadPermissions();
+    });
+}
+
+function submitSearch() {
+    searchBehavior.submitSearch(() => {
+        resetPagination();
+        loadPermissions();
+    });
 }
 
 function handleTablePage(event) {
@@ -242,14 +258,6 @@ function formatDate(value) {
     const date = new Date(value.replace(" ", "T"));
     return Number.isNaN(date.getTime()) ? value : date.toLocaleString("hu-HU");
 }
-
-watch(() => filters.search, () => {
-    if (searchDebounceId) window.clearTimeout(searchDebounceId);
-    searchDebounceId = window.setTimeout(() => {
-        resetPagination();
-        loadPermissions();
-    }, 350);
-});
 
 onMounted(loadPermissions);
 </script>
@@ -325,7 +333,7 @@ onMounted(loadPermissions);
                                     {{ formatDate(data.created_at) }}
                                 </template>
                             </Column>
-                            <Column header="Muveletek" :style="{ width: '120px' }">
+                            <Column header="Muveletek" :style="{ width: '11rem' }">
                                 <template #body="{ data }">
                                     <RowActionMenu :items="permissionActionItems(data)" />
                                 </template>

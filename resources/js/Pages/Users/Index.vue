@@ -334,12 +334,14 @@ function userActionItems(user) {
         {
             label: "Megtekintes",
             icon: "pi pi-eye",
+            isPrimary: !props.permissions.manage || !user.can?.update,
             command: () => openViewDialog(user),
         },
         props.permissions.manage && user.can?.update
             ? {
                   label: "Szerkesztes",
                   icon: "pi pi-pencil",
+                  isPrimary: true,
                   command: () => openEditDialog(user),
               }
             : null,
@@ -527,7 +529,7 @@ onMounted(loadUsers);
                                     {{ formatDate(data.updated_at) }}
                                 </template>
                             </Column>
-                            <Column header="Muveletek" :style="{ width: '120px' }">
+                            <Column header="Muveletek" :style="{ width: '11rem' }">
                                 <template #body="{ data }">
                                     <RowActionMenu :items="userActionItems(data)" />
                                 </template>

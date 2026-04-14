@@ -6,6 +6,7 @@ import AdminTableSummary from "@/Components/Admin/AdminTableSummary.vue";
 import AdminTableToolbar from "@/Components/Admin/AdminTableToolbar.vue";
 import PageHeader from "@/Components/PageHeader.vue";
 import RowActionMenu from "@/Components/Admin/RowActionMenu.vue";
+import { useAdminSearchBehavior } from "@/Composables/useAdminSearchBehavior";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import { useAdminTableState } from "@/Composables/useAdminTableState";
 import {
@@ -71,7 +72,7 @@ const {
 
 const form = reactive(defaultForm());
 const formErrors = reactive({});
-let searchDebounceId = null;
+const searchBehavior = useAdminSearchBehavior();
 
 function defaultForm() {
     return { name: "", guard_name: "web", permission_ids: [] };
@@ -190,14 +191,29 @@ function confirmDelete(role) {
 
 function roleActionItems(role) {
     return [
-        props.permissions.update && role.can?.update !== false ? { label: "Szerkesztes", icon: "pi pi-pencil", command: () => openEditDialog(role) } : null,
-        props.permissions.delete && role.can?.delete !== false && !role.is_protected ? { label: "Torles", icon: "pi pi-trash", command: () => confirmDelete(role) } : null,
+        props.permissions.update && role.can?.update !== false ? { label: "Szerkesztes", icon: "pi pi-pencil", isPrimary: true, command: () => openEditDialog(role) } : null,
+        props.permissions.delete && role.can?.delete !== false && !role.is_protected ? { label: "Torles", icon: "pi pi-trash", isDangerous: true, command: () => confirmDelete(role) } : null,
     ];
 }
 
 async function refreshRoles() {
     await loadRoles();
     toast.add({ severity: "success", summary: "Sikeres muvelet", detail: "A role lista frissult.", life: 2500 });
+}
+
+function handleSearchInput(value) {
+    filters.search = value ?? "";
+    searchBehavior.queueSearch(() => {
+        resetPagination();
+        loadRoles();
+    });
+}
+
+function submitSearch() {
+    searchBehavior.submitSearch(() => {
+        resetPagination();
+        loadRoles();
+    });
 }
 
 function handleTablePage(event) {
@@ -232,14 +248,6 @@ function formatDate(value) {
     const date = new Date(value.replace(" ", "T"));
     return Number.isNaN(date.getTime()) ? value : date.toLocaleString("hu-HU");
 }
-
-watch(() => filters.search, () => {
-    if (searchDebounceId) window.clearTimeout(searchDebounceId);
-    searchDebounceId = window.setTimeout(() => {
-        resetPagination();
-        loadRoles();
-    }, 350);
-});
 
 onMounted(loadRoles);
 </script>
@@ -315,7 +323,7 @@ onMounted(loadRoles);
                                     {{ formatDate(data.created_at) }}
                                 </template>
                             </Column>
-                            <Column header="Muveletek" :style="{ width: '120px' }">
+                            <Column header="Muveletek" :style="{ width: '11rem' }">
                                 <template #body="{ data }">
                                     <RowActionMenu :items="roleActionItems(data)" />
                                 </template>

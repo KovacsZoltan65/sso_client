@@ -189,6 +189,7 @@ function auditLogActionItems(entry) {
         {
             label: 'Reszletek',
             icon: 'pi pi-eye',
+            isPrimary: true,
             command: () => openDetailDialog(entry),
         },
     ];
@@ -298,7 +299,7 @@ onMounted(loadAuditLogs);
                                     {{ formatDate(data.created_at) }}
                                 </template>
                             </Column>
-                            <Column header="Muveletek" :style="{ width: '120px' }">
+                            <Column header="Muveletek" :style="{ width: '11rem' }">
                                 <template #body="{ data }">
                                     <RowActionMenu :items="auditLogActionItems(data)" :disabled="detailLoading" />
                                 </template>

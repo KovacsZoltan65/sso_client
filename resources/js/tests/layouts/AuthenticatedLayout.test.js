@@ -72,4 +72,32 @@ describe('AuthenticatedLayout', () => {
 
         submitSpy.mockRestore();
     });
+
+    it('closes the mobile navigation drawer when Escape is pressed', async () => {
+        const wrapper = mount(AuthenticatedLayout, {
+            global: {
+                stubs: {
+                    AppBrand: { template: '<div data-test="brand" />' },
+                    AppTopbar: {
+                        props: ['user', 'navigationOpen'],
+                        emits: ['logout', 'toggle-navigation'],
+                        template: '<button data-test="toggle-nav" @click="$emit(\'toggle-navigation\')">Menu</button>',
+                    },
+                    Toast: { template: '<div data-test="toast" />' },
+                },
+            },
+            slots: {
+                default: '<div>Page</div>',
+            },
+        });
+
+        await wrapper.get('[data-test="toggle-nav"]').trigger('click');
+
+        expect(wrapper.html()).toContain('app-mobile-navigation');
+
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+        await wrapper.vm.$nextTick();
+
+        expect(wrapper.html()).not.toContain('bg-slate-950/50 lg:hidden');
+    });
 });
