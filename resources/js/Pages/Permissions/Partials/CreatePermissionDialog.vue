@@ -1,5 +1,6 @@
 <script setup>
 import Dialog from "primevue/dialog";
+import { trans } from "laravel-vue-i18n";
 import PermissionForm from "./PermissionForm.vue";
 
 const props = defineProps({
@@ -22,7 +23,7 @@ function closeDialog() {
         modal
         dismissable-mask
         :style="{ width: 'min(42rem, 95vw)' }"
-        header="Uj permission letrehozasa"
+        :header="trans('permissions.create_dialog_title')"
         @update:visible="emit('update:visible', $event)"
         @hide="closeDialog"
     >
@@ -30,7 +31,7 @@ function closeDialog() {
             :form="form"
             :errors="errors"
             :submitting="submitting"
-            submit-label="Letrehozas"
+            :submit-label="trans('common.create')"
             @submit="emit('submit')"
             @cancel="closeDialog"
         />

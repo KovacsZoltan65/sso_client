@@ -5,6 +5,8 @@ import EditPermissionDialog from '@/Pages/Permissions/Partials/EditPermissionDia
 import DataTable from 'primevue/datatable';
 import { confirmRequireMock, toastAddMock } from '../setup';
 import { setPageProps } from '../mocks/inertia';
+import en from '../../../../lang/en.json';
+import hu from '../../../../lang/hu.json';
 
 const { listPermissionsMock, createPermissionMock, updatePermissionMock, deletePermissionMock } = vi.hoisted(() => ({
     listPermissionsMock: vi.fn(),
@@ -40,8 +42,11 @@ function makeEnvelope(items = []) {
     };
 }
 
-function mountPage(permissions = { view: true, create: true, update: true, delete: true }) {
-    setPageProps({ auth: { user: { permissions: [] } }, flash: {}, sso: { status: { message: 'Rendben' } } });
+function mountPage(
+    permissions = { view: true, create: true, update: true, delete: true },
+    locale = { current: 'hu', fallback: 'en', available: ['hu', 'en'] },
+) {
+    setPageProps({ auth: { user: { permissions: [] } }, flash: {}, sso: { status: { message: 'Rendben' } }, locale });
     return mount(PermissionsIndex, { props: { permissionsApi, permissions } });
 }
 
@@ -89,7 +94,7 @@ describe('Permissions/Index', () => {
         const wrapper = mountPage();
         await flushPromises();
 
-        await findButtonByText(wrapper, 'Uj permission').trigger('click');
+        await findButtonByText(wrapper, hu['permissions.new']).trigger('click');
         const createDialog = wrapper.findComponent(CreatePermissionDialog);
         createDialog.props('form').name = 'roles.assign';
         await wrapper.get('form').trigger('submit.prevent');
@@ -114,7 +119,7 @@ describe('Permissions/Index', () => {
         const wrapper = mountPage();
         await flushPromises();
 
-        await findButtonByText(wrapper, 'Szerkesztes').trigger('click');
+        await findButtonByText(wrapper, hu['common.edit']).trigger('click');
         const editDialog = wrapper.findComponent(EditPermissionDialog);
         editDialog.props('form').name = 'roles.attach';
         await wrapper.get('form').trigger('submit.prevent');
@@ -134,7 +139,7 @@ describe('Permissions/Index', () => {
         await flushPromises();
 
         expect(wrapper.text()).toContain('Rendszer');
-        expect(wrapper.text()).not.toContain('Torles');
+        expect(wrapper.text()).not.toContain(hu['common.delete']);
     });
 
     it('keeps protected permission fields read-only and the save action disabled', async () => {
@@ -145,11 +150,11 @@ describe('Permissions/Index', () => {
         const wrapper = mountPage();
         await flushPromises();
 
-        await findButtonByText(wrapper, 'Szerkesztes').trigger('click');
+        await findButtonByText(wrapper, hu['common.edit']).trigger('click');
         const editDialog = wrapper.findComponent(EditPermissionDialog);
 
         expect(editDialog.find('input#permission-name').attributes('readonly')).toBeDefined();
-        expect(editDialog.text()).toContain('Ez a rendszer-jogosultsag vedett');
+        expect(editDialog.text()).toContain(hu['permissions.protected_identity_notice']);
         expect(editDialog.find('button[type="submit"]').attributes('disabled')).toBeDefined();
     });
 
@@ -162,7 +167,7 @@ describe('Permissions/Index', () => {
         const wrapper = mountPage();
         await flushPromises();
 
-        await findButtonByText(wrapper, 'Szerkesztes').trigger('click');
+        await findButtonByText(wrapper, hu['common.edit']).trigger('click');
         const editDialog = wrapper.findComponent(EditPermissionDialog);
         editDialog.props('form').name = 'roles.manage';
 
@@ -179,7 +184,7 @@ describe('Permissions/Index', () => {
         const wrapper = mountPage();
         await flushPromises();
 
-        await findButtonByText(wrapper, 'Uj permission').trigger('click');
+        await findButtonByText(wrapper, hu['permissions.new']).trigger('click');
         const createDialog = wrapper.findComponent(CreatePermissionDialog);
         createDialog.props('form').name = 'temp.permission';
 
@@ -206,5 +211,28 @@ describe('Permissions/Index', () => {
         expect(dataTable.props('scrollable')).toBe(true);
         expect(dataTable.props('scrollHeight')).toBe('flex');
         expect(dataTable.classes()).toContain('admin-datatable');
+    });
+
+    it('renders localized english labels for the permissions page and form', async () => {
+        listPermissionsMock.mockResolvedValueOnce(makeEnvelope([
+            { id: 1, name: 'companies.view', guard_name: 'web', roles_count: 2, created_at: '2026-04-09 08:00:00', is_protected: true, protection_label: en['permissions.system_badge'], can: { update: true, delete: false } },
+        ]));
+
+        const wrapper = mountPage(
+            { view: true, create: true, update: true, delete: true },
+            { current: 'en', fallback: 'hu', available: ['hu', 'en'] },
+        );
+        await flushPromises();
+
+        expect(wrapper.text()).toContain(en['navigation.permissions.label']);
+        expect(wrapper.text()).toContain(en['permissions.roles_count_badge'].replace(':count', '2'));
+        expect(wrapper.text()).toContain(en['table.created_at']);
+
+        await findButtonByText(wrapper, en['common.edit']).trigger('click');
+        await flushPromises();
+
+        expect(wrapper.text()).toContain(en['permissions.protected_identity_notice']);
+        expect(wrapper.text()).toContain(en['permissions.guard_name']);
+        expect(wrapper.text()).toContain(en['common.save']);
     });
 });
