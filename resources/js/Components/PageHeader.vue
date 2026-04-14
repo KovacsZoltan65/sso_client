@@ -1,4 +1,6 @@
 <script setup>
+import { trans } from 'laravel-vue-i18n';
+
 defineProps({
     title: {
         type: String,
@@ -13,7 +15,7 @@ defineProps({
 
 <template>
     <div class="mb-6">
-        <div class="eyebrow">Workspace</div>
+        <div class="eyebrow">{{ trans('page_header.eyebrow') }}</div>
         <h2 class="section-title mt-2">{{ title }}</h2>
         <p v-if="description" class="section-copy mt-2 max-w-3xl">{{ description }}</p>
     </div>

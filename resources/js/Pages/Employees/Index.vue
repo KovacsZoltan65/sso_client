@@ -7,6 +7,7 @@ import AdminTableToolbar from "@/Components/Admin/AdminTableToolbar.vue";
 import PageHeader from "@/Components/PageHeader.vue";
 import RowActionMenu from "@/Components/Admin/RowActionMenu.vue";
 import { useAdminSearchBehavior } from "@/Composables/useAdminSearchBehavior";
+import { trans } from 'laravel-vue-i18n';
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import { useAdminTableState } from "@/Composables/useAdminTableState";
 import {
@@ -25,7 +26,7 @@ import Select from "primevue/select";
 import Tag from "primevue/tag";
 import { useConfirm } from "primevue/useconfirm";
 import { useToast } from "primevue/usetoast";
-import { onMounted, reactive, ref, watch } from "vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
 
 import CreateEmployeeDialog from "./Partials/CreateEmployeeDialog.vue";
 import EditEmployeeDialog from "./Partials/EditEmployeeDialog.vue";
@@ -38,7 +39,7 @@ const props = defineProps({
     searchValue: { type: String, default: "" },
     searchPlaceholder: {
         type: String,
-        default: "Kereses nev, e-mail, pozicio vagy azonosito alapjan",
+        default: "",
     },
 });
 
@@ -94,6 +95,7 @@ const compactSelectPt = {
     dropdown: { class: "w-11" },
 };
 const searchBehavior = useAdminSearchBehavior();
+const resolvedSearchPlaceholder = computed(() => props.searchPlaceholder || trans('employees.search_placeholder'));
 
 function defaultForm() {
     return {
@@ -421,7 +423,7 @@ onMounted(loadEmployees);
                                     searchable
                                     :search-value="filters.search"
                                     searchContainerClass="w-full lg:flex-1 lg:min-w-0"
-                                    :search-placeholder="searchPlaceholder"
+                                    :search-placeholder="resolvedSearchPlaceholder"
                                     :canCreate="permissions.create"
                                     createLabel="Uj alkalmazott"
                                     :canBulkDelete="false"
@@ -512,7 +514,7 @@ onMounted(loadEmployees);
                                 <InputIcon class="pi pi-search" />
                                 <InputText
                                     v-model="filters.search"
-                                    :placeholder="searchPlaceholder"
+                                    :placeholder="resolvedSearchPlaceholder"
                                     class="h-11 w-full"
                                 />
                             </IconField>

@@ -50,6 +50,11 @@ class HandleInertiaRequests extends Middleware
             'sso' => [
                 'status' => fn () => app(SsoClientService::class)->status()->toArray(),
             ],
+            'locale' => [
+                'current' => app()->getLocale(),
+                'fallback' => config('app.fallback_locale'),
+                'available' => ['hu', 'en'],
+            ],
         ];
     }
 }

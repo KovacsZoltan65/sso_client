@@ -6,6 +6,7 @@ import AdminTableSummary from '@/Components/Admin/AdminTableSummary.vue';
 import AdminTableToolbar from '@/Components/Admin/AdminTableToolbar.vue';
 import RowActionMenu from '@/Components/Admin/RowActionMenu.vue';
 import PageHeader from '@/Components/PageHeader.vue';
+import { trans } from 'laravel-vue-i18n';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { useAdminTableState } from '@/Composables/useAdminTableState';
 import AuditLogViewDialog from '@/Pages/AuditLogs/Partials/AuditLogViewDialog.vue';
@@ -107,8 +108,8 @@ async function refreshAuditLogs() {
 
     toast.add({
         severity: 'success',
-        summary: 'Sikeres muvelet',
-        detail: 'Az audit log lista frissult.',
+        summary: trans('common.success'),
+        detail: trans('audit_logs.refresh_detail'),
         life: 2500,
     });
 }

@@ -1,8 +1,23 @@
 import { config } from '@vue/test-utils';
 import { afterEach, beforeEach, vi } from 'vitest';
 import { defineComponent, h, ref } from 'vue';
+import en from '../../../lang/en.json';
+import hu from '../../../lang/hu.json';
 import { axiosMock, resetAxiosMock } from './mocks/axios';
 import { getPage, resetInertiaMocks } from './mocks/inertia';
+
+const translations = { en, hu };
+
+const translate = (key, replacements = {}) => {
+    const locale = getPage().props.locale?.current ?? 'hu';
+    const fallback = getPage().props.locale?.fallback ?? 'en';
+    const message = translations[locale]?.[key] ?? translations[fallback]?.[key] ?? key;
+
+    return Object.entries(replacements).reduce(
+        (text, [name, value]) => text.replaceAll(`:${name}`, String(value)),
+        message,
+    );
+};
 
 const ButtonStub = defineComponent({
     inheritAttrs: false,
@@ -64,6 +79,17 @@ vi.mock('@inertiajs/vue3', () => ({
         },
     }),
     Link: LinkStub,
+}));
+
+vi.mock('laravel-vue-i18n', () => ({
+    trans: translate,
+    wTrans: (key, replacements = {}) => ({ value: translate(key, replacements) }),
+    i18nVue: {
+        install(app) {
+            app.config.globalProperties.$t = translate;
+            app.config.globalProperties.trans = translate;
+        },
+    },
 }));
 
 vi.mock('primevue/button', () => ({ default: ButtonStub }));
@@ -346,6 +372,8 @@ config.global.stubs = {
 };
 
 config.global.mocks = {
+    $t: (...args) => translate(...args),
+    trans: (...args) => translate(...args),
     route: (...args) => global.route(...args),
 };
 

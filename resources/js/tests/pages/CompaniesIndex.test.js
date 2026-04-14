@@ -5,6 +5,8 @@ import EditCompanyDialog from '@/Pages/Companies/Partials/EditCompanyDialog.vue'
 import DataTable from 'primevue/datatable';
 import { confirmRequireMock, toastAddMock } from '../setup';
 import { setPageProps } from '../mocks/inertia';
+import en from '../../../../lang/en.json';
+import hu from '../../../../lang/hu.json';
 
 const listCompaniesMock = vi.fn();
 const createCompanyMock = vi.fn();
@@ -48,7 +50,10 @@ function makeEnvelope(items = []) {
     };
 }
 
-function mountPage(permissions = { view: true, create: true, update: true, delete: true }) {
+function mountPage(
+    permissions = { view: true, create: true, update: true, delete: true },
+    locale = { current: 'hu', fallback: 'en', available: ['hu', 'en'] },
+) {
     setPageProps({
         auth: {
             user: {
@@ -61,6 +66,7 @@ function mountPage(permissions = { view: true, create: true, update: true, delet
                 message: 'Rendben',
             },
         },
+        locale,
     });
 
     return mount(CompaniesIndex, {
@@ -113,7 +119,7 @@ describe('Companies/Index', () => {
         const wrapper = mountPage();
         await flushPromises();
 
-        await wrapper.get('input[placeholder="Kereses nev, kod vagy e-mail alapjan"]').setValue('Beta');
+        await wrapper.get(`input[placeholder="${hu['companies.search_placeholder']}"]`).setValue('Beta');
 
         vi.advanceTimersByTime(349);
         expect(listCompaniesMock).toHaveBeenCalledTimes(1);
@@ -148,7 +154,7 @@ describe('Companies/Index', () => {
         const wrapper = mountPage();
         await flushPromises();
 
-        await findButtonByText(wrapper, 'Uj ceg').trigger('click');
+        await findButtonByText(wrapper, hu['companies.new']).trigger('click');
         const createDialog = wrapper.findComponent(CreateCompanyDialog);
         createDialog.props('form').name = 'Nova Kft.';
         createDialog.props('form').code = 'NOVA';
@@ -188,7 +194,7 @@ describe('Companies/Index', () => {
         const wrapper = mountPage();
         await flushPromises();
 
-        const editButton = findButtonByText(wrapper, 'Szerkesztes');
+        const editButton = findButtonByText(wrapper, hu['common.edit']);
         await editButton.trigger('click');
         const editDialog = wrapper.findComponent(EditCompanyDialog);
         editDialog.props('form').name = 'Acme Zrt.';
@@ -218,7 +224,7 @@ describe('Companies/Index', () => {
         const wrapper = mountPage();
         await flushPromises();
 
-        const deleteButton = findButtonByText(wrapper, 'Torles');
+        const deleteButton = findButtonByText(wrapper, hu['common.delete']);
         await deleteButton.trigger('click');
         expect(confirmRequireMock).toHaveBeenCalledTimes(1);
 
@@ -237,9 +243,36 @@ describe('Companies/Index', () => {
         const wrapper = mountPage({ view: true, create: false, update: false, delete: false });
         await flushPromises();
 
-        expect(wrapper.text()).not.toContain('Uj ceg');
-        expect(wrapper.text()).not.toContain('Szerkesztes');
-        expect(wrapper.text()).not.toContain('Torles');
+        expect(wrapper.text()).not.toContain(hu['companies.new']);
+        expect(wrapper.text()).not.toContain(hu['common.edit']);
+        expect(wrapper.text()).not.toContain(hu['common.delete']);
+    });
+
+    it('renders localized english labels for the mobile card and company form', async () => {
+        listCompaniesMock.mockResolvedValueOnce(makeEnvelope([
+            { id: 1, name: 'Acme Ltd.', code: 'ACME', is_active: true, email: 'hello@acme.test', phone: '+36 1 555 0101', address: 'Budapest', created_at: '2026-03-29 12:00:00' },
+        ]));
+
+        const wrapper = mountPage(
+            { view: true, create: true, update: true, delete: true },
+            { current: 'en', fallback: 'hu', available: ['hu', 'en'] },
+        );
+        await flushPromises();
+
+        expect(wrapper.text()).toContain(en['companies.new']);
+        expect(wrapper.text()).toContain(en['table.created_at']);
+        expect(wrapper.text()).toContain(en['table.phone']);
+
+        await findButtonByText(wrapper, en['companies.new']).trigger('click');
+        await flushPromises();
+
+        expect(wrapper.text()).toContain(en['table.name']);
+        expect(wrapper.text()).toContain(en['table.code']);
+        expect(wrapper.text()).toContain(en['table.email']);
+        expect(wrapper.text()).toContain(en['table.address']);
+        expect(wrapper.text()).toContain(en['companies.form.is_active']);
+        expect(wrapper.text()).toContain(en['common.cancel']);
+        expect(wrapper.text()).toContain(en['common.create']);
     });
 
     it('uses the shared full-height scrollable datatable layout on desktop', async () => {

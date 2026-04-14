@@ -1561,7 +1561,7 @@ class SsoAuthenticationTest extends TestCase
 
         $response
             ->assertRedirect(route('login'))
-            ->assertSessionHas('success', 'Sikeres kijelentkezes.');
+            ->assertSessionHas('success', __('auth.logout_success'));
 
         $this->assertGuest();
         $this->assertNull(session(config('sso.logout_state_session_key')));
@@ -1601,7 +1601,7 @@ class SsoAuthenticationTest extends TestCase
 
         $response
             ->assertRedirect(route('login'))
-            ->assertSessionHas('success', 'Sikeres kijelentkezes.');
+            ->assertSessionHas('success', __('auth.logout_success'));
 
         $this->assertGuest();
         $this->assertNull(session(config('sso.logout_state_session_key')));

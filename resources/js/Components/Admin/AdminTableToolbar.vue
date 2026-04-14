@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from "vue";
+import { trans } from 'laravel-vue-i18n';
 import InputText from "primevue/inputtext";
 import Button from "primevue/button";
 import { IconField, InputIcon } from "primevue";
@@ -23,7 +24,7 @@ const props = defineProps({
     },
     searchPlaceholder: {
         type: String,
-        default: "Kereses",
+        default: "",
     },
     canCreate: {
         type: Boolean,
@@ -31,7 +32,7 @@ const props = defineProps({
     },
     createLabel: {
         type: String,
-        default: "Create",
+        default: "",
     },
     canBulkDelete: {
         type: Boolean,
@@ -39,7 +40,7 @@ const props = defineProps({
     },
     bulkDeleteLabel: {
         type: String,
-        default: "Delete Selected",
+        default: "",
     },
     selectedCount: {
         type: Number,
@@ -80,16 +81,20 @@ const bulkStatusText = computed(() => {
 
     if (props.selectedCount > 0) {
         return props.selectableCount > 0
-            ? `${props.selectedCount} of ${props.selectableCount} selectable selected`
-            : `${props.selectedCount} selected`;
+            ? trans('toolbar.bulk.selected_of_total', { count: props.selectedCount, total: props.selectableCount })
+            : trans('toolbar.bulk.selected', { count: props.selectedCount });
     }
 
     if (props.selectableCount === 0) {
-        return "No deletable records on this page";
+        return trans('toolbar.bulk.none');
     }
 
-    return "Select rows to enable bulk actions";
+    return trans('toolbar.bulk.prompt');
 });
+
+const resolvedSearchPlaceholder = computed(() => props.searchPlaceholder || trans('toolbar.search_placeholder'));
+const resolvedCreateLabel = computed(() => props.createLabel || trans('common.create'));
+const resolvedBulkDeleteLabel = computed(() => props.bulkDeleteLabel || trans('toolbar.bulk.delete'));
 </script>
 
 <template>
@@ -115,7 +120,7 @@ const bulkStatusText = computed(() => {
                             <InputIcon class="pi pi-search" />
                             <InputText
                                 :modelValue="searchValue"
-                                :placeholder="searchPlaceholder"
+                                :placeholder="resolvedSearchPlaceholder"
                                 class="h-11 w-full"
                                 @update:modelValue="$emit('update:searchValue', $event)"
                                 @keyup.enter="$emit('submit-search')"
@@ -145,7 +150,7 @@ const bulkStatusText = computed(() => {
                 <slot name="primary" />
 
                 <Button
-                    label="Refresh"
+                    :label="trans('common.refresh')"
                     icon="pi pi-refresh"
                     severity="secondary"
                     outlined
@@ -157,7 +162,7 @@ const bulkStatusText = computed(() => {
 
                 <Button
                     v-if="canBulkDelete"
-                    :label="bulkDeleteLabel"
+                    :label="resolvedBulkDeleteLabel"
                     icon="pi pi-trash"
                     severity="danger"
                     outlined
@@ -168,7 +173,7 @@ const bulkStatusText = computed(() => {
 
                 <Button
                     v-if="canCreate"
-                    :label="createLabel"
+                    :label="resolvedCreateLabel"
                     icon="pi pi-plus"
                     :disabled="busy"
                     severity="info"

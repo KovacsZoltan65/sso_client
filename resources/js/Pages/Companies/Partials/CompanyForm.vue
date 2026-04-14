@@ -1,5 +1,6 @@
 <script setup>
 import InputError from "@/Components/InputError.vue";
+import { trans } from "laravel-vue-i18n";
 import Button from "primevue/button";
 import Checkbox from "primevue/checkbox";
 import InputText from "primevue/inputtext";
@@ -20,7 +21,7 @@ defineEmits(["submit", "cancel"]);
         <div class="grid gap-5 md:grid-cols-2">
             <div class="space-y-2">
                 <label for="company-name" class="text-sm font-semibold text-slate-900"
-                    >Cegnev</label
+                    >{{ trans("table.name") }}</label
                 >
                 <InputText
                     id="company-name"
@@ -34,7 +35,7 @@ defineEmits(["submit", "cancel"]);
 
             <div class="space-y-2">
                 <label for="company-code" class="text-sm font-semibold text-slate-900"
-                    >Kod</label
+                    >{{ trans("table.code") }}</label
                 >
                 <InputText
                     id="company-code"
@@ -48,7 +49,7 @@ defineEmits(["submit", "cancel"]);
 
             <div class="space-y-2">
                 <label for="company-email" class="text-sm font-semibold text-slate-900"
-                    >E-mail</label
+                    >{{ trans("table.email") }}</label
                 >
                 <InputText
                     id="company-email"
@@ -62,7 +63,7 @@ defineEmits(["submit", "cancel"]);
 
             <div class="space-y-2">
                 <label for="company-phone" class="text-sm font-semibold text-slate-900"
-                    >Telefonszam</label
+                    >{{ trans("table.phone") }}</label
                 >
                 <InputText
                     id="company-phone"
@@ -77,7 +78,7 @@ defineEmits(["submit", "cancel"]);
 
         <div class="space-y-2">
             <label for="company-address" class="text-sm font-semibold text-slate-900"
-                >Cim</label
+                >{{ trans("table.address") }}</label
             >
             <Textarea
                 id="company-address"
@@ -95,7 +96,7 @@ defineEmits(["submit", "cancel"]);
         >
             <Checkbox v-model="form.is_active" input-id="company-is-active" binary />
             <label for="company-is-active" class="text-sm font-medium text-slate-800"
-                >A ceg aktiv</label
+                >{{ trans("companies.form.is_active") }}</label
             >
         </div>
         <InputError :message="errors.is_active?.[0]" />
@@ -103,7 +104,7 @@ defineEmits(["submit", "cancel"]);
         <div class="flex justify-end gap-3 border-t border-slate-200 pt-4">
             <Button
                 type="button"
-                label="Megse"
+                :label="trans('common.cancel')"
                 severity="secondary"
                 text
                 @click="$emit('cancel')"
