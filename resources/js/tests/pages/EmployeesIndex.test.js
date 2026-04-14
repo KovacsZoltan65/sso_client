@@ -4,6 +4,8 @@ import CreateEmployeeDialog from '@/Pages/Employees/Partials/CreateEmployeeDialo
 import EditEmployeeDialog from '@/Pages/Employees/Partials/EditEmployeeDialog.vue';
 import { confirmRequireMock, toastAddMock } from '../setup';
 import { setPageProps } from '../mocks/inertia';
+import en from '../../../../lang/en.json';
+import hu from '../../../../lang/hu.json';
 
 const listEmployeesMock = vi.fn();
 const createEmployeeMock = vi.fn();
@@ -90,7 +92,10 @@ function makeEmployee(overrides = {}) {
     };
 }
 
-function mountPage(permissions = { view: true, create: true, update: true, delete: true }) {
+function mountPage(
+    permissions = { view: true, create: true, update: true, delete: true },
+    locale = { current: 'hu', fallback: 'en', available: ['hu', 'en'] },
+) {
     setPageProps({
         auth: {
             user: {
@@ -103,6 +108,7 @@ function mountPage(permissions = { view: true, create: true, update: true, delet
                 message: 'Rendben',
             },
         },
+        locale,
     });
 
     return mount(EmployeesIndex, {
@@ -139,7 +145,7 @@ describe('Employees/Index', () => {
         const wrapper = mountPage();
         await flushPromises();
 
-        await findButtonByText(wrapper, 'Uj alkalmazott').trigger('click');
+        await findButtonByText(wrapper, hu['employees.new']).trigger('click');
         await flushPromises();
 
         const createDialog = wrapper.findComponent(CreateEmployeeDialog);
@@ -175,7 +181,7 @@ describe('Employees/Index', () => {
         const wrapper = mountPage();
         await flushPromises();
 
-        await findButtonByText(wrapper, 'Szerkesztes').trigger('click');
+        await findButtonByText(wrapper, hu['common.edit']).trigger('click');
         await flushPromises();
 
         const editDialog = wrapper.findComponent(EditEmployeeDialog);
@@ -208,7 +214,7 @@ describe('Employees/Index', () => {
         const wrapper = mountPage();
         await flushPromises();
 
-        await findButtonByText(wrapper, 'Uj alkalmazott').trigger('click');
+        await findButtonByText(wrapper, hu['employees.new']).trigger('click');
         await flushPromises();
 
         await wrapper.find('#employee-company-id').setValue('1');
@@ -251,7 +257,7 @@ describe('Employees/Index', () => {
         const wrapper = mountPage();
         await flushPromises();
 
-        await findButtonByText(wrapper, 'Szerkesztes').trigger('click');
+        await findButtonByText(wrapper, hu['common.edit']).trigger('click');
         await flushPromises();
 
         await wrapper.find('#employee-position').setValue('Lead HR');
@@ -263,5 +269,29 @@ describe('Employees/Index', () => {
             position: 'Lead HR',
         }));
     });
-});
 
+    it('renders localized english labels for the employee page and form', async () => {
+        listEmployeesMock.mockResolvedValueOnce(makeEnvelope([makeEmployee()]));
+
+        const wrapper = mountPage(
+            { view: true, create: true, update: true, delete: true },
+            { current: 'en', fallback: 'hu', available: ['hu', 'en'] },
+        );
+        await flushPromises();
+
+        expect(wrapper.text()).toContain(en['navigation.employees.label']);
+        expect(wrapper.text()).toContain(en['employees.new']);
+        expect(wrapper.text()).toContain(en['table.position']);
+        expect(wrapper.text()).toContain(en['table.company']);
+
+        await findButtonByText(wrapper, en['employees.new']).trigger('click');
+        await flushPromises();
+
+        expect(wrapper.text()).toContain(en['table.employee_number']);
+        expect(wrapper.text()).toContain(en['table.name']);
+        expect(wrapper.text()).toContain(en['table.email']);
+        expect(wrapper.text()).toContain(en['employees.form.is_active']);
+        expect(wrapper.text()).toContain(en['common.cancel']);
+        expect(wrapper.text()).toContain(en['common.create']);
+    });
+});
