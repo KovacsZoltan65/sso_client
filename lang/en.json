@@ -1,6 +1,27 @@
 {
     "page_header.eyebrow": "Workspace",
 
+    "common.components": "Laravel 13 + Vue 3 + Inertia",
+    "common.welcome_description_2": "Minimally functional SSO client with redirect, callback and local session flow.",
+    "common.welcome_description_3": "The client is built on the `sso_server` authorize, token and userinfo foundation, while the protected pages remain behind the Laravel session + `auth` guard.",
+
+    "common.welcome": "Welcome",
+    "common.welcome_back": "Welcome back",
+    "common.welcome_description": "The central identity comes from the SSO server, but local roles and permissions remain in this client application.",
+
+    "common.included_base_modules": "Included base modules",
+    "included.dashboard_and_shell": "Dashboard and app shell",
+    "included.profile_and_account": "Profile and account management",
+    "included.user_roles_permissions": "Users, roles, permissions placeholders",
+    "included.sso_status_audit_preview": "SSO status and audit preview",
+
+    "common.auth_behavior.title": "Auth Behavior",
+    "common.auth_behavior.description": "Protected pages are redirected to the login page without a session, from where a single button starts the SSO redirect flow.",
+
+    "common.active_session": "Active session",
+
+    "common.foundation_ready": "Foundation ready",
+
     "common.operation_successful": "Successful operation",
 
     "common.deletion_confirmation": "Confirm deletion",
@@ -16,6 +37,7 @@
     "common.search": "Search",
     "common.profile": "Profile",
     "common.logout": "Logout",
+    "common.sso_login": "SSO Login",
     "common.details": "Details",
     "common.view": "View",
     "common.edit": "Edit",
@@ -33,6 +55,14 @@
     "common.page": "Page",
     "common.published": "Published",
 
+    "common.current_access_context": "Current access context",
+
+    "common.allowed": "Allowed",
+    "common.forbidden": "Forbidden",
+    "common.recent_users": "Recent users",
+    "common.no_assigned_roled": "no assigned roles",
+    "common.audit_preview": "Audit preview",
+
     "toolbar.search_placeholder": "Search",
     "toolbar.bulk.delete": "Delete selected",
     "toolbar.bulk.none": "There are no deletable records on this page.",
@@ -44,7 +74,8 @@
     "topbar.server.title": "Central SSO control plane",
     "topbar.client.eyebrow": "Application",
     "topbar.client.title": "Connected SSO workspace",
-    "navigation.dashboard.label": "Dashboard",
+    "navigation.dashboard_label": "Dashboard",
+    "navigation.dashboard_description": "Protected client pages are now accessible with working SSO redirection, callback, and session login.",
     "navigation.profile.label": "Profile",
     "navigation.my_account.label": "My Account",
     "navigation.companies.label": "Companies",
@@ -59,6 +90,7 @@
     "navigation.permissions.description": "Complete administration of the local permission catalog for local role assignments.",
     "navigation.connection_health.label": "Connection Health",
     "navigation.audit_logs.label": "Audit Logs",
+    "navigation.activity_entities_title": "Activity Entries",
     "auth.login.page_title": "Sign in",
     "auth.login.title": "Sign in",
     "auth.login.description": "The system redirects you to the central sign-in to continue.",

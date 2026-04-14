@@ -1,6 +1,27 @@
 {
     "page_header.eyebrow": "Munkaterület",
 
+    "common.components": "Laravel 13 + Vue 3 + Inertia",
+    "common.welcome_description_2": "Minimálisan működő SSO kliens redirect, callback es lokális session flow-val.",
+    "common.welcome_description_3": "A kliens az `sso_server` authorize, token es userinfo foundationre épül, miközben a védett oldalak továbbra is a Laravel session + `auth` guard mögött maradnak.",
+
+    "common.welcome": "Üdvözöllek",
+    "common.welcome_back": "Üdv ismét",
+    "common.welcome_description": "A központi identitás az SSO szerverről jön, a helyi szerepkörök és jogosultságok viszont továbbra is ebben a kliens alkalmazásban maradnak.",
+
+    "common.included_base_modules": "Tartalmazott alapmodulok",
+    "included.dashboard_and_shell": "Irányítópult és alkalmazáshéj",
+    "included.profile_and_account": "Profil- és fiókkezelés",
+    "included.user_roles_permissions": "Felhasználók, szerepkörök, jogosultságok helyőrzői",
+    "included.sso_status_audit_preview": "SSO állapot és audit előnézet",
+
+    "common.auth_behavior.title": "Hitelesítési viselkedés",
+    "common.auth_behavior.description": "A védett oldalak session nélkül a bejelentkezési oldalra kerülnek, ahonnan egyetlen gomb indítja el az SSO redirect flow-t.",
+
+    "common.active_session": "Aktív session",
+
+    "common.foundation_ready": "Alapozás kész",
+
     "common.operation_successful": "Sikeres művelet",
 
     "common.deletion_confirmation": "Törlés megerősítése",
@@ -16,6 +37,7 @@
     "common.search": "Keresés",
     "common.profile": "Profil",
     "common.logout": "Kijelentkezés",
+    "common.sso_login": "SSO bejelentkezés",
     "common.details": "Részletek",
     "common.view": "Megtekintés",
     "common.edit": "Szerkesztés",
@@ -33,6 +55,14 @@
     "common.page": "Oldal",
     "common.published": "Megjelenitve",
 
+    "common.current_access_context": "Jelenlegi hozzáférési kontextus",
+
+    "common.allowed": "Engedélyezve",
+    "common.forbidden": "Tiltva",
+    "common.recent_users": "Legutóbbi felhasználók",
+    "common.no_assigned_roled": "nincsenek hozzárendelt szerepkörök",
+    "common.audit_preview": "Audit előnézete",
+
     "toolbar.search_placeholder": "Keresés",
     "toolbar.bulk.delete": "Kijelöltek törlése",
     "toolbar.bulk.none": "Ezen az oldalon nincs törölhető rekord.",
@@ -44,7 +74,8 @@
     "topbar.server.title": "Központi SSO vezérlőfelület",
     "topbar.client.eyebrow": "Alkalmazás",
     "topbar.client.title": "Kapcsolódó SSO munkaterület",
-    "navigation.dashboard.label": "Dashboard",
+    "navigation.dashboard_label": "Dashboard",
+    "navigation.dashboard_description": "A védett kliens oldalak most már működő SSO redirect, callback és session alapú bejelentkezéssel érhetők el.",
     "navigation.profile.label": "Profil",
     "navigation.my_account.label": "Fiókom",
     "navigation.companies.label": "Cégek",
@@ -59,6 +90,7 @@
     "navigation.permissions.description": "A helyi jogosultság-katalógus teljes adminisztrációja helyi szerepkör-hozzárendelésekhez.",
     "navigation.connection_health.label": "Kapcsolat állapota",
     "navigation.audit_logs.label": "Audit naplók",
+    "navigation.activity_entities_title": "Tevékenységbejegyzések",
     "auth.login.page_title": "Bejelentkezés",
     "auth.login.title": "Bejelentkezés",
     "auth.login.description": "A folytatáshoz a rendszer a központi bejelentkezésre irányít.",
