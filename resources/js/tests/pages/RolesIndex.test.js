@@ -5,6 +5,8 @@ import EditRoleDialog from '@/Pages/Roles/Partials/EditRoleDialog.vue';
 import DataTable from 'primevue/datatable';
 import { confirmRequireMock, toastAddMock } from '../setup';
 import { setPageProps } from '../mocks/inertia';
+import en from '../../../../lang/en.json';
+import hu from '../../../../lang/hu.json';
 
 const { listRolesMock, createRoleMock, updateRoleMock, deleteRoleMock } = vi.hoisted(() => ({
     listRolesMock: vi.fn(),
@@ -44,8 +46,11 @@ function makeEnvelope(items = []) {
     };
 }
 
-function mountPage(permissions = { view: true, create: true, update: true, delete: true }) {
-    setPageProps({ auth: { user: { permissions: [] } }, flash: {}, sso: { status: { message: 'Rendben' } } });
+function mountPage(
+    permissions = { view: true, create: true, update: true, delete: true },
+    locale = { current: 'hu', fallback: 'en', available: ['hu', 'en'] },
+) {
+    setPageProps({ auth: { user: { permissions: [] } }, flash: {}, sso: { status: { message: 'Rendben' } }, locale });
     return mount(RolesIndex, { props: { rolesApi, permissions, permissionOptions } });
 }
 
@@ -93,11 +98,11 @@ describe('Roles/Index', () => {
         const wrapper = mountPage();
         await flushPromises();
 
-        await findButtonByText(wrapper, 'Uj role').trigger('click');
+        await findButtonByText(wrapper, hu['roles.new']).trigger('click');
         const createDialog = wrapper.findComponent(CreateRoleDialog);
 
         expect(createDialog.exists()).toBe(true);
-        expect(wrapper.find('input[placeholder="Kereses permission eroforras vagy muvelet szerint"]').exists()).toBe(true);
+        expect(wrapper.find(`input[placeholder="${hu['roles.permissions_search_placeholder']}"]`).exists()).toBe(true);
         expect(wrapper.findAll('input[type="checkbox"]').length).toBeGreaterThan(0);
 
         createDialog.props('form').name = 'editor';
@@ -124,7 +129,7 @@ describe('Roles/Index', () => {
         const wrapper = mountPage();
         await flushPromises();
 
-        await findButtonByText(wrapper, 'Szerkesztes').trigger('click');
+        await findButtonByText(wrapper, hu['common.edit']).trigger('click');
         const editDialog = wrapper.findComponent(EditRoleDialog);
         editDialog.props('form').permission_ids = [1, 2];
         await wrapper.get('form').trigger('submit.prevent');
@@ -144,7 +149,7 @@ describe('Roles/Index', () => {
         await flushPromises();
 
         expect(wrapper.text()).toContain('Rendszer');
-        expect(wrapper.text()).not.toContain('Torles');
+        expect(wrapper.text()).not.toContain(hu['common.delete']);
     });
 
     it('keeps protected role identity fields read-only in the edit dialog', async () => {
@@ -155,11 +160,11 @@ describe('Roles/Index', () => {
         const wrapper = mountPage();
         await flushPromises();
 
-        await findButtonByText(wrapper, 'Szerkesztes').trigger('click');
+        await findButtonByText(wrapper, hu['common.edit']).trigger('click');
         const editDialog = wrapper.findComponent(EditRoleDialog);
 
         expect(editDialog.find('input#role-name').attributes('readonly')).toBeDefined();
-        expect(editDialog.text()).toContain('A nev es a guard vedett.');
+        expect(editDialog.text()).toContain(hu['roles.protected_identity_notice']);
     });
 
     it('shows an error toast and keeps the dialog open when protected role identity update is rejected', async () => {
@@ -171,7 +176,7 @@ describe('Roles/Index', () => {
         const wrapper = mountPage();
         await flushPromises();
 
-        await findButtonByText(wrapper, 'Szerkesztes').trigger('click');
+        await findButtonByText(wrapper, hu['common.edit']).trigger('click');
         const editDialog = wrapper.findComponent(EditRoleDialog);
         editDialog.props('form').name = 'admin-hacked';
 
@@ -188,7 +193,7 @@ describe('Roles/Index', () => {
         const wrapper = mountPage();
         await flushPromises();
 
-        await findButtonByText(wrapper, 'Uj role').trigger('click');
+        await findButtonByText(wrapper, hu['roles.new']).trigger('click');
         const createDialog = wrapper.findComponent(CreateRoleDialog);
         createDialog.props('form').name = 'temp-role';
         createDialog.props('form').permission_ids = [1];
@@ -216,5 +221,28 @@ describe('Roles/Index', () => {
         expect(dataTable.props('scrollable')).toBe(true);
         expect(dataTable.props('scrollHeight')).toBe('flex');
         expect(dataTable.classes()).toContain('admin-datatable');
+    });
+
+    it('renders localized english labels for the roles page and form', async () => {
+        listRolesMock.mockResolvedValueOnce(makeEnvelope([
+            { id: 1, name: 'admin', guard_name: 'web', permissions_count: 2, permission_ids: [1, 2], permission_names: ['companies.view', 'companies.create'], created_at: '2026-04-09 08:00:00', is_protected: true, protection_label: en['roles.system_badge'], can: { update: true, delete: false } },
+        ]));
+
+        const wrapper = mountPage(
+            { view: true, create: true, update: true, delete: true },
+            { current: 'en', fallback: 'hu', available: ['hu', 'en'] },
+        );
+        await flushPromises();
+
+        expect(wrapper.text()).toContain(en['navigation.roles.label']);
+        expect(wrapper.text()).toContain(en['roles.permissions']);
+        expect(wrapper.text()).toContain(en['table.created_at']);
+
+        await findButtonByText(wrapper, en['common.edit']).trigger('click');
+        await flushPromises();
+
+        expect(wrapper.text()).toContain(en['roles.protected_identity_notice']);
+        expect(wrapper.text()).toContain(en['roles.guard_name']);
+        expect(wrapper.text()).toContain(en['common.save']);
     });
 });

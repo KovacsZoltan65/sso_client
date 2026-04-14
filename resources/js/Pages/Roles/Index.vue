@@ -16,7 +16,8 @@ import {
     listRoles,
     updateRole,
 } from "@/Services/roleService";
-import { Head } from "@inertiajs/vue3";
+import { Head, usePage } from "@inertiajs/vue3";
+import { trans } from "laravel-vue-i18n";
 import Button from "primevue/button";
 import Column from "primevue/column";
 import ConfirmDialog from "primevue/confirmdialog";
@@ -24,7 +25,7 @@ import InputText from "primevue/inputtext";
 import Tag from "primevue/tag";
 import { useConfirm } from "primevue/useconfirm";
 import { useToast } from "primevue/usetoast";
-import { onMounted, reactive, ref, watch } from "vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
 import CreateRoleDialog from "./Partials/CreateRoleDialog.vue";
 import EditRoleDialog from "./Partials/EditRoleDialog.vue";
 import { IconField, InputIcon } from "primevue";
@@ -37,6 +38,13 @@ const props = defineProps({
 
 const toast = useToast();
 const confirm = useConfirm();
+const page = usePage();
+const currentLocale = computed(
+    () =>
+        page.props.locale?.current ||
+        document.documentElement.getAttribute("lang") ||
+        "hu"
+);
 
 const roles = ref([]);
 const loading = ref(false);
@@ -102,7 +110,7 @@ async function loadRoles() {
         roles.value = envelope.data.items ?? [];
         applyMeta(envelope.meta.pagination ?? {});
     } catch (error) {
-        handleApiError(error, "A role lista betoltese sikertelen volt.");
+        handleApiError(error, trans("roles.loading_error"));
     } finally {
         loading.value = false;
     }
@@ -135,12 +143,12 @@ async function submitCreate() {
     clearFormErrors();
     try {
         await createRole(props.rolesApi, form);
-        toast.add({ severity: "success", summary: "Sikeres muvelet", detail: "A role letrehozasa sikeres volt.", life: 3000 });
+        toast.add({ severity: "success", summary: trans("common.operation_successful"), detail: trans("roles.creation_success"), life: 3000 });
         closeCreateDialog();
         resetPagination();
         await loadRoles();
     } catch (error) {
-        handleMutationError(error, "A role letrehozasa sikertelen volt.");
+        handleMutationError(error, trans("roles.creation_error"));
     } finally {
         submitting.value = false;
     }
@@ -152,11 +160,11 @@ async function submitUpdate() {
     clearFormErrors();
     try {
         await updateRole(props.rolesApi, editingRole.value.id, form);
-        toast.add({ severity: "success", summary: "Sikeres muvelet", detail: "A role frissitese sikeres volt.", life: 3000 });
+        toast.add({ severity: "success", summary: trans("common.operation_successful"), detail: trans("roles.updating_success"), life: 3000 });
         closeEditDialog();
         await loadRoles();
     } catch (error) {
-        handleMutationError(error, "A role modositasa sikertelen volt.");
+        handleMutationError(error, trans("roles.updating_error"));
     } finally {
         submitting.value = false;
     }
@@ -164,26 +172,26 @@ async function submitUpdate() {
 
 function confirmDelete(role) {
     if (role.is_protected) {
-        toast.add({ severity: "error", summary: "Muvelet tiltva", detail: "A vedett rendszer-szerepkor nem torolheto.", life: 4000 });
+        toast.add({ severity: "error", summary: trans("roles.protected_action_summary"), detail: trans("roles.protected_delete_blocked"), life: 4000 });
         return;
     }
 
     confirm.require({
-        header: "Torles megerositese",
-        message: `Biztosan torolni szeretned a(z) ${role.name} role-t?`,
-        acceptLabel: "Torles",
-        rejectLabel: "Megse",
+        header: trans("common.deletion_confirmation"),
+        message: trans("roles.deletion_confirm", { name: role.name }),
+        acceptLabel: trans("common.delete"),
+        rejectLabel: trans("common.cancel"),
         acceptClass: "p-button-danger",
         accept: async () => {
             try {
                 await deleteRole(props.rolesApi, role.id);
-                toast.add({ severity: "success", summary: "Sikeres muvelet", detail: "A role torlese sikeres volt.", life: 3000 });
+                toast.add({ severity: "success", summary: trans("common.operation_successful"), detail: trans("roles.deletion_success"), life: 3000 });
                 if (roles.value.length === 1 && tableState.page > 1) {
                     tableState.page -= 1;
                 }
                 await loadRoles();
             } catch (error) {
-                handleApiError(error, "A role torlese sikertelen volt.");
+                handleApiError(error, trans("roles.deletion_error"));
             }
         },
     });
@@ -191,14 +199,14 @@ function confirmDelete(role) {
 
 function roleActionItems(role) {
     return [
-        props.permissions.update && role.can?.update !== false ? { label: "Szerkesztes", icon: "pi pi-pencil", isPrimary: true, command: () => openEditDialog(role) } : null,
-        props.permissions.delete && role.can?.delete !== false && !role.is_protected ? { label: "Torles", icon: "pi pi-trash", isDangerous: true, command: () => confirmDelete(role) } : null,
+        props.permissions.update && role.can?.update !== false ? { label: trans("common.edit"), icon: "pi pi-pencil", isPrimary: true, command: () => openEditDialog(role) } : null,
+        props.permissions.delete && role.can?.delete !== false && !role.is_protected ? { label: trans("common.delete"), icon: "pi pi-trash", isDangerous: true, command: () => confirmDelete(role) } : null,
     ];
 }
 
 async function refreshRoles() {
     await loadRoles();
-    toast.add({ severity: "success", summary: "Sikeres muvelet", detail: "A role lista frissult.", life: 2500 });
+    toast.add({ severity: "success", summary: trans("common.operation_successful"), detail: trans("roles.list_updated"), life: 2500 });
 }
 
 function handleSearchInput(value) {
@@ -232,7 +240,7 @@ function handleApiError(error, fallbackMessage) {
         window.location.assign(redirectTarget);
         return;
     }
-    toast.add({ severity: "error", summary: "Hiba tortent", detail: error instanceof RoleApiError ? error.message : fallbackMessage, life: 4000 });
+    toast.add({ severity: "error", summary: trans("common.error_occured"), detail: error instanceof RoleApiError ? error.message : fallbackMessage, life: 4000 });
 }
 
 function handleMutationError(error, fallbackMessage) {
@@ -246,20 +254,20 @@ function handleMutationError(error, fallbackMessage) {
 function formatDate(value) {
     if (!value) return "-";
     const date = new Date(value.replace(" ", "T"));
-    return Number.isNaN(date.getTime()) ? value : date.toLocaleString("hu-HU");
+    return Number.isNaN(date.getTime()) ? value : date.toLocaleString(currentLocale.value);
 }
 
 onMounted(loadRoles);
 </script>
 
 <template>
-    <Head title="Roles" />
+    <Head :title="trans('navigation.roles.label')" />
 
     <AuthenticatedLayout>
         <ConfirmDialog />
 
         <div class="admin-table-page">
-            <PageHeader title="Roles" description="A helyi szerepkorok teljes adminisztracioja, jogosultsag-hozzarendelessel es lokalis RBAC kezelessel." />
+            <PageHeader :title="trans('navigation.roles.label')" :description="trans('navigation.roles.description')" />
 
             <AdminTableCard>
                 <div class="admin-table-shell">
@@ -267,8 +275,8 @@ onMounted(loadRoles);
                         <BaseDataTable
                             :value="roles"
                             :loading="loading"
-                            loading-message="Role-ok betoltese folyamatban..."
-                            empty-message="Nincs megjelenitheto role."
+                            :loading-message="trans('roles.loading_message')"
+                            :empty-message="trans('roles.empty_message')"
                             removable-sort
                             data-key="id"
                             :rows="tableState.perPage"
@@ -284,14 +292,15 @@ onMounted(loadRoles);
                                 <AdminTableToolbar
                                     searchable
                                     :search-value="filters.search"
-                                    search-placeholder="Kereses role nev vagy guard alapjan"
+                                    :search-placeholder="trans('roles.search_placeholder')"
                                     :canCreate="permissions.create"
-                                    createLabel="Uj role"
+                                    :createLabel="trans('roles.new')"
                                     :canBulkDelete="false"
                                     :selectedCount="0"
                                     :selectableCount="0"
                                     :busy="loading || submitting"
-                                    @update:searchValue="filters.search = $event"
+                                    @update:searchValue="handleSearchInput"
+                                    @submit-search="submitSearch"
                                     @create="openCreateDialog"
                                     @refresh="refreshRoles"
                                 />
@@ -299,12 +308,12 @@ onMounted(loadRoles);
 
                             <template #empty>
                                 <div class="px-6 py-10">
-                                    <EmptyStatePanel title="Nincs megjelenitheto role" description="A jelenlegi szurok mellett nincs talalat. Modositsd a keresest vagy hozz letre uj role-t." :tags="['Roles', 'Local RBAC']" />
+                                    <EmptyStatePanel :title="trans('roles.filter_empty_title')" :description="trans('roles.filter_empty_detail')" :tags="[trans('navigation.roles.label'), trans('roles.tag_local_rbac')]" />
                                 </div>
                             </template>
 
                             <Column field="id" header="ID" sortable />
-                            <Column field="name" header="Role" sortable>
+                            <Column field="name" :header="trans('roles.role_name')" sortable>
                                 <template #body="{ data }">
                                     <div class="flex flex-wrap items-center gap-2">
                                         <span class="font-medium text-slate-900">{{ data.name }}</span>
@@ -312,18 +321,18 @@ onMounted(loadRoles);
                                     </div>
                                 </template>
                             </Column>
-                            <Column field="guard_name" header="Guard" sortable />
-                            <Column field="permissions_count" header="Permissions" sortable>
+                            <Column field="guard_name" :header="trans('roles.guard_name')" sortable />
+                            <Column field="permissions_count" :header="trans('roles.permissions')" sortable>
                                 <template #body="{ data }">
                                     <Tag :value="String(data.permissions_count ?? 0)" severity="info" />
                                 </template>
                             </Column>
-                            <Column field="created_at" header="Letrehozva" sortable>
+                            <Column field="created_at" :header="trans('table.created_at')" sortable>
                                 <template #body="{ data }">
                                     {{ formatDate(data.created_at) }}
                                 </template>
                             </Column>
-                            <Column header="Muveletek" :style="{ width: '11rem' }">
+                            <Column :header="trans('table.actions')" :style="{ width: '11rem' }">
                                 <template #body="{ data }">
                                     <RowActionMenu :items="roleActionItems(data)" />
                                 </template>
@@ -336,19 +345,21 @@ onMounted(loadRoles);
                             <IconField class="w-full">
                                 <InputIcon class="pi pi-search" />
                                 <InputText
-                                    v-model="filters.search"
+                                    :modelValue="filters.search"
                                     class="h-11 w-full"
-                                    placeholder="Kereses role nev vagy guard alapjan"
+                                    :placeholder="trans('roles.search_placeholder')"
+                                    @update:modelValue="handleSearchInput"
+                                    @keyup.enter="submitSearch"
                                 />
                             </IconField>
                         </div>
 
                         <div class="flex flex-none flex-wrap items-center justify-end gap-3">
-                            <Button label="Frissites" icon="pi pi-refresh" severity="secondary" outlined :loading="loading || submitting" :disabled="loading || submitting" @click="refreshRoles" />
-                            <Button v-if="permissions.create" label="Uj role" icon="pi pi-plus" severity="primary" :disabled="loading || submitting" @click="openCreateDialog" />
+                            <Button :label="trans('common.refresh')" icon="pi pi-refresh" severity="secondary" outlined :loading="loading || submitting" :disabled="loading || submitting" @click="refreshRoles" />
+                            <Button v-if="permissions.create" :label="trans('roles.new')" icon="pi pi-plus" severity="primary" :disabled="loading || submitting" @click="openCreateDialog" />
                         </div>
 
-                        <div v-if="loading" class="rounded-2xl border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-500">Betoltes folyamatban...</div>
+                        <div v-if="loading" class="rounded-2xl border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-500">{{ trans("roles.loading_message") }}</div>
 
                         <template v-else-if="roles.length > 0">
                             <article v-for="role in roles" :key="role.id" class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -360,28 +371,28 @@ onMounted(loadRoles);
                                         </div>
                                         <p class="mt-1 text-sm text-slate-500">{{ role.guard_name }}</p>
                                     </div>
-                                    <Tag :value="`${role.permissions_count ?? 0} permission`" severity="info" />
+                                    <Tag :value="trans('roles.permissions_count_badge', { count: role.permissions_count ?? 0 })" severity="info" />
                                 </div>
 
                                 <dl class="mt-4 grid gap-3 text-sm text-slate-600">
                                     <div>
-                                        <dt class="font-semibold text-slate-900">Permissionok</dt>
+                                        <dt class="font-semibold text-slate-900">{{ trans("roles.permissions") }}</dt>
                                         <dd>{{ role.permission_names?.join(", ") || "-" }}</dd>
                                     </div>
                                     <div>
-                                        <dt class="font-semibold text-slate-900">Letrehozva</dt>
+                                        <dt class="font-semibold text-slate-900">{{ trans("table.created_at") }}</dt>
                                         <dd>{{ formatDate(role.created_at) }}</dd>
                                     </div>
                                 </dl>
 
                                 <div class="mt-5 flex gap-3">
-                                    <Button v-if="permissions.update && role.can?.update !== false" label="Szerkesztes" severity="secondary" text @click="openEditDialog(role)" />
-                                    <Button v-if="permissions.delete && role.can?.delete !== false && !role.is_protected" label="Torles" severity="danger" text @click="confirmDelete(role)" />
+                                    <Button v-if="permissions.update && role.can?.update !== false" :label="trans('common.edit')" severity="secondary" text @click="openEditDialog(role)" />
+                                    <Button v-if="permissions.delete && role.can?.delete !== false && !role.is_protected" :label="trans('common.delete')" severity="danger" text @click="confirmDelete(role)" />
                                 </div>
                             </article>
                         </template>
 
-                        <EmptyStatePanel v-else title="Nincs megjelenitheto role" description="A jelenlegi szurok mellett nincs talalat. Modositsd a keresest vagy hozz letre uj role-t." :tags="['Roles', 'Local RBAC']" />
+                        <EmptyStatePanel v-else :title="trans('roles.filter_empty_title')" :description="trans('roles.filter_empty_detail')" :tags="[trans('navigation.roles.label'), trans('roles.tag_local_rbac')]" />
                     </div>
                 </div>
 
@@ -391,7 +402,7 @@ onMounted(loadRoles);
                         :per-page="tableState.perPage"
                         :total="tableState.totalRecords"
                         :last-page="lastPage"
-                        item-label="role"
+                        :item-label="trans('role')"
                     />
                 </template>
             </AdminTableCard>

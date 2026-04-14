@@ -1,5 +1,6 @@
 <script setup>
 import Dialog from "primevue/dialog";
+import { trans } from "laravel-vue-i18n";
 import RoleForm from "./RoleForm.vue";
 
 const props = defineProps({
@@ -23,7 +24,7 @@ function closeDialog() {
         modal
         dismissable-mask
         :style="{ width: 'min(60rem, 96vw)' }"
-        header="Uj role letrehozasa"
+        :header="trans('roles.create_dialog_title')"
         @update:visible="emit('update:visible', $event)"
         @hide="closeDialog"
     >
@@ -32,7 +33,7 @@ function closeDialog() {
             :errors="errors"
             :submitting="submitting"
             :permissionOptions="permissionOptions"
-            submit-label="Letrehozas"
+            :submit-label="trans('common.create')"
             @submit="emit('submit')"
             @cancel="closeDialog"
         />
