@@ -225,7 +225,7 @@ function confirmDelete(company) {
     confirm.require({
         header: trans("common.deletion_confirmation"),
         message: trans("companies.deletion_confirm", { name: company.name }),
-        acceptLabel: trans("common.delete"),
+        acceptLabel: trans("actions.delete"),
         rejectLabel: trans("common.cancel"),
         acceptClass: "p-button-danger",
         accept: async () => {
@@ -254,7 +254,7 @@ function companyActionItems(company) {
     return [
         props.permissions.update
             ? {
-                  label: trans("common.edit"),
+                  label: trans("actions.edit"),
                   icon: "pi pi-pencil",
                   isPrimary: true,
                   command: () => openEditDialog(company),
@@ -262,7 +262,7 @@ function companyActionItems(company) {
             : null,
         props.permissions.delete
             ? {
-                  label: trans("common.delete"),
+                  label: trans("actions.delete"),
                   icon: "pi pi-trash",
                   isDangerous: true,
                   command: () => confirmDelete(company),
@@ -601,7 +601,7 @@ onMounted(loadCompanies);
                                     <!-- Szerkesztés -->
                                     <Button
                                         v-if="permissions.update"
-                                        :label="trans('common.edit')"
+                                        :label="trans('actions.edit')"
                                         severity="secondary"
                                         text
                                         @click="openEditDialog(company)"
@@ -610,7 +610,7 @@ onMounted(loadCompanies);
                                     <!-- Törlés -->
                                     <Button
                                         v-if="permissions.delete"
-                                        :label="trans('common.delete')"
+                                        :label="trans('actions.delete')"
                                         severity="danger"
                                         text
                                         @click="confirmDelete(company)"

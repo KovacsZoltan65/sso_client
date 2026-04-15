@@ -269,7 +269,7 @@ onMounted(loadAuditLogs);
                                 </div>
                             </template>
 
-                            <Column field="id" header="ID" sortable />
+                            <Column field="id" :header="trans('table.columns.id')" sortable />
                             <Column field="event" :header="trans('audit_logs.event')" sortable>
                                 <template #body="{ data }">
                                     <Tag :value="eventToken(data.event)" :severity="eventSeverity(data.event)" />

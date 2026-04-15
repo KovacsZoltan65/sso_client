@@ -228,7 +228,7 @@ describe('Users/Index', () => {
         const wrapper = mountPage();
         await flushPromises();
 
-        await findButtonByText(wrapper, hu['common.edit']).trigger('click');
+        await findButtonByText(wrapper, hu['actions.edit']).trigger('click');
         await flushPromises();
 
         const editDialog = wrapper.findComponent(UserEditDialog);
@@ -259,7 +259,7 @@ describe('Users/Index', () => {
         await flushPromises();
 
         expect(wrapper.text()).toContain(hu['common.view']);
-        expect(wrapper.text()).not.toContain(hu['common.edit']);
+        expect(wrapper.text()).not.toContain(hu['actions.edit']);
     });
 
     it('renders localized english labels for the users page and dialogs', async () => {

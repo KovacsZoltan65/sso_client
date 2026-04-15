@@ -119,7 +119,7 @@ describe('Permissions/Index', () => {
         const wrapper = mountPage();
         await flushPromises();
 
-        await findButtonByText(wrapper, hu['common.edit']).trigger('click');
+        await findButtonByText(wrapper, hu['actions.edit']).trigger('click');
         const editDialog = wrapper.findComponent(EditPermissionDialog);
         editDialog.props('form').name = 'roles.attach';
         await wrapper.get('form').trigger('submit.prevent');
@@ -139,7 +139,7 @@ describe('Permissions/Index', () => {
         await flushPromises();
 
         expect(wrapper.text()).toContain('Rendszer');
-        expect(wrapper.text()).not.toContain(hu['common.delete']);
+        expect(wrapper.text()).not.toContain(hu['actions.delete']);
     });
 
     it('keeps protected permission fields read-only and the save action disabled', async () => {
@@ -150,7 +150,7 @@ describe('Permissions/Index', () => {
         const wrapper = mountPage();
         await flushPromises();
 
-        await findButtonByText(wrapper, hu['common.edit']).trigger('click');
+        await findButtonByText(wrapper, hu['actions.edit']).trigger('click');
         const editDialog = wrapper.findComponent(EditPermissionDialog);
 
         expect(editDialog.find('input#permission-name').attributes('readonly')).toBeDefined();
@@ -167,7 +167,7 @@ describe('Permissions/Index', () => {
         const wrapper = mountPage();
         await flushPromises();
 
-        await findButtonByText(wrapper, hu['common.edit']).trigger('click');
+        await findButtonByText(wrapper, hu['actions.edit']).trigger('click');
         const editDialog = wrapper.findComponent(EditPermissionDialog);
         editDialog.props('form').name = 'roles.manage';
 
@@ -228,7 +228,7 @@ describe('Permissions/Index', () => {
         expect(wrapper.text()).toContain(en['permissions.roles_count_badge'].replace(':count', '2'));
         expect(wrapper.text()).toContain(en['table.created_at']);
 
-        await findButtonByText(wrapper, en['common.edit']).trigger('click');
+        await findButtonByText(wrapper, en['actions.edit']).trigger('click');
         await flushPromises();
 
         expect(wrapper.text()).toContain(en['permissions.protected_identity_notice']);

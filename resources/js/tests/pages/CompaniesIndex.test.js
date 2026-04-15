@@ -194,7 +194,7 @@ describe('Companies/Index', () => {
         const wrapper = mountPage();
         await flushPromises();
 
-        const editButton = findButtonByText(wrapper, hu['common.edit']);
+        const editButton = findButtonByText(wrapper, hu['actions.edit']);
         await editButton.trigger('click');
         const editDialog = wrapper.findComponent(EditCompanyDialog);
         editDialog.props('form').name = 'Acme Zrt.';
@@ -224,7 +224,7 @@ describe('Companies/Index', () => {
         const wrapper = mountPage();
         await flushPromises();
 
-        const deleteButton = findButtonByText(wrapper, hu['common.delete']);
+        const deleteButton = findButtonByText(wrapper, hu['actions.delete']);
         await deleteButton.trigger('click');
         expect(confirmRequireMock).toHaveBeenCalledTimes(1);
 
@@ -244,8 +244,8 @@ describe('Companies/Index', () => {
         await flushPromises();
 
         expect(wrapper.text()).not.toContain(hu['companies.new']);
-        expect(wrapper.text()).not.toContain(hu['common.edit']);
-        expect(wrapper.text()).not.toContain(hu['common.delete']);
+        expect(wrapper.text()).not.toContain(hu['actions.edit']);
+        expect(wrapper.text()).not.toContain(hu['actions.delete']);
     });
 
     it('renders localized english labels for the mobile card and company form', async () => {
@@ -272,7 +272,7 @@ describe('Companies/Index', () => {
         expect(wrapper.text()).toContain(en['table.address']);
         expect(wrapper.text()).toContain(en['companies.form.is_active']);
         expect(wrapper.text()).toContain(en['common.cancel']);
-        expect(wrapper.text()).toContain(en['common.create']);
+        expect(wrapper.text()).toContain(en['actions.create']);
     });
 
     it('uses the shared full-height scrollable datatable layout on desktop', async () => {

@@ -71,7 +71,7 @@ class EmployeeController extends Controller
         );
 
         return response()->json([
-            'message' => 'Employees fetched successfully.',
+            'message' => __('api.employees.fetched'),
             'data' => EmployeeResource::collection($paginator->items()),
             'meta' => [
                 'current_page' => $paginator->currentPage(),
@@ -94,7 +94,7 @@ class EmployeeController extends Controller
         $employee = $this->employeeService->create($request->validated());
 
         return response()->json([
-            'message' => 'Employee created successfully.',
+            'message' => __('api.employees.created'),
             'data' => new EmployeeResource($employee),
             'meta' => null,
             'errors' => null,
@@ -113,7 +113,7 @@ class EmployeeController extends Controller
         $employee = $this->employeeService->update($employee, $request->validated());
 
         return response()->json([
-            'message' => 'Employee updated successfully.',
+            'message' => __('api.employees.updated'),
             'data' => new EmployeeResource($employee),
             'meta' => null,
             'errors' => null,
@@ -131,7 +131,7 @@ class EmployeeController extends Controller
         $this->employeeService->delete($employee);
 
         return response()->json([
-            'message' => 'Employee deleted successfully.',
+            'message' => __('api.employees.deleted'),
             'data' => null,
             'meta' => null,
             'errors' => null,

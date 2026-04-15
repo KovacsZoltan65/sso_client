@@ -1,6 +1,6 @@
 import { config } from '@vue/test-utils';
 import { afterEach, beforeEach, vi } from 'vitest';
-import { defineComponent, h, ref } from 'vue';
+import { defineComponent, h, reactive, ref } from 'vue';
 import en from '../../../lang/en.json';
 import hu from '../../../lang/hu.json';
 import { axiosMock, resetAxiosMock } from './mocks/axios';
@@ -71,8 +71,44 @@ const LinkStub = defineComponent({
     },
 });
 
+const makeForm = (initial = {}) => reactive({
+    ...initial,
+    errors: {},
+    processing: false,
+    post: vi.fn(),
+    patch: vi.fn(),
+    put: vi.fn(),
+    delete: vi.fn(),
+    reset(...fields) {
+        if (fields.length === 0) {
+            Object.keys(initial).forEach((key) => {
+                this[key] = initial[key];
+            });
+
+            return;
+        }
+
+        fields.forEach((field) => {
+            if (Object.prototype.hasOwnProperty.call(initial, field)) {
+                this[field] = initial[field];
+            }
+        });
+    },
+    clearErrors(...fields) {
+        if (fields.length === 0) {
+            this.errors = {};
+            return;
+        }
+
+        fields.forEach((field) => {
+            delete this.errors[field];
+        });
+    },
+});
+
 vi.mock('@inertiajs/vue3', () => ({
     usePage: () => getPage(),
+    useForm: (initial = {}) => makeForm(initial),
     Head: defineComponent({
         setup(_props, { slots }) {
             return () => h('div', { 'data-head': 'true' }, slots.default?.());

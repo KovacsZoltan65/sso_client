@@ -180,7 +180,7 @@ function confirmDelete(permission) {
     confirm.require({
         header: trans("common.deletion_confirmation"),
         message: trans("permissions.deletion_confirm", { name: permission.name }),
-        acceptLabel: trans("common.delete"),
+        acceptLabel: trans("actions.delete"),
         rejectLabel: trans("common.cancel"),
         acceptClass: "p-button-danger",
         accept: async () => {
@@ -202,8 +202,8 @@ function confirmDelete(permission) {
 
 function permissionActionItems(permission) {
     return [
-        props.permissions.update && permission.can?.update !== false ? { label: trans("common.edit"), icon: "pi pi-pencil", isPrimary: true, command: () => openEditDialog(permission) } : null,
-        props.permissions.delete && permission.can?.delete !== false && !permission.is_protected ? { label: trans("common.delete"), icon: "pi pi-trash", isDangerous: true, command: () => confirmDelete(permission) } : null,
+        props.permissions.update && permission.can?.update !== false ? { label: trans("actions.edit"), icon: "pi pi-pencil", isPrimary: true, command: () => openEditDialog(permission) } : null,
+        props.permissions.delete && permission.can?.delete !== false && !permission.is_protected ? { label: trans("actions.delete"), icon: "pi pi-trash", isDangerous: true, command: () => confirmDelete(permission) } : null,
     ];
 }
 
@@ -322,7 +322,7 @@ onMounted(loadPermissions);
                                 </div>
                             </template>
 
-                            <Column field="id" header="ID" sortable />
+                            <Column field="id" :header="trans('table.columns.id')" sortable />
                             <Column field="name" :header="trans('permissions.permission_name')" sortable>
                                 <template #body="{ data }">
                                     <div class="flex flex-wrap items-center gap-2">
@@ -392,8 +392,8 @@ onMounted(loadPermissions);
                                 </dl>
 
                                 <div class="mt-5 flex gap-3">
-                                    <Button v-if="permissions.update && permission.can?.update !== false" :label="trans('common.edit')" severity="secondary" text @click="openEditDialog(permission)" />
-                                    <Button v-if="permissions.delete && permission.can?.delete !== false && !permission.is_protected" :label="trans('common.delete')" severity="danger" text @click="confirmDelete(permission)" />
+                                    <Button v-if="permissions.update && permission.can?.update !== false" :label="trans('actions.edit')" severity="secondary" text @click="openEditDialog(permission)" />
+                                    <Button v-if="permissions.delete && permission.can?.delete !== false && !permission.is_protected" :label="trans('actions.delete')" severity="danger" text @click="confirmDelete(permission)" />
                                 </div>
                             </article>
                         </template>
@@ -408,7 +408,7 @@ onMounted(loadPermissions);
                         :per-page="tableState.perPage"
                         :total="tableState.totalRecords"
                         :last-page="lastPage"
-                        :item-label="trans('permission')"
+                        :item-label="trans('table.items')"
                     />
                 </template>
             </AdminTableCard>

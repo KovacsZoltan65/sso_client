@@ -238,7 +238,7 @@ function confirmDelete(employee) {
     confirm.require({
         header: trans("common.deletion_confirmation"),
         message: trans("employees.deletion_confirm", { name: employee.name }),
-        acceptLabel: trans("common.delete"),
+        acceptLabel: trans("actions.delete"),
         rejectLabel: trans("common.cancel"),
         acceptClass: "p-button-danger",
         accept: async () => {
@@ -267,7 +267,7 @@ function employeeActionItems(employee) {
     return [
         props.permissions.update
             ? {
-                  label: trans("common.edit"),
+                  label: trans("actions.edit"),
                   icon: "pi pi-pencil",
                   isPrimary: true,
                   command: () => openEditDialog(employee),
@@ -275,7 +275,7 @@ function employeeActionItems(employee) {
             : null,
         props.permissions.delete
             ? {
-                  label: trans("common.delete"),
+                  label: trans("actions.delete"),
                   icon: "pi pi-trash",
                   isDangerous: true,
                   command: () => confirmDelete(employee),

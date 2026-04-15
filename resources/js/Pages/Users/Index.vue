@@ -349,7 +349,7 @@ function userActionItems(user) {
         },
         props.permissions.manage && user.can?.update
             ? {
-                  label: trans("common.edit"),
+                  label: trans("actions.edit"),
                   icon: "pi pi-pencil",
                   isPrimary: true,
                   command: () => openEditDialog(user),

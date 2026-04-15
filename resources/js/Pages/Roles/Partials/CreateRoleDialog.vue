@@ -33,7 +33,7 @@ function closeDialog() {
             :errors="errors"
             :submitting="submitting"
             :permissionOptions="permissionOptions"
-            :submit-label="trans('common.create')"
+            :submit-label="trans('actions.create')"
             @submit="emit('submit')"
             @cancel="closeDialog"
         />

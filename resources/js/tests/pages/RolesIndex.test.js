@@ -129,7 +129,7 @@ describe('Roles/Index', () => {
         const wrapper = mountPage();
         await flushPromises();
 
-        await findButtonByText(wrapper, hu['common.edit']).trigger('click');
+        await findButtonByText(wrapper, hu['actions.edit']).trigger('click');
         const editDialog = wrapper.findComponent(EditRoleDialog);
         editDialog.props('form').permission_ids = [1, 2];
         await wrapper.get('form').trigger('submit.prevent');
@@ -149,7 +149,7 @@ describe('Roles/Index', () => {
         await flushPromises();
 
         expect(wrapper.text()).toContain('Rendszer');
-        expect(wrapper.text()).not.toContain(hu['common.delete']);
+        expect(wrapper.text()).not.toContain(hu['actions.delete']);
     });
 
     it('keeps protected role identity fields read-only in the edit dialog', async () => {
@@ -160,7 +160,7 @@ describe('Roles/Index', () => {
         const wrapper = mountPage();
         await flushPromises();
 
-        await findButtonByText(wrapper, hu['common.edit']).trigger('click');
+        await findButtonByText(wrapper, hu['actions.edit']).trigger('click');
         const editDialog = wrapper.findComponent(EditRoleDialog);
 
         expect(editDialog.find('input#role-name').attributes('readonly')).toBeDefined();
@@ -176,7 +176,7 @@ describe('Roles/Index', () => {
         const wrapper = mountPage();
         await flushPromises();
 
-        await findButtonByText(wrapper, hu['common.edit']).trigger('click');
+        await findButtonByText(wrapper, hu['actions.edit']).trigger('click');
         const editDialog = wrapper.findComponent(EditRoleDialog);
         editDialog.props('form').name = 'admin-hacked';
 
@@ -238,7 +238,7 @@ describe('Roles/Index', () => {
         expect(wrapper.text()).toContain(en['roles.permissions']);
         expect(wrapper.text()).toContain(en['table.created_at']);
 
-        await findButtonByText(wrapper, en['common.edit']).trigger('click');
+        await findButtonByText(wrapper, en['actions.edit']).trigger('click');
         await flushPromises();
 
         expect(wrapper.text()).toContain(en['roles.protected_identity_notice']);

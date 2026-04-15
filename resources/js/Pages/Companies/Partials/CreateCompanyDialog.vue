@@ -31,7 +31,7 @@ function closeDialog() {
             :form="form"
             :errors="errors"
             :submitting="submitting"
-            :submit-label="trans('common.create')"
+            :submit-label="trans('actions.create')"
             @submit="emit('submit')"
             @cancel="closeDialog"
         />

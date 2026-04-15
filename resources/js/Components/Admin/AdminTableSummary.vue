@@ -33,11 +33,11 @@ const props = defineProps({
     },
     itemLabel: {
         type: String,
-        default: "rekord",
+        default: null,
     },
     emptyLabel: {
         type: String,
-        default: "Nincs megjelenitheto rekord.",
+        default: null,
     },
 });
 
@@ -112,10 +112,10 @@ const normalizedLastPage = computed(() => {
         >
             <div v-if="normalizedTotal > 0">
                 {{ trans("common.published") }}: {{ normalizedFrom }}-{{ normalizedTo }} /
-                {{ normalizedTotal }} {{ itemLabel }}
+                {{ normalizedTotal }} {{ itemLabel || trans("common.record") }}
             </div>
             <div v-else>
-                {{ emptyLabel }}
+                {{ emptyLabel || trans("common.no_displayable_record") }}
             </div>
             <div>
                 {{ trans("common.page") }} {{ normalizedCurrentPage }} /

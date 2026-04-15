@@ -179,7 +179,7 @@ function confirmDelete(role) {
     confirm.require({
         header: trans("common.deletion_confirmation"),
         message: trans("roles.deletion_confirm", { name: role.name }),
-        acceptLabel: trans("common.delete"),
+        acceptLabel: trans("actions.delete"),
         rejectLabel: trans("common.cancel"),
         acceptClass: "p-button-danger",
         accept: async () => {
@@ -199,8 +199,8 @@ function confirmDelete(role) {
 
 function roleActionItems(role) {
     return [
-        props.permissions.update && role.can?.update !== false ? { label: trans("common.edit"), icon: "pi pi-pencil", isPrimary: true, command: () => openEditDialog(role) } : null,
-        props.permissions.delete && role.can?.delete !== false && !role.is_protected ? { label: trans("common.delete"), icon: "pi pi-trash", isDangerous: true, command: () => confirmDelete(role) } : null,
+        props.permissions.update && role.can?.update !== false ? { label: trans("actions.edit"), icon: "pi pi-pencil", isPrimary: true, command: () => openEditDialog(role) } : null,
+        props.permissions.delete && role.can?.delete !== false && !role.is_protected ? { label: trans("actions.delete"), icon: "pi pi-trash", isDangerous: true, command: () => confirmDelete(role) } : null,
     ];
 }
 
@@ -312,7 +312,7 @@ onMounted(loadRoles);
                                 </div>
                             </template>
 
-                            <Column field="id" header="ID" sortable />
+                            <Column field="id" :header="trans('table.columns.id')" sortable />
                             <Column field="name" :header="trans('roles.role_name')" sortable>
                                 <template #body="{ data }">
                                     <div class="flex flex-wrap items-center gap-2">
@@ -386,8 +386,8 @@ onMounted(loadRoles);
                                 </dl>
 
                                 <div class="mt-5 flex gap-3">
-                                    <Button v-if="permissions.update && role.can?.update !== false" :label="trans('common.edit')" severity="secondary" text @click="openEditDialog(role)" />
-                                    <Button v-if="permissions.delete && role.can?.delete !== false && !role.is_protected" :label="trans('common.delete')" severity="danger" text @click="confirmDelete(role)" />
+                                    <Button v-if="permissions.update && role.can?.update !== false" :label="trans('actions.edit')" severity="secondary" text @click="openEditDialog(role)" />
+                                    <Button v-if="permissions.delete && role.can?.delete !== false && !role.is_protected" :label="trans('actions.delete')" severity="danger" text @click="confirmDelete(role)" />
                                 </div>
                             </article>
                         </template>
@@ -402,7 +402,7 @@ onMounted(loadRoles);
                         :per-page="tableState.perPage"
                         :total="tableState.totalRecords"
                         :last-page="lastPage"
-                        :item-label="trans('role')"
+                        :item-label="trans('table.items')"
                     />
                 </template>
             </AdminTableCard>

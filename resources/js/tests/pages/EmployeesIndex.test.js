@@ -181,7 +181,7 @@ describe('Employees/Index', () => {
         const wrapper = mountPage();
         await flushPromises();
 
-        await findButtonByText(wrapper, hu['common.edit']).trigger('click');
+        await findButtonByText(wrapper, hu['actions.edit']).trigger('click');
         await flushPromises();
 
         const editDialog = wrapper.findComponent(EditEmployeeDialog);
@@ -257,7 +257,7 @@ describe('Employees/Index', () => {
         const wrapper = mountPage();
         await flushPromises();
 
-        await findButtonByText(wrapper, hu['common.edit']).trigger('click');
+        await findButtonByText(wrapper, hu['actions.edit']).trigger('click');
         await flushPromises();
 
         await wrapper.find('#employee-position').setValue('Lead HR');
@@ -292,6 +292,6 @@ describe('Employees/Index', () => {
         expect(wrapper.text()).toContain(en['table.email']);
         expect(wrapper.text()).toContain(en['employees.form.is_active']);
         expect(wrapper.text()).toContain(en['common.cancel']);
-        expect(wrapper.text()).toContain(en['common.create']);
+        expect(wrapper.text()).toContain(en['actions.create']);
     });
 });
