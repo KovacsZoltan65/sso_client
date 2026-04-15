@@ -1,10 +1,10 @@
 import { config } from '@vue/test-utils';
 import { afterEach, beforeEach, vi } from 'vitest';
-import { defineComponent, h, reactive, ref } from 'vue';
+import { computed, defineComponent, h, reactive, ref } from 'vue';
 import en from '../../../lang/en.json';
 import hu from '../../../lang/hu.json';
 import { axiosMock, resetAxiosMock } from './mocks/axios';
-import { getPage, resetInertiaMocks } from './mocks/inertia';
+import { getPage, resetInertiaMocks, setPageProps } from './mocks/inertia';
 
 const translations = { en, hu };
 
@@ -120,6 +120,23 @@ vi.mock('@inertiajs/vue3', () => ({
 vi.mock('laravel-vue-i18n', () => ({
     trans: translate,
     wTrans: (key, replacements = {}) => ({ value: translate(key, replacements) }),
+    currentLocale: computed(() => getPage().props.locale?.current ?? 'hu'),
+    loadLanguageAsync: vi.fn(async (locale) => {
+        const props = getPage().props;
+
+        setPageProps({
+            ...props,
+            locale: {
+                ...(props.locale ?? {}),
+                current: locale,
+                fallback: props.locale?.fallback ?? 'en',
+                available: props.locale?.available ?? ['hu', 'en'],
+            },
+        });
+
+        return locale;
+    }),
+    getActiveLanguage: () => getPage().props.locale?.current ?? 'hu',
     i18nVue: {
         install(app) {
             app.config.globalProperties.$t = translate;

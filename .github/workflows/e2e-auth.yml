@@ -27,12 +27,12 @@ jobs:
 
     steps:
       - name: Checkout client repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           path: sso_client
 
       - name: Checkout server repository with token
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         if: ${{ secrets.SSO_CROSS_REPO_TOKEN != '' }}
         with:
           repository: KovacsZoltan65/sso_server
@@ -40,7 +40,7 @@ jobs:
           token: ${{ secrets.SSO_CROSS_REPO_TOKEN }}
 
       - name: Checkout server repository without token
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         if: ${{ secrets.SSO_CROSS_REPO_TOKEN == '' }}
         with:
           repository: KovacsZoltan65/sso_server

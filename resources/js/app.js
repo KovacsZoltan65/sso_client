@@ -34,10 +34,12 @@ createInertiaApp({
             .use(plugin)
             .use(i18nVue, {
                 locale:
-                    props?.initialPage?.props?.preferences?.locale ||
+                    props?.initialPage?.props?.locale?.current ||
                     document.documentElement.getAttribute("lang") ||
                     "hu",
-                falbackLocale: "hu",
+                fallbackLocale:
+                    props?.initialPage?.props?.locale?.fallback ||
+                    "en",
                 resolve: async (lang) => {
                     const messages = import.meta.glob("../../lang/*.json"); // */
                     return await messages[`../../lang/${lang}.json`]();

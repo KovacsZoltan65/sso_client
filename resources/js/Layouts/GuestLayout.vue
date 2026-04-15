@@ -1,10 +1,15 @@
 <script setup>
 import AppBrand from '@/Components/AppBrand.vue';
+import LanguageSwitcher from '@/Components/LanguageSwitcher.vue';
 import { trans } from 'laravel-vue-i18n';
 </script>
 
 <template>
-    <div class="auth-backdrop flex min-h-screen items-center justify-center px-4 py-10">
+    <div class="auth-backdrop relative flex min-h-screen items-center justify-center px-4 py-10">
+        <div class="absolute right-4 top-4 z-10 sm:right-6 sm:top-6">
+            <LanguageSwitcher />
+        </div>
+
         <div class="grid w-full max-w-6xl gap-10 lg:grid-cols-[1.1fr_0.9fr]">
             <section class="shell-gradient hidden rounded-[2rem] p-10 lg:flex lg:flex-col lg:justify-between">
                 <div>
