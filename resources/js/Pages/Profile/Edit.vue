@@ -74,7 +74,7 @@ const validateProfile = () => {
     const errors = {};
 
     if (!profileForm.name.trim()) {
-        errors.name = 'Name is required.';
+        errors.name = trans('profile.validation.name_required');
     }
 
     profileForm.errors = errors;
@@ -86,19 +86,19 @@ const validatePassword = () => {
     const errors = {};
 
     if (!passwordForm.current_password) {
-        errors.current_password = 'Current password is required.';
+        errors.current_password = trans('profile.validation.current_password_required');
     }
 
     if (!passwordForm.password) {
-        errors.password = 'New password is required.';
+        errors.password = trans('profile.validation.password_required');
     } else if (passwordForm.password.length < 8) {
-        errors.password = 'New password must be at least 8 characters.';
+        errors.password = trans('profile.validation.password_min');
     }
 
     if (!passwordForm.password_confirmation) {
-        errors.password_confirmation = 'Password confirmation is required.';
+        errors.password_confirmation = trans('profile.validation.password_confirmation_required');
     } else if (passwordForm.password_confirmation !== passwordForm.password) {
-        errors.password_confirmation = 'Password confirmation must match.';
+        errors.password_confirmation = trans('profile.validation.password_confirmation_match');
     }
 
     passwordForm.errors = errors;
@@ -214,7 +214,9 @@ onMounted(() => {
             <section v-if="loading" class="shell-card flex items-center gap-4 p-6">
                 <ProgressSpinner style="width: 2rem; height: 2rem" stroke-width="6" />
                 <div>
-                    <h2 class="text-base font-semibold text-slate-950">Loading profile</h2>
+                    <h2 class="text-base font-semibold text-slate-950">
+                        {{ trans('profile.loading_title') }}
+                    </h2>
                     <p class="mt-1 text-sm text-slate-600">{{ trans('profile.loading_description') }}</p>
                 </div>
             </section>

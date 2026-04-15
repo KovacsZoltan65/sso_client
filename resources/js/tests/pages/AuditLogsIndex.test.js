@@ -3,6 +3,7 @@ import AuditLogsIndex from '@/Pages/AuditLogs/Index.vue';
 import DataTable from 'primevue/datatable';
 import { toastAddMock } from '../setup';
 import { setPageProps } from '../mocks/inertia';
+import en from '../../../../lang/en.json';
 
 const fetchAuditLogsMock = vi.fn();
 const showAuditLogMock = vi.fn();
@@ -78,7 +79,7 @@ function makeDetailEnvelope(overrides = {}) {
     };
 }
 
-function mountPage() {
+function mountPage(locale = { current: 'en', fallback: 'hu', available: ['hu', 'en'] }) {
     setPageProps({
         auth: {
             user: {
@@ -91,6 +92,7 @@ function mountPage() {
                 message: 'Rendben',
             },
         },
+        locale,
     });
 
     return mount(AuditLogsIndex, {
@@ -145,7 +147,7 @@ describe('AuditLogs/Index', () => {
         const wrapper = mountPage();
         await flushPromises();
 
-        await wrapper.get('input[placeholder="Kereses esemeny vagy leiras alapjan"]').setValue('login');
+        await wrapper.get(`input[placeholder="${en['audit_logs.mobile_search_placeholder']}"]`).setValue('login');
 
         vi.advanceTimersByTime(349);
         expect(fetchAuditLogsMock).toHaveBeenCalledTimes(1);
@@ -207,7 +209,7 @@ describe('AuditLogs/Index', () => {
         const wrapper = mountPage();
         await wrapper.vm.$nextTick();
 
-        expect(wrapper.text()).toContain('Betoltes folyamatban...');
+        expect(wrapper.text()).toContain(en['audit_logs.loading_short']);
 
         resolveRequest(makeEnvelope());
         await flushPromises();
@@ -230,7 +232,7 @@ describe('AuditLogs/Index', () => {
         const wrapper = mountPage();
         await flushPromises();
 
-        const detailsButton = wrapper.findAll('button').find((node) => node.text() === 'Reszletek');
+        const detailsButton = wrapper.findAll('button').find((node) => node.text() === en['common.details']);
         await detailsButton.trigger('click');
         await flushPromises();
 
@@ -267,15 +269,15 @@ describe('AuditLogs/Index', () => {
         const wrapper = mountPage();
         await flushPromises();
 
-        const detailsButton = wrapper.findAll('button').find((node) => node.text() === 'Reszletek');
+        const detailsButton = wrapper.findAll('button').find((node) => node.text() === en['common.details']);
         await detailsButton.trigger('click');
         await flushPromises();
 
-        expect(wrapper.text()).toContain('Korabbi ertekek');
-        expect(wrapper.text()).toContain('Uj ertekek');
+        expect(wrapper.text()).toContain(en['audit_logs.properties_previous_values']);
+        expect(wrapper.text()).toContain(en['audit_logs.properties_new_values']);
         expect(wrapper.text()).toContain('Acme Kft.');
         expect(wrapper.text()).toContain('Acme Zrt.');
-        expect(wrapper.text()).toContain('Properties (raw JSON)');
+        expect(wrapper.text()).toContain(en['audit_logs.properties_raw_json']);
     });
 
     it('keeps the raw json fallback for unrecognized properties payloads', async () => {
@@ -300,13 +302,13 @@ describe('AuditLogs/Index', () => {
         const wrapper = mountPage();
         await flushPromises();
 
-        const detailsButton = wrapper.findAll('button').find((node) => node.text() === 'Reszletek');
+        const detailsButton = wrapper.findAll('button').find((node) => node.text() === en['common.details']);
         await detailsButton.trigger('click');
         await flushPromises();
 
-        expect(wrapper.text()).not.toContain('Korabbi ertekek');
-        expect(wrapper.text()).not.toContain('Uj ertekek');
-        expect(wrapper.text()).toContain('Properties');
+        expect(wrapper.text()).not.toContain(en['audit_logs.properties_previous_values']);
+        expect(wrapper.text()).not.toContain(en['audit_logs.properties_new_values']);
+        expect(wrapper.text()).toContain(en['audit_logs.properties']);
         expect(wrapper.text()).toContain('manual audit note');
     });
 
@@ -327,10 +329,41 @@ describe('AuditLogs/Index', () => {
         const wrapper = mountPage();
         await flushPromises();
 
-        const detailsButton = wrapper.findAll('button').find((node) => node.text() === 'Reszletek');
+        const detailsButton = wrapper.findAll('button').find((node) => node.text() === en['common.details']);
         await detailsButton.trigger('click');
         await flushPromises();
 
         expect(toastAddMock).toHaveBeenCalledWith(expect.objectContaining({ severity: 'error' }));
+    });
+
+    it('renders localized english labels for the audit log page and dialog', async () => {
+        fetchAuditLogsMock.mockResolvedValueOnce(makeEnvelope([
+            {
+                id: 11,
+                event: 'client_admin.company.updated',
+                description: 'Company updated.',
+                subject_type: 'Company',
+                subject_id: 5,
+                causer: { id: 2, name: 'Alice' },
+                created_at: '2026-04-09 10:00:00',
+            },
+        ]));
+        showAuditLogMock.mockResolvedValueOnce(makeDetailEnvelope());
+
+        const wrapper = mountPage();
+        await flushPromises();
+
+        expect(wrapper.text()).toContain(en['navigation.audit_logs.label']);
+        expect(wrapper.text()).toContain(en['audit_logs.description']);
+        expect(wrapper.text()).toContain(en['audit_logs.subject']);
+
+        const detailsButton = wrapper.findAll('button').find((node) => node.text() === en['common.details']);
+        await detailsButton.trigger('click');
+        await flushPromises();
+
+        expect(wrapper.text()).toContain(en['audit_logs.event']);
+        expect(wrapper.text()).toContain(en['audit_logs.causer']);
+        expect(wrapper.text()).toContain(en['audit_logs.context']);
+        expect(wrapper.text()).toContain(en['audit_logs.user_agent']);
     });
 });

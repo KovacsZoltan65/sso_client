@@ -1,8 +1,12 @@
 import { mount } from '@vue/test-utils';
 import SsoStatusPage from '@/Pages/Sso/Status.vue';
 import { setPageProps } from '../mocks/inertia';
+import en from '../../../../lang/en.json';
 
-function mountPage(statusOverrides = {}) {
+function mountPage(
+    statusOverrides = {},
+    locale = { current: 'en', fallback: 'hu', available: ['hu', 'en'] },
+) {
     setPageProps({
         auth: {
             user: {
@@ -15,6 +19,7 @@ function mountPage(statusOverrides = {}) {
                 message: 'Central login is configured.',
             },
         },
+        locale,
     });
 
     return mount(SsoStatusPage, {
@@ -59,12 +64,12 @@ describe('Sso/Status', () => {
     it('renders a human-readable connection health summary with next steps', () => {
         const wrapper = mountPage();
 
-        expect(wrapper.text()).toContain('Connection Health');
-        expect(wrapper.text()).toContain('Ready to use');
-        expect(wrapper.text()).toContain('What you can do next');
-        expect(wrapper.text()).toContain('Open my account');
-        expect(wrapper.text()).toContain('Review profile settings');
-        expect(wrapper.text()).toContain('Technical details for support and integration review');
+        expect(wrapper.text()).toContain(en['navigation.connection_health.label']);
+        expect(wrapper.text()).toContain(en['sso_status.health_ready']);
+        expect(wrapper.text()).toContain(en['sso_status.what_you_can_do_next']);
+        expect(wrapper.text()).toContain(en['sso_status.open_my_account']);
+        expect(wrapper.text()).toContain(en['sso_status.review_profile_settings']);
+        expect(wrapper.text()).toContain(en['sso_status.technical_details_title']);
         expect(wrapper.find('div.min-h-0.flex-1.space-y-6.overflow-y-auto.pr-1').exists()).toBe(true);
     });
 
@@ -79,9 +84,9 @@ describe('Sso/Status', () => {
             message: 'SSO setup is incomplete.',
         });
 
-        expect(wrapper.text()).toContain('Needs attention');
-        expect(wrapper.text()).toContain('Missing');
-        expect(wrapper.text()).toContain('Ask an administrator to verify the SSO server base URL and endpoints shown below.');
-        expect(wrapper.text()).toContain('Keep local access available until the redirect and token exchange are confirmed.');
+        expect(wrapper.text()).toContain(en['sso_status.health_attention']);
+        expect(wrapper.text()).toContain(en['sso_status.missing']);
+        expect(wrapper.text()).toContain(en['sso_status.next_step_setup_admin']);
+        expect(wrapper.text()).toContain(en['sso_status.next_step_setup_fallback']);
     });
 });

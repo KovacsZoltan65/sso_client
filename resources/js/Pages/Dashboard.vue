@@ -15,13 +15,13 @@ defineProps({
 </script>
 
 <template>
-    <Head :title="trans('navigation.dashboard_label')" />
+    <Head :title="trans('navigation.dashboard.label')" />
 
     <AuthenticatedLayout>
         <template #header>
             <PageHeader
-                :title="trans('navigation.dashboard_label')"
-                :description="trans('navigation.dashboard_description')"
+                :title="trans('navigation.dashboard.label')"
+                :description="trans('navigation.dashboard.description')"
             />
         </template>
 
@@ -75,14 +75,16 @@ defineProps({
 
                     <div class="mt-8 grid gap-4 lg:grid-cols-2">
                         <div class="rounded-3xl bg-slate-50 p-5">
-                            <p class="text-sm font-semibold text-slate-900">SSO mod</p>
+                            <p class="text-sm font-semibold text-slate-900">
+                                {{ trans("dashboard.sso_mode") }}
+                            </p>
                             <p class="mt-2 text-sm text-slate-600">
                                 {{ ssoStatus.mode }}
                             </p>
                         </div>
                         <div class="rounded-3xl bg-slate-50 p-5">
                             <p class="text-sm font-semibold text-slate-900">
-                                Lokalis auth fallback
+                                {{ trans("dashboard.local_auth_fallback") }}
                             </p>
                             <p class="mt-2 text-sm text-slate-600">
                                 {{
@@ -132,7 +134,9 @@ defineProps({
                 >
                     {{ trans("common.audit_preview") }}
                 </p>
-                <h2 class="mt-2 text-xl font-semibold text-slate-950">Recent activity</h2>
+                <h2 class="mt-2 text-xl font-semibold text-slate-950">
+                    {{ trans("dashboard.recent_activity") }}
+                </h2>
 
                 <div class="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                     <div
@@ -146,7 +150,7 @@ defineProps({
                         <p
                             class="mt-2 text-xs uppercase tracking-[0.18em] text-slate-400"
                         >
-                            {{ entry.event || "event.pending" }}
+                            {{ entry.event || trans("dashboard.event_pending") }}
                         </p>
                         <p class="mt-3 text-sm text-slate-500">{{ entry.created_at }}</p>
                     </div>

@@ -34,7 +34,7 @@ const { isAuthenticated, user, loginUrl, logoutUrl } = useAuth();
                 <div class="flex items-center gap-3">
                     <Link v-if="isAuthenticated" :href="route('dashboard')">
                         <Button
-                            :label="trans('navigation.dashboard_label')"
+                            :label="trans('navigation.dashboard.label')"
                             severity="secondary"
                             outlined
                         />
