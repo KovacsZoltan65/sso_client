@@ -58,11 +58,11 @@ const localStatusLabel = computed(() =>
                         <dd class="mt-1 text-sm text-slate-600">{{ user.sso_user_id || '-' }}</dd>
                     </div>
                     <div>
-                        <dt class="text-sm font-semibold text-slate-900">{{ trans('table.name') }}</dt>
+                        <dt class="text-sm font-semibold text-slate-900">{{ trans('table.columns.name') }}</dt>
                         <dd class="mt-1 text-sm text-slate-600">{{ user.name || '-' }}</dd>
                     </div>
                     <div>
-                        <dt class="text-sm font-semibold text-slate-900">{{ trans('table.email') }}</dt>
+                        <dt class="text-sm font-semibold text-slate-900">{{ trans('table.columns.email') }}</dt>
                         <dd class="mt-1 text-sm text-slate-600">{{ user.email || '-' }}</dd>
                     </div>
                     <div>
@@ -88,7 +88,7 @@ const localStatusLabel = computed(() =>
                         <dd class="mt-1 text-sm text-slate-600">{{ user.id }}</dd>
                     </div>
                     <div>
-                        <dt class="text-sm font-semibold text-slate-900">{{ trans('table.created_at') }}</dt>
+                        <dt class="text-sm font-semibold text-slate-900">{{ trans('table.columns.created_at') }}</dt>
                         <dd class="mt-1 text-sm text-slate-600">{{ formatDate(user.created_at) }}</dd>
                     </div>
                     <div>

@@ -465,11 +465,11 @@ onMounted(loadUsers);
 
                             <Column field="id" :header="trans('users.local_id')" sortable />
                             <Column field="sso_user_id" :header="trans('users.sso_user_id')" sortable />
-                            <Column field="name" :header="trans('table.name')" sortable />
-                            <Column field="email" :header="trans('table.email')" sortable />
+                            <Column field="name" :header="trans('table.columns.name')" sortable />
+                            <Column field="email" :header="trans('table.columns.email')" sortable />
                             <Column
                                 field="local_status"
-                                :header="trans('table.status')"
+                                :header="trans('table.columns.status')"
                                 sortable
                                 :showFilterMatchModes="false"
                                 :showFilterOperator="false"
@@ -529,7 +529,7 @@ onMounted(loadUsers);
                                     {{ formatDate(data.last_authenticated_at) }}
                                 </template>
                             </Column>
-                            <Column field="created_at" :header="trans('table.created_at')" sortable>
+                            <Column field="created_at" :header="trans('table.columns.created_at')" sortable>
                                 <template #body="{ data }">
                                     {{ formatDate(data.created_at) }}
                                 </template>
@@ -539,7 +539,7 @@ onMounted(loadUsers);
                                     {{ formatDate(data.updated_at) }}
                                 </template>
                             </Column>
-                            <Column :header="trans('table.actions')" :style="{ width: '11rem' }">
+                            <Column :header="trans('table.columns.actions')" :style="{ width: '11rem' }">
                                 <template #body="{ data }">
                                     <RowActionMenu :items="userActionItems(data)" />
                                 </template>

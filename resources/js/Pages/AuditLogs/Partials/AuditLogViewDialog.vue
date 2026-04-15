@@ -175,7 +175,7 @@ function eventSeverity(value) {
                         <div class="mt-2 break-all text-sm text-slate-700">{{ auditLog.log_name || '-' }}</div>
                     </div>
                     <div>
-                        <div class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">{{ trans('table.created_at') }}</div>
+                        <div class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">{{ trans('table.columns.created_at') }}</div>
                         <div class="mt-2 text-sm text-slate-700">{{ formatDate(auditLog.created_at) }}</div>
                     </div>
                     <div>
@@ -196,11 +196,11 @@ function eventSeverity(value) {
                         <div class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">{{ trans('audit_logs.causer') }}</div>
                         <dl class="mt-4 grid gap-3 text-sm text-slate-700">
                             <div>
-                                <dt class="font-semibold text-slate-900">{{ trans('table.name') }}</dt>
+                                <dt class="font-semibold text-slate-900">{{ trans('table.columns.name') }}</dt>
                                 <dd>{{ auditLog.causer?.name || trans('audit_logs.system_user') }}</dd>
                             </div>
                             <div>
-                                <dt class="font-semibold text-slate-900">{{ trans('table.email') }}</dt>
+                                <dt class="font-semibold text-slate-900">{{ trans('table.columns.email') }}</dt>
                                 <dd>{{ auditLog.causer?.email || '-' }}</dd>
                             </div>
                             <div>

@@ -36,7 +36,7 @@ defineEmits(["submit", "cancel"]);
     <form class="space-y-5" @submit.prevent="$emit('submit')">
         <div class="grid gap-5 md:grid-cols-2">
             <div class="space-y-2">
-                <label class="text-sm font-semibold text-slate-900" for="employee-company-id">{{ trans("table.company") }}</label>
+                <label class="text-sm font-semibold text-slate-900" for="employee-company-id">{{ trans("table.columns.company") }}</label>
                 <Select
                     id="employee-company-id"
                     v-model="form.company_id"
@@ -51,7 +51,7 @@ defineEmits(["submit", "cancel"]);
             </div>
 
             <div class="space-y-2">
-                <label class="text-sm font-semibold text-slate-900" for="employee-number">{{ trans("table.employee_number") }}</label>
+                <label class="text-sm font-semibold text-slate-900" for="employee-number">{{ trans("table.columns.employee_number") }}</label>
                 <InputText
                     id="employee-number"
                     v-model="form.employee_number"
@@ -63,7 +63,7 @@ defineEmits(["submit", "cancel"]);
             </div>
 
             <div class="space-y-2">
-                <label class="text-sm font-semibold text-slate-900" for="employee-name">{{ trans("table.name") }}</label>
+                <label class="text-sm font-semibold text-slate-900" for="employee-name">{{ trans("table.columns.name") }}</label>
                 <InputText
                     id="employee-name"
                     v-model="form.name"
@@ -75,7 +75,7 @@ defineEmits(["submit", "cancel"]);
             </div>
 
             <div class="space-y-2">
-                <label class="text-sm font-semibold text-slate-900" for="employee-email">{{ trans("table.email") }}</label>
+                <label class="text-sm font-semibold text-slate-900" for="employee-email">{{ trans("table.columns.email") }}</label>
                 <InputText
                     id="employee-email"
                     v-model="form.email"
@@ -87,7 +87,7 @@ defineEmits(["submit", "cancel"]);
             </div>
 
             <div class="space-y-2">
-                <label class="text-sm font-semibold text-slate-900" for="employee-phone">{{ trans("table.phone") }}</label>
+                <label class="text-sm font-semibold text-slate-900" for="employee-phone">{{ trans("table.columns.phone") }}</label>
                 <InputText
                     id="employee-phone"
                     v-model="form.phone"
@@ -99,7 +99,7 @@ defineEmits(["submit", "cancel"]);
             </div>
 
             <div class="space-y-2">
-                <label class="text-sm font-semibold text-slate-900" for="employee-position">{{ trans("table.position") }}</label>
+                <label class="text-sm font-semibold text-slate-900" for="employee-position">{{ trans("table.columns.position") }}</label>
                 <InputText
                     id="employee-position"
                     v-model="form.position"

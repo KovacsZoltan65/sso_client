@@ -483,23 +483,23 @@ onMounted(loadEmployees);
 
                             <Column
                                 field="employee_number"
-                                :header="trans('table.employee_number')"
+                                :header="trans('table.columns.employee_number')"
                                 sortable
                             />
-                            <Column field="name" :header="trans('table.name')" sortable />
-                            <Column field="email" :header="trans('table.email')" sortable />
-                            <Column field="phone" :header="trans('table.phone')" />
+                            <Column field="name" :header="trans('table.columns.name')" sortable />
+                            <Column field="email" :header="trans('table.columns.email')" sortable />
+                            <Column field="phone" :header="trans('table.columns.phone')" />
                             <Column
                                 field="position"
-                                :header="trans('table.position')"
+                                :header="trans('table.columns.position')"
                                 sortable
                             />
                             <Column
                                 field="company_name"
-                                :header="trans('table.company')"
+                                :header="trans('table.columns.company')"
                                 sortable
                             />
-                            <Column field="is_active" :header="trans('table.status')" sortable>
+                            <Column field="is_active" :header="trans('table.columns.status')" sortable>
                                 <template #body="{ data }">
                                     <Tag
                                         :value="statusLabel(data.is_active)"
@@ -509,14 +509,14 @@ onMounted(loadEmployees);
                             </Column>
                             <Column
                                 field="created_at"
-                                :header="trans('table.created_at')"
+                                :header="trans('table.columns.created_at')"
                                 sortable
                             >
                                 <template #body="{ data }">
                                     {{ formatDate(data.created_at) }}
                                 </template>
                             </Column>
-                            <Column :header="trans('table.actions')" :style="{ width: '11rem' }">
+                            <Column :header="trans('table.columns.actions')" :style="{ width: '11rem' }">
                                 <template #body="{ data }">
                                     <RowActionMenu :items="employeeActionItems(data)" />
                                 </template>
@@ -621,28 +621,28 @@ onMounted(loadEmployees);
 
                                 <dl class="mt-4 grid gap-3 text-sm text-slate-600">
                                     <div>
-                                        <dt class="font-medium text-slate-900">{{ trans("table.email") }}</dt>
+                                        <dt class="font-medium text-slate-900">{{ trans("table.columns.email") }}</dt>
                                         <dd>{{ employee.email || "-" }}</dd>
                                     </div>
                                     <div>
                                         <dt class="font-medium text-slate-900">
-                                            {{ trans("table.phone") }}
+                                            {{ trans("table.columns.phone") }}
                                         </dt>
                                         <dd>{{ employee.phone || "-" }}</dd>
                                     </div>
                                     <div>
                                         <dt class="font-medium text-slate-900">
-                                            {{ trans("table.position") }}
+                                            {{ trans("table.columns.position") }}
                                         </dt>
                                         <dd>{{ employee.position || "-" }}</dd>
                                     </div>
                                     <div>
-                                        <dt class="font-medium text-slate-900">{{ trans("table.company") }}</dt>
+                                        <dt class="font-medium text-slate-900">{{ trans("table.columns.company") }}</dt>
                                         <dd>{{ employee.company_name || "-" }}</dd>
                                     </div>
                                     <div>
                                         <dt class="font-medium text-slate-900">
-                                            {{ trans("table.created_at") }}
+                                            {{ trans("table.columns.created_at") }}
                                         </dt>
                                         <dd>{{ formatDate(employee.created_at) }}</dd>
                                     </div>

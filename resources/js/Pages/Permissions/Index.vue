@@ -337,12 +337,12 @@ onMounted(loadPermissions);
                                     <Tag :value="String(data.roles_count ?? 0)" severity="info" />
                                 </template>
                             </Column>
-                            <Column field="created_at" :header="trans('table.created_at')" sortable>
+                            <Column field="created_at" :header="trans('table.columns.created_at')" sortable>
                                 <template #body="{ data }">
                                     {{ formatDate(data.created_at) }}
                                 </template>
                             </Column>
-                            <Column :header="trans('table.actions')" :style="{ width: '11rem' }">
+                            <Column :header="trans('table.columns.actions')" :style="{ width: '11rem' }">
                                 <template #body="{ data }">
                                     <RowActionMenu :items="permissionActionItems(data)" />
                                 </template>
@@ -386,7 +386,7 @@ onMounted(loadPermissions);
 
                                 <dl class="mt-4 grid gap-3 text-sm text-slate-600">
                                     <div>
-                                        <dt class="font-semibold text-slate-900">{{ trans("table.created_at") }}</dt>
+                                        <dt class="font-semibold text-slate-900">{{ trans("table.columns.created_at") }}</dt>
                                         <dd>{{ formatDate(permission.created_at) }}</dd>
                                     </div>
                                 </dl>

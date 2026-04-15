@@ -28,7 +28,7 @@ const form = useForm({
 
         <form class="mt-8 space-y-5" @submit.prevent="form.post(route('register'))">
             <div class="space-y-2">
-                <label class="text-sm font-medium text-slate-700">{{ trans('table.name') }}</label>
+                <label class="text-sm font-medium text-slate-700">{{ trans('table.columns.name') }}</label>
                 <InputText v-model="form.name" class="w-full" />
                 <small class="text-red-600">{{ form.errors.name }}</small>
             </div>

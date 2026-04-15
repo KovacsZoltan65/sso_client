@@ -21,7 +21,7 @@ defineEmits(["submit", "cancel"]);
         <div class="grid gap-5 md:grid-cols-2">
             <div class="space-y-2">
                 <label for="company-name" class="text-sm font-semibold text-slate-900"
-                    >{{ trans("table.name") }}</label
+                    >{{ trans("table.columns.name") }}</label
                 >
                 <InputText
                     id="company-name"
@@ -35,7 +35,7 @@ defineEmits(["submit", "cancel"]);
 
             <div class="space-y-2">
                 <label for="company-code" class="text-sm font-semibold text-slate-900"
-                    >{{ trans("table.code") }}</label
+                    >{{ trans("table.columns.code") }}</label
                 >
                 <InputText
                     id="company-code"
@@ -49,7 +49,7 @@ defineEmits(["submit", "cancel"]);
 
             <div class="space-y-2">
                 <label for="company-email" class="text-sm font-semibold text-slate-900"
-                    >{{ trans("table.email") }}</label
+                    >{{ trans("table.columns.email") }}</label
                 >
                 <InputText
                     id="company-email"
@@ -63,7 +63,7 @@ defineEmits(["submit", "cancel"]);
 
             <div class="space-y-2">
                 <label for="company-phone" class="text-sm font-semibold text-slate-900"
-                    >{{ trans("table.phone") }}</label
+                    >{{ trans("table.columns.phone") }}</label
                 >
                 <InputText
                     id="company-phone"
@@ -78,7 +78,7 @@ defineEmits(["submit", "cancel"]);
 
         <div class="space-y-2">
             <label for="company-address" class="text-sm font-semibold text-slate-900"
-                >{{ trans("table.address") }}</label
+                >{{ trans("table.columns.address") }}</label
             >
             <Textarea
                 id="company-address"

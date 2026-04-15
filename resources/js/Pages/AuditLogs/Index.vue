@@ -297,12 +297,12 @@ onMounted(loadAuditLogs);
                                     {{ userLabel(data) }}
                                 </template>
                             </Column>
-                            <Column field="created_at" :header="trans('table.created_at')" sortable>
+                            <Column field="created_at" :header="trans('table.columns.created_at')" sortable>
                                 <template #body="{ data }">
                                     {{ formatDate(data.created_at) }}
                                 </template>
                             </Column>
-                            <Column :header="trans('table.actions')" :style="{ width: '11rem' }">
+                            <Column :header="trans('table.columns.actions')" :style="{ width: '11rem' }">
                                 <template #body="{ data }">
                                     <RowActionMenu :items="auditLogActionItems(data)" :disabled="detailLoading" />
                                 </template>
@@ -370,7 +370,7 @@ onMounted(loadAuditLogs);
                                         <dd>{{ entry.subject_type || '-' }} #{{ entry.subject_id ?? '-' }}</dd>
                                     </div>
                                     <div>
-                                        <dt class="font-semibold text-slate-900">{{ trans('table.created_at') }}</dt>
+                                        <dt class="font-semibold text-slate-900">{{ trans('table.columns.created_at') }}</dt>
                                         <dd>{{ formatDate(entry.created_at) }}</dd>
                                     </div>
                                 </dl>

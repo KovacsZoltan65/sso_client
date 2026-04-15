@@ -447,21 +447,21 @@ onMounted(loadCompanies);
                             </template>
 
                             <!-- Name -->
-                            <Column field="name" :header="trans('table.name')" sortable />
+                            <Column field="name" :header="trans('table.columns.name')" sortable />
                             <!-- Code -->
-                            <Column field="code" :header="trans('table.code')" sortable />
+                            <Column field="code" :header="trans('table.columns.code')" sortable />
                             <!-- Email -->
                             <Column
                                 field="email"
-                                :header="trans('table.email')"
+                                :header="trans('table.columns.email')"
                                 sortable
                             />
                             <!-- Phone -->
-                            <Column field="phone" :header="trans('table.phone')" />
+                            <Column field="phone" :header="trans('table.columns.phone')" />
                             <!-- Is Active -->
                             <Column
                                 field="is_active"
-                                :header="trans('table.status')"
+                                :header="trans('table.columns.status')"
                                 sortable
                             >
                                 <template #body="{ data }">
@@ -475,7 +475,7 @@ onMounted(loadCompanies);
                             <!-- Created At -->
                             <Column
                                 field="created_at"
-                                :header="trans('table.created_at')"
+                                :header="trans('table.columns.created_at')"
                                 sortable
                             >
                                 <template #body="{ data }">
@@ -485,7 +485,7 @@ onMounted(loadCompanies);
 
                             <!-- Műveletek -->
                             <Column
-                                :header="trans('table.actions')"
+                                :header="trans('table.columns.actions')"
                                 :style="{ width: '11rem' }"
                             >
                                 <template #body="{ data }">
@@ -579,19 +579,19 @@ onMounted(loadCompanies);
                                 <dl class="mt-4 grid gap-3 text-sm text-slate-600">
                                     <div>
                                         <dt class="font-semibold text-slate-900">
-                                            {{ trans("table.email") }}
+                                            {{ trans("table.columns.email") }}
                                         </dt>
                                         <dd>{{ company.email || "-" }}</dd>
                                     </div>
                                     <div>
                                         <dt class="font-semibold text-slate-900">
-                                            {{ trans("table.phone") }}
+                                            {{ trans("table.columns.phone") }}
                                         </dt>
                                         <dd>{{ company.phone || "-" }}</dd>
                                     </div>
                                     <div>
                                         <dt class="font-semibold text-slate-900">
-                                            {{ trans("table.created_at") }}
+                                            {{ trans("table.columns.created_at") }}
                                         </dt>
                                         <dd>{{ formatDate(company.created_at) }}</dd>
                                     </div>
