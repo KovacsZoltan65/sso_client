@@ -447,9 +447,17 @@ onMounted(loadCompanies);
                             </template>
 
                             <!-- Name -->
-                            <Column field="name" :header="trans('table.columns.name')" sortable />
+                            <Column
+                                field="name"
+                                :header="trans('table.columns.name')"
+                                sortable
+                            />
                             <!-- Code -->
-                            <Column field="code" :header="trans('table.columns.code')" sortable />
+                            <Column
+                                field="code"
+                                :header="trans('table.columns.code')"
+                                sortable
+                            />
                             <!-- Email -->
                             <Column
                                 field="email"
@@ -457,7 +465,10 @@ onMounted(loadCompanies);
                                 sortable
                             />
                             <!-- Phone -->
-                            <Column field="phone" :header="trans('table.columns.phone')" />
+                            <Column
+                                field="phone"
+                                :header="trans('table.columns.phone')"
+                            />
                             <!-- Is Active -->
                             <Column
                                 field="is_active"
@@ -485,7 +496,7 @@ onMounted(loadCompanies);
 
                             <!-- Műveletek -->
                             <Column
-                                :header="trans('table.columns.actions')"
+                                :header="trans('common.actions')"
                                 :style="{ width: '11rem' }"
                             >
                                 <template #body="{ data }">

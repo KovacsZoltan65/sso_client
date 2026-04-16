@@ -61,6 +61,10 @@
     "common.recent_users": "Recent users",
     "common.no_assigned_roled": "no assigned roles",
     "common.audit_preview": "Audit preview",
+
+    "actions.search_users": "Search users",
+    "actions.placeholder.status": "Status",
+
     "dashboard.sso_mode": "SSO mode",
     "dashboard.local_auth_fallback": "Local auth fallback",
     "dashboard.recent_activity": "Recent activity",

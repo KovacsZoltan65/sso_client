@@ -7,7 +7,7 @@ import AdminTableToolbar from "@/Components/Admin/AdminTableToolbar.vue";
 import PageHeader from "@/Components/PageHeader.vue";
 import RowActionMenu from "@/Components/Admin/RowActionMenu.vue";
 import { useAdminSearchBehavior } from "@/Composables/useAdminSearchBehavior";
-import { trans } from 'laravel-vue-i18n';
+import { trans } from "laravel-vue-i18n";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import { useAdminTableState } from "@/Composables/useAdminTableState";
 import {
@@ -102,7 +102,9 @@ const compactSelectPt = {
     dropdown: { class: "w-11" },
 };
 const searchBehavior = useAdminSearchBehavior();
-const resolvedSearchPlaceholder = computed(() => props.searchPlaceholder || trans('employees.search_placeholder'));
+const resolvedSearchPlaceholder = computed(
+    () => props.searchPlaceholder || trans("employees.search_placeholder")
+);
 
 function defaultForm() {
     return {
@@ -450,7 +452,9 @@ onMounted(loadEmployees);
                                             :options="companies"
                                             option-label="name"
                                             option-value="id"
-                                            :placeholder="trans('employees.company_placeholder')"
+                                            :placeholder="
+                                                trans('employees.company_placeholder')
+                                            "
                                             show-clear
                                             class="w-full sm:w-56"
                                         />
@@ -472,7 +476,9 @@ onMounted(loadEmployees);
                                 <div class="px-6 py-10">
                                     <EmptyStatePanel
                                         :title="trans('employees.filter_empty_title')"
-                                        :description="trans('employees.filter_empty_detail')"
+                                        :description="
+                                            trans('employees.filter_empty_detail')
+                                        "
                                         :tags="[
                                             trans('navigation.employees.label'),
                                             trans('employees.tag_admin_crud'),
@@ -486,9 +492,20 @@ onMounted(loadEmployees);
                                 :header="trans('table.columns.employee_number')"
                                 sortable
                             />
-                            <Column field="name" :header="trans('table.columns.name')" sortable />
-                            <Column field="email" :header="trans('table.columns.email')" sortable />
-                            <Column field="phone" :header="trans('table.columns.phone')" />
+                            <Column
+                                field="name"
+                                :header="trans('table.columns.name')"
+                                sortable
+                            />
+                            <Column
+                                field="email"
+                                :header="trans('table.columns.email')"
+                                sortable
+                            />
+                            <Column
+                                field="phone"
+                                :header="trans('table.columns.phone')"
+                            />
                             <Column
                                 field="position"
                                 :header="trans('table.columns.position')"
@@ -499,7 +516,11 @@ onMounted(loadEmployees);
                                 :header="trans('table.columns.company')"
                                 sortable
                             />
-                            <Column field="is_active" :header="trans('table.columns.status')" sortable>
+                            <Column
+                                field="is_active"
+                                :header="trans('table.columns.status')"
+                                sortable
+                            >
                                 <template #body="{ data }">
                                     <Tag
                                         :value="statusLabel(data.is_active)"
@@ -516,7 +537,10 @@ onMounted(loadEmployees);
                                     {{ formatDate(data.created_at) }}
                                 </template>
                             </Column>
-                            <Column :header="trans('table.columns.actions')" :style="{ width: '11rem' }">
+                            <Column
+                                :header="trans('table.columns.actions')"
+                                :style="{ width: '11rem' }"
+                            >
                                 <template #body="{ data }">
                                     <RowActionMenu :items="employeeActionItems(data)" />
                                 </template>
@@ -524,19 +548,10 @@ onMounted(loadEmployees);
                         </BaseDataTable>
                     </div>
 
-                    <div class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-6 lg:hidden">
+                    <div
+                        class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-6 lg:hidden"
+                    >
                         <div class="grid flex-none gap-3">
-                            <!--<div class="relative">
-                                <i
-                                    class="pi pi-search pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-sm text-slate-400"
-                                />
-                                <InputText
-                                    v-model="filters.search"
-                                    fluid
-                                    class="h-11 w-full pl-10"
-                                    placeholder="Kereses nev, e-mail, pozicio vagy azonosito alapjan"
-                                />
-                            </div>-->
                             <IconField class="w-full">
                                 <InputIcon class="pi pi-search" />
                                 <InputText
@@ -571,7 +586,9 @@ onMounted(loadEmployees);
                             />
                         </div>
 
-                        <div class="flex flex-none flex-wrap items-center justify-end gap-3">
+                        <div
+                            class="flex flex-none flex-wrap items-center justify-end gap-3"
+                        >
                             <Button
                                 :label="trans('common.refresh')"
                                 icon="pi pi-refresh"
@@ -621,7 +638,9 @@ onMounted(loadEmployees);
 
                                 <dl class="mt-4 grid gap-3 text-sm text-slate-600">
                                     <div>
-                                        <dt class="font-medium text-slate-900">{{ trans("table.columns.email") }}</dt>
+                                        <dt class="font-medium text-slate-900">
+                                            {{ trans("table.columns.email") }}
+                                        </dt>
                                         <dd>{{ employee.email || "-" }}</dd>
                                     </div>
                                     <div>
@@ -637,7 +656,9 @@ onMounted(loadEmployees);
                                         <dd>{{ employee.position || "-" }}</dd>
                                     </div>
                                     <div>
-                                        <dt class="font-medium text-slate-900">{{ trans("table.columns.company") }}</dt>
+                                        <dt class="font-medium text-slate-900">
+                                            {{ trans("table.columns.company") }}
+                                        </dt>
                                         <dd>{{ employee.company_name || "-" }}</dd>
                                     </div>
                                     <div>
