@@ -25,7 +25,7 @@ const { isAuthenticated, user, loginUrl, logoutUrl } = useAuth();
                     <p
                         class="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400"
                     >
-                        {{ trans("common.foundation_ready") }}
+                        {{ trans("common.foundation_ready_title") }}
                     </p>
                     <h1 class="mt-2 text-xl font-semibold text-slate-950">
                         {{ appName }}
