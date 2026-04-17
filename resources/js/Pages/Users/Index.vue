@@ -6,6 +6,7 @@ import AdminTableToolbar from "@/Components/Admin/AdminTableToolbar.vue";
 import PageHeader from "@/Components/PageHeader.vue";
 import RowActionMenu from "@/Components/Admin/RowActionMenu.vue";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
+import { useAdminSearchBehavior } from "@/Composables/useAdminSearchBehavior";
 import UserEditDialog from "@/Pages/Users/Partials/UserEditDialog.vue";
 import UserViewDialog from "@/Pages/Users/Partials/UserViewDialog.vue";
 import { UserApiError, listUsers, showUser, updateUser } from "@/Services/userService";
@@ -79,7 +80,7 @@ const compactSelectPt = {
     dropdown: { class: "w-11" },
 };
 
-let searchDebounceId = null;
+const searchBehavior = useAdminSearchBehavior();
 
 function defaultEditForm() {
     return {
@@ -277,6 +278,17 @@ function handleTableSort(event) {
 
 function onGlobalFilterInput(value) {
     tableFilters.value.global.value = value ?? null;
+    searchBehavior.queueSearch(() => {
+        tableState.page = 1;
+        loadUsers();
+    });
+}
+
+function submitSearch() {
+    searchBehavior.submitSearch(() => {
+        tableState.page = 1;
+        loadUsers();
+    });
 }
 
 function onFilter() {
@@ -305,7 +317,7 @@ function handleApiError(error, fallbackMessage) {
 
     toast.add({
         severity: "error",
-        summary: trans("common.error_occured"),
+        summary: trans("common.error"),
         detail: error instanceof UserApiError ? error.message : fallbackMessage,
         life: 4000,
     });
@@ -374,20 +386,6 @@ watch(
     }
 );
 
-watch(
-    () => tableFilters.value.global.value,
-    () => {
-        if (searchDebounceId) {
-            window.clearTimeout(searchDebounceId);
-        }
-
-        searchDebounceId = window.setTimeout(() => {
-            tableState.page = 1;
-            loadUsers();
-        }, 350);
-    }
-);
-
 onMounted(loadUsers);
 </script>
 
@@ -421,9 +419,6 @@ onMounted(loadUsers);
                             :total-records="tableState.total"
                             :sort-field="tableState.sortField"
                             :sort-order="tableState.sortOrder === 'asc' ? 1 : -1"
-                            paginator-template="RowsPerPageDropdown FirstPageLink PrevPageLink CurrentPageReport NextPageLink LastPageLink"
-                            current-page-report-template="{first} - {last} / {totalRecords}"
-                            :rows-per-page-options="[10, 25, 50]"
                             @page="handleTablePage"
                             @sort="handleTableSort"
                             @filter="onFilter"
@@ -443,10 +438,11 @@ onMounted(loadUsers);
                                                 class="pi pi-search text-slate-400"
                                             />
                                             <InputText
-                                                v-model="tableFilters.global.value"
+                                                :modelValue="tableFilters.global.value"
                                                 :placeholder="trans('users.search_placeholder')"
                                                 class="w-full"
                                                 @update:modelValue="onGlobalFilterInput"
+                                                @keyup.enter="submitSearch"
                                             />
                                         </IconField>
                                     </template>
@@ -552,10 +548,11 @@ onMounted(loadUsers);
                             <IconField class="w-full">
                                 <InputIcon class="pi pi-search" />
                                 <InputText
-                                    v-model="tableFilters.global.value"
+                                    :modelValue="tableFilters.global.value"
                                     class="h-11 w-full"
                                     :placeholder="trans('users.search_placeholder')"
                                     @update:modelValue="onGlobalFilterInput"
+                                    @keyup.enter="submitSearch"
                                 />
                             </IconField>
 

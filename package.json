@@ -9,6 +9,8 @@
         "e2e:auth:headed": "node tests/e2e/scripts/prepare-auth-e2e.mjs && playwright test tests/e2e/auth-flow.spec.ts --headed",
         "e2e:auth:prepare": "node tests/e2e/scripts/prepare-auth-e2e.mjs",
         "test": "vitest run",
+        "test:selector-guard": "node resources/js/tests/selector-guard.mjs",
+        "test:selector-guard:strict": "node resources/js/tests/selector-guard.mjs --strict",
         "test:security": "vitest run --config vitest.security.config.js",
         "test:watch": "vitest"
     },

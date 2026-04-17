@@ -61,6 +61,7 @@ const switchLocale = async (locale) => {
             :severity="locale === activeLocale ? 'contrast' : 'secondary'"
             :text="locale !== activeLocale"
             :disabled="isSubmitting"
+            :data-testid="`language-switch-${locale}`"
             @click="switchLocale(locale)"
         />
     </div>

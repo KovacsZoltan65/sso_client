@@ -1,12 +1,28 @@
 import { config } from '@vue/test-utils';
 import { afterEach, beforeEach, vi } from 'vitest';
 import { computed, defineComponent, h, reactive, ref } from 'vue';
-import en from '../../../lang/en.json';
-import hu from '../../../lang/hu.json';
+import { readFileSync } from 'node:fs';
 import { axiosMock, resetAxiosMock } from './mocks/axios';
 import { getPage, resetInertiaMocks, setPageProps } from './mocks/inertia';
 
-const translations = { en, hu };
+// Selector guardrail: avoid `findAll('button').find(...)` and hardcoded
+// `wrapper.text().toContain('...')` assertions when a stable selector or i18n key exists.
+// Run `npm run test:selector-guard` for warn-only checks.
+
+const loadTranslations = (relativePath) => {
+    try {
+        return JSON.parse(
+            readFileSync(new URL(relativePath, import.meta.url), 'utf8'),
+        );
+    } catch (_error) {
+        return {};
+    }
+};
+
+const translations = {
+    en: loadTranslations('../../../lang/en.json'),
+    hu: loadTranslations('../../../lang/hu.json'),
+};
 
 const translate = (key, replacements = {}) => {
     const locale = getPage().props.locale?.current ?? 'hu';

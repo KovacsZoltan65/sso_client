@@ -4,6 +4,11 @@ defineOptions({
 });
 
 import DataTable from 'primevue/datatable';
+import {
+    adminCurrentPageReportTemplate,
+    adminPaginatorTemplate,
+    adminRowsPerPageOptions,
+} from '@/Constants/adminTablePagination';
 import { computed, useAttrs } from 'vue';
 
 const props = defineProps({
@@ -49,19 +54,39 @@ const props = defineProps({
     },
     rowsPerPageOptions: {
         type: Array,
-        default: () => [10, 25, 50],
+        default: () => adminRowsPerPageOptions,
     },
     paginatorTemplate: {
         type: String,
-        default: 'RowsPerPageDropdown FirstPageLink PrevPageLink CurrentPageReport NextPageLink LastPageLink',
+        default: adminPaginatorTemplate,
     },
     currentPageReportTemplate: {
         type: String,
-        default: '{first} - {last} / {totalRecords}',
+        default: adminCurrentPageReportTemplate,
     },
     dataKey: {
         type: String,
         default: 'id',
+    },
+    selection: {
+        type: [Array, Object],
+        default: null,
+    },
+    selectionMode: {
+        type: String,
+        default: null,
+    },
+    sortField: {
+        type: String,
+        default: null,
+    },
+    sortOrder: {
+        type: Number,
+        default: null,
+    },
+    removableSort: {
+        type: Boolean,
+        default: false,
     },
     scrollable: {
         type: Boolean,
@@ -74,6 +99,10 @@ const props = defineProps({
     stripedRows: {
         type: Boolean,
         default: true,
+    },
+    rowHover: {
+        type: Boolean,
+        default: false,
     },
     size: {
         type: String,
@@ -151,9 +180,15 @@ const emitSelectionUpdate = (value) => emit('update:selection', value);
             :paginatorTemplate="paginatorTemplate"
             :currentPageReportTemplate="currentPageReportTemplate"
             :data-key="dataKey"
+            :selection="selection"
+            :selectionMode="selectionMode"
+            :sortField="sortField"
+            :sortOrder="sortOrder"
+            :removableSort="removableSort"
             :scrollable="scrollable"
             :scrollHeight="scrollHeight"
             :stripedRows="stripedRows"
+            :rowHover="rowHover"
             :size="size"
             :rowClass="rowClass"
             :class="normalizedTableClass"

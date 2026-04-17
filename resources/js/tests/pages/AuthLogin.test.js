@@ -4,6 +4,7 @@ import { nextTick } from 'vue';
 import LoginPage from '@/Pages/Auth/Login.vue';
 import { setPageProps } from '../mocks/inertia';
 import { toastAddMock } from '../setup';
+import hu from '../../../../lang/hu.json';
 
 beforeEach(() => {
     vi.useFakeTimers();
@@ -57,9 +58,10 @@ describe('Auth/Login', () => {
         });
 
         expect(wrapper.text()).toContain('Session expired.');
-        expect(wrapper.text()).toContain('Átirányítás a bejelentkezéshez');
-        expect(wrapper.text()).toContain('központi bejelentkezésre irányít');
-        expect(wrapper.text()).toContain('Ha nem történt átirányítás, kattints ide');
+        expect(wrapper.text()).toContain(hu['auth.login.redirecting_title']);
+        expect(wrapper.text()).toContain(hu['auth.login.description']);
+        expect(wrapper.text()).toContain(hu['auth.login.redirecting_progress']);
+        expect(wrapper.text()).toContain(hu['auth.login.redirect_cta']);
         expect(wrapper.text()).not.toContain('https://sso-server.test');
         expect(wrapper.text()).not.toContain('Redirect URI');
         expect(wrapper.text()).not.toContain('Scope-ok');
@@ -237,12 +239,12 @@ describe('Auth/Login', () => {
         await vi.advanceTimersByTimeAsync(600);
 
         expect(assignSpy).toHaveBeenCalledTimes(1);
-        expect(wrapper.text()).toContain('Az SSO átirányítás sikertelen volt.');
-        expect(wrapper.text()).toContain('Újrapróbálás');
+        expect(wrapper.text()).toContain(hu['auth.login.redirect_failed']);
+        expect(wrapper.text()).toContain(hu['common.retry']);
         expect(wrapper.get('button').attributes('disabled')).toBeUndefined();
         expect(toastAddMock).toHaveBeenCalledWith(expect.objectContaining({
             severity: 'error',
-            summary: 'Az átirányítás sikertelen',
+            summary: hu['auth.login.redirect_failed_summary'],
         }));
 
         assignSpy.mockImplementation(() => undefined);

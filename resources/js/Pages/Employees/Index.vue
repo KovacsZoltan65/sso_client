@@ -346,7 +346,7 @@ function handleApiError(error, fallbackMessage) {
 
     toast.add({
         severity: "error",
-        summary: trans("common.error_occured"),
+        summary: trans("common.error"),
         detail: error instanceof EmployeeApiError ? error.message : fallbackMessage,
         life: 4000,
     });
@@ -425,7 +425,6 @@ onMounted(loadEmployees);
                             :total-records="tableState.totalRecords"
                             :sort-field="tableState.sortField"
                             :sort-order="tableState.sortOrder"
-                            :rows-per-page-options="[10, 25, 50]"
                             @page="handleTablePage"
                             @sort="handleTableSort"
                         >

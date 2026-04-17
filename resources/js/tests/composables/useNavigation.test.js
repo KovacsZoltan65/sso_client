@@ -2,6 +2,7 @@ import { defineComponent } from 'vue';
 import { mount } from '@vue/test-utils';
 import { useNavigation } from '@/Composables/useNavigation';
 import { setPageProps } from '../mocks/inertia';
+import hu from '../../../../lang/hu.json';
 
 const NavigationProbe = defineComponent({
     setup() {
@@ -30,9 +31,9 @@ describe('useNavigation', () => {
 
         const wrapper = mount(NavigationProbe);
 
-        expect(wrapper.text()).toContain('Dashboard');
-        expect(wrapper.text()).toContain('Profil');
-        expect(wrapper.text()).toContain('Fiókom');
+        expect(wrapper.text()).toContain(hu['navigation.dashboard.label']);
+        expect(wrapper.text()).toContain(hu['navigation.profile.label']);
+        expect(wrapper.text()).toContain(hu['navigation.my_account.label']);
     });
 
     it('filters permission-gated items based on the authenticated user permissions', () => {
@@ -50,11 +51,11 @@ describe('useNavigation', () => {
 
         const wrapper = mount(NavigationProbe);
 
-        expect(wrapper.text()).toContain('Cégek');
-        expect(wrapper.text()).toContain('Felhasználók');
-        expect(wrapper.text()).toContain('Kapcsolat állapota');
-        expect(wrapper.text()).not.toContain('Szerepkörök');
-        expect(wrapper.text()).not.toContain('Jogosultságok');
-        expect(wrapper.text()).not.toContain('Audit naplók');
+        expect(wrapper.text()).toContain(hu['navigation.companies.label']);
+        expect(wrapper.text()).toContain(hu['navigation.users.label']);
+        expect(wrapper.text()).toContain(hu['navigation.connection_health.label']);
+        expect(wrapper.text()).not.toContain(hu['navigation.roles.label']);
+        expect(wrapper.text()).not.toContain(hu['navigation.permissions.label']);
+        expect(wrapper.text()).not.toContain(hu['navigation.audit_logs.label']);
     });
 });

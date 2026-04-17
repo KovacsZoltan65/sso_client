@@ -1,5 +1,9 @@
 ## PrimeVue Dialog pattern
 
+Frontend teszt selector/asserion guideline:
+
+- [`docs/frontend-test-selector-guideline.md`](/c:/wamp64/www/sso/sso_client/docs/frontend-test-selector-guideline.md)
+
 Minden PrimeVue Dialog alapú CRUD komponensnél kötelező minta:
 
 - parent kezeli az egyetlen truth source-ot: `:visible`

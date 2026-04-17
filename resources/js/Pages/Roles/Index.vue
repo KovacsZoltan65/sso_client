@@ -240,7 +240,7 @@ function handleApiError(error, fallbackMessage) {
         window.location.assign(redirectTarget);
         return;
     }
-    toast.add({ severity: "error", summary: trans("common.error_occured"), detail: error instanceof RoleApiError ? error.message : fallbackMessage, life: 4000 });
+    toast.add({ severity: "error", summary: trans("common.error"), detail: error instanceof RoleApiError ? error.message : fallbackMessage, life: 4000 });
 }
 
 function handleMutationError(error, fallbackMessage) {
@@ -284,7 +284,6 @@ onMounted(loadRoles);
                             :total-records="tableState.totalRecords"
                             :sort-field="tableState.sortField"
                             :sort-order="tableState.sortOrder"
-                            :rows-per-page-options="[10, 25, 50]"
                             @page="handleTablePage"
                             @sort="handleTableSort"
                         >

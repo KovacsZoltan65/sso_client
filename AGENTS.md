@@ -190,6 +190,7 @@ Must use:
 
 - Vitest
 - Vue Test Utils
+- Frontend selector strategy: follow `docs/frontend-test-selector-guideline.md` and prefer stable selectors over locale/copy-dependent ones
 
 Must cover where relevant:
 

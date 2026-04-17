@@ -8,6 +8,7 @@ import RowActionMenu from '@/Components/Admin/RowActionMenu.vue';
 import PageHeader from '@/Components/PageHeader.vue';
 import { trans } from 'laravel-vue-i18n';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import { useAdminSearchBehavior } from '@/Composables/useAdminSearchBehavior';
 import { useAdminTableState } from '@/Composables/useAdminTableState';
 import AuditLogViewDialog from '@/Pages/AuditLogs/Partials/AuditLogViewDialog.vue';
 import { AuditLogApiError, fetchAuditLogs, showAuditLog } from '@/Services/auditLogService';
@@ -17,7 +18,7 @@ import Column from 'primevue/column';
 import InputText from 'primevue/inputtext';
 import Tag from 'primevue/tag';
 import { useToast } from 'primevue/usetoast';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 
 const props = defineProps({
     auditLogsApi: { type: Object, required: true },
@@ -51,8 +52,8 @@ const {
     },
 });
 
-let searchDebounceId = null;
 const currentLocale = computed(() => page.props.locale?.current ?? 'hu');
+const searchBehavior = useAdminSearchBehavior();
 
 function getRequestParams() {
     return buildFetchParams({
@@ -124,6 +125,21 @@ function handleTablePage(event) {
 function handleTableSort(event) {
     setSortFromEvent(event, 'created_at');
     loadAuditLogs();
+}
+
+function handleSearchInput(value) {
+    filters.global = value ?? '';
+    searchBehavior.queueSearch(() => {
+        resetPagination();
+        loadAuditLogs();
+    });
+}
+
+function submitSearch() {
+    searchBehavior.submitSearch(() => {
+        resetPagination();
+        loadAuditLogs();
+    });
 }
 
 function handleApiError(error, fallbackMessage) {
@@ -198,20 +214,6 @@ function auditLogActionItems(entry) {
     ];
 }
 
-watch(
-    () => filters.global,
-    () => {
-        if (searchDebounceId) {
-            window.clearTimeout(searchDebounceId);
-        }
-
-        searchDebounceId = window.setTimeout(() => {
-            resetPagination();
-            loadAuditLogs();
-        }, 350);
-    }
-);
-
 onMounted(loadAuditLogs);
 </script>
 
@@ -240,7 +242,6 @@ onMounted(loadAuditLogs);
                             :total-records="tableState.totalRecords"
                             :sort-field="tableState.sortField"
                             :sort-order="tableState.sortOrder"
-                            :rows-per-page-options="[10, 25, 50]"
                             @page="handleTablePage"
                             @sort="handleTableSort"
                         >
@@ -254,7 +255,8 @@ onMounted(loadAuditLogs);
                                     :selectedCount="0"
                                     :selectableCount="0"
                                     :busy="loading || detailLoading"
-                                    @update:searchValue="filters.global = $event"
+                                    @update:searchValue="handleSearchInput"
+                                    @submit-search="submitSearch"
                                     @refresh="refreshAuditLogs"
                                 />
                             </template>
@@ -315,10 +317,12 @@ onMounted(loadAuditLogs);
                             <div class="relative">
                                 <i class="pi pi-search pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-sm text-slate-400" />
                                 <InputText
-                                    v-model="filters.global"
+                                    :modelValue="filters.global"
                                     fluid
                                     class="h-11 w-full pl-10"
                                     :placeholder="trans('audit_logs.mobile_search_placeholder')"
+                                    @update:modelValue="handleSearchInput"
+                                    @keyup.enter="submitSearch"
                                 />
                             </div>
                         </div>

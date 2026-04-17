@@ -26,6 +26,10 @@ npm run test:security
 
 Backend tests enter the suite through the PHPUnit `security` group. Frontend tests enter through the curated include list in `vitest.security.config.js`. Add a test to this gate only when it protects auth, authorization, redirect/callback validation, session handling, re-auth behavior, or another security-critical client guarantee. Any auth flow, authorization, shared auth state, routing, validation, or logout change must update or add the corresponding security regression test before merge.
 
+Frontend Vitest selector and assertion strategy is documented in:
+
+- [`docs/frontend-test-selector-guideline.md`](/c:/wamp64/www/sso/sso_client/docs/frontend-test-selector-guideline.md)
+
 ## Integration Contract
 
 Server-client OAuth/SSO integration contract is defined in:

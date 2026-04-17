@@ -246,7 +246,7 @@ function handleApiError(error, fallbackMessage) {
 
     toast.add({
         severity: "error",
-        summary: trans("common.error_occured"),
+        summary: trans("common.error"),
         detail: error instanceof PermissionApiError ? error.message : fallbackMessage,
         life: 4000,
     });
@@ -294,7 +294,6 @@ onMounted(loadPermissions);
                             :total-records="tableState.totalRecords"
                             :sort-field="tableState.sortField"
                             :sort-order="tableState.sortOrder"
-                            :rows-per-page-options="[10, 25, 50]"
                             @page="handleTablePage"
                             @sort="handleTableSort"
                         >
