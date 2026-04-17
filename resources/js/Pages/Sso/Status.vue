@@ -2,6 +2,7 @@
 import PageHeader from '@/Components/PageHeader.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link } from '@inertiajs/vue3';
+import { trans } from 'laravel-vue-i18n';
 import { computed } from 'vue';
 
 const props = defineProps({
@@ -20,43 +21,45 @@ const localFallbackEnabled = computed(() => props.status.localAuthEnabled === tr
 
 const healthTone = computed(() => (connectionReady.value ? 'emerald' : 'amber'));
 
-const healthBadge = computed(() => (connectionReady.value ? 'Ready to use' : 'Needs attention'));
+const healthBadge = computed(() => (connectionReady.value
+    ? trans('sso_status.health_ready')
+    : trans('sso_status.health_attention')));
 
 const healthHeadline = computed(() => (connectionReady.value
-    ? 'Users can continue to the central sign-in flow without extra setup on this client.'
-    : 'This client still needs SSO setup or review before the connection can be trusted end to end.'));
+    ? trans('sso_status.health_ready_description')
+    : trans('sso_status.health_attention_description')));
 
 const healthChecks = computed(() => [
     {
-        label: 'Central sign-in route',
-        value: props.status.authorizeEndpoint ? 'Available' : 'Missing',
+        label: trans('sso_status.check_sign_in_route_label'),
+        value: props.status.authorizeEndpoint ? trans('sso_status.available') : trans('sso_status.missing'),
         detail: props.status.authorizeEndpoint
-            ? 'The client knows where to send users for sign-in.'
-            : 'The client does not yet have a valid authorize endpoint.',
+            ? trans('sso_status.check_sign_in_route_ok')
+            : trans('sso_status.check_sign_in_route_missing'),
         ok: Boolean(props.status.authorizeEndpoint),
     },
     {
-        label: 'Token exchange',
-        value: props.status.tokenEndpoint ? 'Available' : 'Missing',
+        label: trans('sso_status.check_token_exchange_label'),
+        value: props.status.tokenEndpoint ? trans('sso_status.available') : trans('sso_status.missing'),
         detail: props.status.tokenEndpoint
-            ? 'The callback flow can exchange the authorization result for tokens.'
-            : 'The token endpoint is missing, so sign-in completion is at risk.',
+            ? trans('sso_status.check_token_exchange_ok')
+            : trans('sso_status.check_token_exchange_missing'),
         ok: Boolean(props.status.tokenEndpoint),
     },
     {
-        label: 'Callback target',
-        value: props.status.redirectUri ? 'Configured' : 'Missing',
+        label: trans('sso_status.check_callback_target_label'),
+        value: props.status.redirectUri ? trans('sso_status.configured') : trans('sso_status.missing'),
         detail: props.status.redirectUri
-            ? 'The SSO server has a redirect target for this client flow.'
-            : 'No redirect URI is configured for the SSO callback.',
+            ? trans('sso_status.check_callback_target_ok')
+            : trans('sso_status.check_callback_target_missing'),
         ok: Boolean(props.status.redirectUri),
     },
     {
-        label: 'Local fallback access',
-        value: localFallbackEnabled.value ? 'Enabled' : 'Disabled',
+        label: trans('sso_status.check_local_fallback_label'),
+        value: localFallbackEnabled.value ? trans('sso_status.enabled') : trans('sso_status.disabled'),
         detail: localFallbackEnabled.value
-            ? 'Local sign-in remains available if the central flow is temporarily unavailable.'
-            : 'This client relies fully on the central SSO path.',
+            ? trans('sso_status.check_local_fallback_ok')
+            : trans('sso_status.check_local_fallback_missing'),
         ok: localFallbackEnabled.value,
     },
 ]);
@@ -64,39 +67,39 @@ const healthChecks = computed(() => [
 const nextSteps = computed(() => {
     if (connectionReady.value) {
         return [
-            'Use My Account to review what this app knows about your signed-in identity.',
-            'Open Profile if you need to confirm self-service account details.',
-            'Only visit the technical details below when support or integration review needs it.',
+            trans('sso_status.next_step_ready_account'),
+            trans('sso_status.next_step_ready_profile'),
+            trans('sso_status.next_step_ready_details'),
         ];
     }
 
     return [
-        'Ask an administrator to verify the SSO server base URL and endpoints shown below.',
-        'Keep local access available until the redirect and token exchange are confirmed.',
-        'Retry the sign-in flow only after the missing configuration items are fixed.',
+        trans('sso_status.next_step_setup_admin'),
+        trans('sso_status.next_step_setup_fallback'),
+        trans('sso_status.next_step_setup_retry'),
     ];
 });
 
 const technicalDetails = computed(() => [
-    { label: 'Mode', value: props.status.mode || 'Unknown' },
-    { label: 'Configured', value: props.status.configured ? 'Yes' : 'No' },
-    { label: 'Server base URL', value: props.status.serverBaseUrl || 'Not configured' },
-    { label: 'Authorize endpoint', value: props.status.authorizeEndpoint || 'Not configured' },
-    { label: 'Token endpoint', value: props.status.tokenEndpoint || 'Not configured' },
-    { label: 'Userinfo endpoint', value: props.status.userinfoEndpoint || 'Not configured' },
-    { label: 'Redirect URI', value: props.status.redirectUri || 'Not configured' },
-    { label: 'Scopes', value: props.status.scopes?.join(', ') || 'Not configured' },
+    { label: trans('sso_status.detail_mode'), value: props.status.mode || trans('sso_status.unknown') },
+    { label: trans('sso_status.detail_configured'), value: props.status.configured ? trans('sso_status.yes') : trans('sso_status.no') },
+    { label: trans('sso_status.detail_server_base_url'), value: props.status.serverBaseUrl || trans('sso_status.not_configured') },
+    { label: trans('sso_status.detail_authorize_endpoint'), value: props.status.authorizeEndpoint || trans('sso_status.not_configured') },
+    { label: trans('sso_status.detail_token_endpoint'), value: props.status.tokenEndpoint || trans('sso_status.not_configured') },
+    { label: trans('sso_status.detail_userinfo_endpoint'), value: props.status.userinfoEndpoint || trans('sso_status.not_configured') },
+    { label: trans('sso_status.detail_redirect_uri'), value: props.status.redirectUri || trans('sso_status.not_configured') },
+    { label: trans('sso_status.detail_scopes'), value: props.status.scopes?.join(', ') || trans('sso_status.not_configured') },
 ]);
 </script>
 
 <template>
-    <Head title="Connection Health" />
+    <Head :title="trans('navigation.connection_health.label')" />
 
     <AuthenticatedLayout>
         <template #header>
             <PageHeader
-                title="Connection Health"
-                description="At a glance, this page shows whether the shared sign-in connection is ready, what it means for users, and what to do next."
+                :title="trans('navigation.connection_health.label')"
+                :description="trans('sso_status.description')"
             />
         </template>
 
@@ -104,7 +107,9 @@ const technicalDetails = computed(() => [
             <section class="shell-card p-6">
                 <div class="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
                     <div class="max-w-3xl">
-                        <p class="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">Current connection state</p>
+                        <p class="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">
+                            {{ trans('sso_status.current_connection_state') }}
+                        </p>
                         <div class="mt-3 flex flex-wrap items-center gap-3">
                             <h2 class="text-2xl font-semibold text-slate-950">{{ healthBadge }}</h2>
                             <span
@@ -123,16 +128,16 @@ const technicalDetails = computed(() => [
                             :href="route('account.show')"
                             class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm transition hover:border-slate-300 hover:bg-white"
                         >
-                            <div class="font-semibold text-slate-900">Open my account</div>
-                            <p class="mt-1 text-slate-600">Check the identity and role data this app currently exposes to you.</p>
+                            <div class="font-semibold text-slate-900">{{ trans('sso_status.open_my_account') }}</div>
+                            <p class="mt-1 text-slate-600">{{ trans('sso_status.open_my_account_description') }}</p>
                         </Link>
 
                         <Link
                             :href="route('profile.edit')"
                             class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 text-sm transition hover:border-slate-300 hover:bg-white"
                         >
-                            <div class="font-semibold text-slate-900">Review profile settings</div>
-                            <p class="mt-1 text-slate-600">Use the self-service profile surface if you need to validate user-facing account details.</p>
+                            <div class="font-semibold text-slate-900">{{ trans('sso_status.review_profile_settings') }}</div>
+                            <p class="mt-1 text-slate-600">{{ trans('sso_status.review_profile_settings_description') }}</p>
                         </Link>
                     </div>
                 </div>
@@ -140,7 +145,9 @@ const technicalDetails = computed(() => [
 
             <div class="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
                 <section class="shell-card p-6">
-                    <p class="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">What is working</p>
+                    <p class="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">
+                        {{ trans('sso_status.what_is_working') }}
+                    </p>
                     <div class="mt-5 grid gap-4">
                         <div
                             v-for="check in healthChecks"
@@ -163,7 +170,9 @@ const technicalDetails = computed(() => [
                 </section>
 
                 <section class="shell-card p-6">
-                    <p class="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">What you can do next</p>
+                    <p class="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">
+                        {{ trans('sso_status.what_you_can_do_next') }}
+                    </p>
                     <div class="mt-5 space-y-3">
                         <div
                             v-for="step in nextSteps"
@@ -175,7 +184,9 @@ const technicalDetails = computed(() => [
                     </div>
 
                     <div class="mt-6 rounded-3xl border border-slate-200/70 bg-white/80 px-5 py-5">
-                        <p class="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">Supported flow today</p>
+                        <p class="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">
+                            {{ trans('sso_status.supported_flow_today') }}
+                        </p>
                         <div class="mt-4 grid gap-3">
                             <div
                                 v-for="capability in capabilities"
@@ -192,10 +203,10 @@ const technicalDetails = computed(() => [
             <section class="shell-card p-6">
                 <details>
                     <summary class="cursor-pointer list-none text-sm font-semibold text-slate-900">
-                        Technical details for support and integration review
+                        {{ trans('sso_status.technical_details_title') }}
                     </summary>
                     <p class="mt-3 text-sm leading-6 text-slate-600">
-                        These fields are still available for debugging, but they now sit behind a secondary disclosure so the page stays readable for normal users.
+                        {{ trans('sso_status.technical_details_description') }}
                     </p>
 
                     <dl class="mt-5 grid gap-4 md:grid-cols-2">

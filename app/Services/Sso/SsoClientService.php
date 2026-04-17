@@ -268,7 +268,7 @@ class SsoClientService
         if ($code === '') {
             $this->throwCallbackFailure(
                 request: $request,
-                message: 'Hianyzik az authorization code a callbackbol.',
+                message: __('api.sso.callback_missing_code'),
                 status: 422,
                 reason: 'missing_authorization_code',
             );
@@ -277,7 +277,7 @@ class SsoClientService
         if ($state === '') {
             $this->throwCallbackFailure(
                 request: $request,
-                message: 'Hianyzik a state ertek a callbackbol.',
+                message: __('api.sso.callback_missing_state'),
                 status: 422,
                 reason: 'missing_state',
             );
@@ -292,7 +292,7 @@ class SsoClientService
         if ($expectedState === '' || ! hash_equals($expectedState, $state)) {
             $this->throwCallbackFailure(
                 request: $request,
-                message: 'Ervenytelen vagy lejart SSO allapot. Probald ujra a bejelentkezest.',
+                message: __('api.sso.invalid_or_expired_state'),
                 status: 401,
                 reason: 'invalid_state',
             );
@@ -301,7 +301,7 @@ class SsoClientService
         if ($codeVerifier === '') {
             $this->throwCallbackFailure(
                 request: $request,
-                message: 'Hianyzo PKCE verifier miatt nem folytathato a bejelentkezes. Inditsd ujra a login folyamatot.',
+                message: __('api.sso.missing_pkce_verifier'),
                 status: 401,
                 reason: 'missing_pkce_verifier',
             );
@@ -311,7 +311,7 @@ class SsoClientService
         if ($scopeContainsOpenId && $expectedNonce === '') {
             $this->throwCallbackFailure(
                 request: $request,
-                message: 'Hianyzo OIDC nonce allapot miatt nem folytathato a bejelentkezes. Inditsd ujra a login folyamatot.',
+                message: __('api.sso.missing_nonce_state'),
                 status: 401,
                 reason: 'missing_nonce_context',
             );
@@ -328,7 +328,7 @@ class SsoClientService
             if ($idToken === '') {
                 $this->throwCallbackFailure(
                     request: $request,
-                    message: 'Az SSO token valasz nem tartalmaz ervenyes ID tokent az openid flow-hoz.',
+                    message: __('api.sso.missing_valid_id_token'),
                     status: 502,
                     reason: 'missing_id_token',
                 );
@@ -624,7 +624,7 @@ class SsoClientService
         } catch (ConnectionException $exception) {
             $this->throwCallbackFailure(
                 request: request(),
-                message: 'Az SSO token vegpont nem erheto el.',
+                message: __('api.sso.token_endpoint_unreachable'),
                 status: 502,
                 reason: 'token_endpoint_unreachable',
                 previous: $exception,
@@ -654,7 +654,7 @@ class SsoClientService
         if ($payload === null) {
             $this->throwCallbackFailure(
                 request: request(),
-                message: 'Az SSO token vegpont ervenytelen, nem JSON valaszt adott.',
+                message: __('api.sso.token_endpoint_invalid_json'),
                 status: 502,
                 reason: 'token_response_invalid_json',
                 context: $diagnostics,
@@ -664,7 +664,7 @@ class SsoClientService
         if (! $response->successful()) {
             $this->throwCallbackFailure(
                 request: request(),
-                message: 'Az SSO token vegpont hibaval valaszolt.',
+                message: __('api.sso.token_endpoint_error'),
                 status: 502,
                 reason: 'token_endpoint_failed',
                 context: $diagnostics,
@@ -674,7 +674,7 @@ class SsoClientService
         if ($accessToken === '') {
             $this->throwCallbackFailure(
                 request: request(),
-                message: 'Az SSO token valasz nem tartalmaz ervenyes access tokent.',
+                message: __('api.sso.missing_valid_access_token'),
                 status: 502,
                 reason: 'missing_access_token',
                 context: $diagnostics,
@@ -750,7 +750,7 @@ class SsoClientService
         if ($ssoUserId === '') {
             $this->throwCallbackFailure(
                 request: request(),
-                message: 'Az SSO userinfo valasz nem tartalmaz felhasznalhato user azonositot.',
+                message: __('api.sso.userinfo_missing_identifier'),
                 status: 422,
                 reason: 'missing_subject_identifier',
             );
@@ -1193,7 +1193,7 @@ class SsoClientService
 
             $this->throwCallbackFailure(
                 request: $request,
-                message: 'Hianyzo vart OIDC nonce miatt nem folytathato a bejelentkezes. Inditsd ujra a login folyamatot.',
+                message: __('api.sso.missing_expected_nonce'),
                 status: 401,
                 reason: 'missing_expected_nonce',
             );
@@ -1217,7 +1217,7 @@ class SsoClientService
 
                     $this->throwCallbackFailure(
                         request: $request,
-                        message: 'Az SSO ID token nem tartalmaz ervenyes nonce claimet. Inditsd ujra a bejelentkezest.',
+                        message: __('api.sso.invalid_nonce_claim'),
                         status: 401,
                         reason: 'missing_returned_nonce',
                     );
@@ -1255,7 +1255,7 @@ class SsoClientService
 
             $this->throwCallbackFailure(
                 request: $request,
-                message: 'Az OIDC nonce ellenorzes sikertelen. Inditsd ujra a bejelentkezest.',
+                message: __('api.sso.nonce_verification_failed'),
                 status: 401,
                 reason: 'invalid_nonce',
             );

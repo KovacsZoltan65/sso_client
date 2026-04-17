@@ -1,5 +1,6 @@
 <script setup>
-import { computed } from 'vue';
+import { computed } from "vue";
+import { trans } from "laravel-vue-i18n";
 
 const props = defineProps({
     page: {
@@ -32,11 +33,11 @@ const props = defineProps({
     },
     itemLabel: {
         type: String,
-        default: 'rekord',
+        default: null,
     },
     emptyLabel: {
         type: String,
-        default: 'Nincs megjelenitheto rekord.',
+        default: null,
     },
 });
 
@@ -55,7 +56,10 @@ const normalizedFrom = computed(() => {
         return Number(props.from);
     }
 
-    return Math.min(normalizedTotal.value, ((props.page || 1) - 1) * (props.perPage || 10) + 1);
+    return Math.min(
+        normalizedTotal.value,
+        ((props.page || 1) - 1) * (props.perPage || 10) + 1
+    );
 });
 
 const normalizedTo = computed(() => {
@@ -67,7 +71,10 @@ const normalizedTo = computed(() => {
         return Number(props.to);
     }
 
-    return Math.min(normalizedTotal.value, normalizedFrom.value + (props.perPage || 10) - 1);
+    return Math.min(
+        normalizedTotal.value,
+        normalizedFrom.value + (props.perPage || 10) - 1
+    );
 });
 
 const normalizedCurrentPage = computed(() => {
@@ -92,7 +99,9 @@ const normalizedLastPage = computed(() => {
 </script>
 
 <template>
-    <div class="flex flex-col gap-2 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+    <div
+        class="flex flex-col gap-2 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between"
+    >
         <slot
             name="default"
             :from="normalizedFrom"
@@ -102,13 +111,15 @@ const normalizedLastPage = computed(() => {
             :last-page="normalizedLastPage"
         >
             <div v-if="normalizedTotal > 0">
-                Megjelenitve: {{ normalizedFrom }}-{{ normalizedTo }} / {{ normalizedTotal }} {{ itemLabel }}
+                {{ trans("common.published") }}: {{ normalizedFrom }}-{{ normalizedTo }} /
+                {{ normalizedTotal }} {{ itemLabel || trans("common.record") }}
             </div>
             <div v-else>
-                {{ emptyLabel }}
+                {{ emptyLabel || trans("common.no_displayable_record") }}
             </div>
             <div>
-                Oldal {{ normalizedCurrentPage }} / {{ normalizedLastPage }}
+                {{ trans("common.page") }} {{ normalizedCurrentPage }} /
+                {{ normalizedLastPage }}
             </div>
         </slot>
     </div>

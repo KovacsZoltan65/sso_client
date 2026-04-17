@@ -1,5 +1,6 @@
 <script setup>
 import InputError from "@/Components/InputError.vue";
+import { trans } from "laravel-vue-i18n";
 import Button from "primevue/button";
 import InputText from "primevue/inputtext";
 import Message from "primevue/message";
@@ -20,14 +21,14 @@ defineEmits(["submit", "cancel"]);
     <form class="space-y-5" @submit.prevent="$emit('submit')">
         <Message v-if="isProtected" severity="warn" :closable="false">
             <div class="flex flex-wrap items-center gap-2">
-                <Tag value="Rendszer" severity="warn" />
-                <span>Ez a rendszer-jogosultsag vedett, ezert nem modositheto vagy torolheto.</span>
+                <Tag :value="trans('permissions.system_badge')" severity="warn" />
+                <span>{{ trans('permissions.protected_identity_notice') }}</span>
             </div>
         </Message>
 
         <div class="grid gap-5 md:grid-cols-2">
             <div class="space-y-2">
-                <label for="permission-name" class="text-sm font-semibold text-slate-900">Permission name</label>
+                <label for="permission-name" class="text-sm font-semibold text-slate-900">{{ trans("permissions.permission_name") }}</label>
                 <InputText
                     id="permission-name"
                     v-model="form.name"
@@ -40,7 +41,7 @@ defineEmits(["submit", "cancel"]);
             </div>
 
             <div class="space-y-2">
-                <label for="permission-guard" class="text-sm font-semibold text-slate-900">Guard</label>
+                <label for="permission-guard" class="text-sm font-semibold text-slate-900">{{ trans("permissions.guard_name") }}</label>
                 <InputText
                     id="permission-guard"
                     v-model="form.guard_name"
@@ -53,7 +54,7 @@ defineEmits(["submit", "cancel"]);
         </div>
 
         <div class="flex justify-end gap-3 border-t border-slate-200 pt-4">
-            <Button type="button" label="Megse" severity="secondary" text @click="$emit('cancel')" />
+            <Button type="button" :label="trans('common.cancel')" severity="secondary" text @click="$emit('cancel')" />
             <Button type="submit" :label="submitLabel" :loading="submitting" :disabled="submitting || isProtected" />
         </div>
     </form>

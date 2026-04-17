@@ -2,6 +2,7 @@
 import Button from 'primevue/button';
 import Message from 'primevue/message';
 import Password from 'primevue/password';
+import { trans } from 'laravel-vue-i18n';
 
 defineProps({
     form: { type: Object, required: true },
@@ -16,19 +17,19 @@ const emit = defineEmits(['submit']);
 <template>
     <section class="shell-card p-6">
         <div>
-            <h2 class="text-xl font-semibold text-slate-950">Change password</h2>
+            <h2 class="text-xl font-semibold text-slate-950">{{ trans('profile.password_title') }}</h2>
             <p class="mt-2 text-sm text-slate-600">
-                Password validation, current-password checks, hashing, and audit logging all stay on the SSO server.
+                {{ trans('profile.password_description') }}
             </p>
         </div>
 
         <Message v-if="!apiAvailable" severity="warn" class="mt-6">
-            Password change is unavailable until the upstream self-service API is configured.
+            {{ trans('profile.password_api_unavailable') }}
         </Message>
 
         <form class="mt-6 grid gap-4 lg:grid-cols-3" @submit.prevent="emit('submit')">
             <div class="space-y-2">
-                <label class="text-sm font-medium text-slate-700" for="current-password">Current password</label>
+                <label class="text-sm font-medium text-slate-700" for="current-password">{{ trans('profile.current_password') }}</label>
                 <Password
                     id="current-password"
                     v-model="form.current_password"
@@ -42,7 +43,7 @@ const emit = defineEmits(['submit']);
             </div>
 
             <div class="space-y-2">
-                <label class="text-sm font-medium text-slate-700" for="new-password">New password</label>
+                <label class="text-sm font-medium text-slate-700" for="new-password">{{ trans('profile.new_password') }}</label>
                 <Password
                     id="new-password"
                     v-model="form.password"
@@ -56,7 +57,7 @@ const emit = defineEmits(['submit']);
             </div>
 
             <div class="space-y-2">
-                <label class="text-sm font-medium text-slate-700" for="password-confirmation">Confirm password</label>
+                <label class="text-sm font-medium text-slate-700" for="password-confirmation">{{ trans('profile.confirm_password') }}</label>
                 <Password
                     id="password-confirmation"
                     v-model="form.password_confirmation"
@@ -71,7 +72,7 @@ const emit = defineEmits(['submit']);
 
             <div class="lg:col-span-3 flex justify-end">
                 <Button
-                    label="Update password"
+                    :label="trans('profile.update_password')"
                     icon="pi pi-key"
                     type="submit"
                     :disabled="disabled || !apiAvailable"

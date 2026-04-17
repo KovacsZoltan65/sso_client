@@ -28,7 +28,7 @@ class UserController extends Controller
         $users = $this->userAdminService->list($request->validated());
 
         return ApiResponse::success(
-            'Users retrieved successfully.',
+            __('api.users.retrieved'),
             data: [
                 'items' => collect($users->items())
                     ->map(fn (User $user) => $this->toArray($user, $request))
@@ -63,7 +63,7 @@ class UserController extends Controller
         $this->authorize('view', $user);
 
         return ApiResponse::success(
-            'User retrieved successfully.',
+            __('api.users.retrieved_single'),
             data: [
                 'user' => $this->toArray($user->fresh(), $request),
             ],
@@ -80,7 +80,7 @@ class UserController extends Controller
         $user = $this->userAdminService->update($user, $request->validated());
 
         return ApiResponse::success(
-            'User updated successfully.',
+            __('api.users.updated'),
             data: [
                 'user' => $this->toArray($user, $request),
             ],

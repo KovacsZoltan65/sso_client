@@ -1,10 +1,13 @@
 <script setup>
 import Dialog from 'primevue/dialog';
+import { trans } from 'laravel-vue-i18n';
 import Tag from 'primevue/tag';
+import { computed } from 'vue';
 
 const props = defineProps({
     visible: { type: Boolean, default: false },
     user: { type: Object, default: null },
+    locale: { type: String, default: 'hu' },
 });
 
 const emit = defineEmits(['update:visible']);
@@ -20,12 +23,18 @@ function formatDate(value) {
 
     const date = new Date(value.replace(' ', 'T'));
 
-    return Number.isNaN(date.getTime()) ? value : date.toLocaleString('hu-HU');
+    return Number.isNaN(date.getTime()) ? value : date.toLocaleString(props.locale);
 }
 
 function statusSeverity(status) {
     return status === 'active' ? 'success' : 'secondary';
 }
+
+const localStatusLabel = computed(() =>
+    props.user?.local_status === 'inactive'
+        ? trans('common.inactive')
+        : trans('common.active')
+);
 </script>
 
 <template>
@@ -34,30 +43,30 @@ function statusSeverity(status) {
         modal
         dismissable-mask
         :style="{ width: 'min(46rem, 95vw)' }"
-        header="Felhasznalo reszletei"
+        :header="trans('users.view_dialog_title')"
         @update:visible="emit('update:visible', $event)"
         @hide="closeDialog"
     >
         <div v-if="user" class="space-y-6">
             <section class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <p class="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">
-                    Identity mezok
+                    {{ trans('users.identity_fields') }}
                 </p>
                 <dl class="mt-4 grid gap-4 md:grid-cols-2">
                     <div>
-                        <dt class="text-sm font-semibold text-slate-900">SSO user ID</dt>
+                        <dt class="text-sm font-semibold text-slate-900">{{ trans('users.sso_user_id') }}</dt>
                         <dd class="mt-1 text-sm text-slate-600">{{ user.sso_user_id || '-' }}</dd>
                     </div>
                     <div>
-                        <dt class="text-sm font-semibold text-slate-900">Nev</dt>
+                        <dt class="text-sm font-semibold text-slate-900">{{ trans('table.columns.name') }}</dt>
                         <dd class="mt-1 text-sm text-slate-600">{{ user.name || '-' }}</dd>
                     </div>
                     <div>
-                        <dt class="text-sm font-semibold text-slate-900">E-mail</dt>
+                        <dt class="text-sm font-semibold text-slate-900">{{ trans('table.columns.email') }}</dt>
                         <dd class="mt-1 text-sm text-slate-600">{{ user.email || '-' }}</dd>
                     </div>
                     <div>
-                        <dt class="text-sm font-semibold text-slate-900">Utolso hitelesites</dt>
+                        <dt class="text-sm font-semibold text-slate-900">{{ trans('users.last_authenticated_at') }}</dt>
                         <dd class="mt-1 text-sm text-slate-600">{{ formatDate(user.last_authenticated_at) }}</dd>
                     </div>
                 </dl>
@@ -65,30 +74,30 @@ function statusSeverity(status) {
 
             <section class="rounded-2xl border border-slate-200 bg-white p-4">
                 <p class="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">
-                    Lokalis kliens metaadatok
+                    {{ trans('users.local_client_metadata') }}
                 </p>
                 <dl class="mt-4 grid gap-4 md:grid-cols-2">
                     <div>
-                        <dt class="text-sm font-semibold text-slate-900">Lokalis statusz</dt>
+                        <dt class="text-sm font-semibold text-slate-900">{{ trans('users.local_status') }}</dt>
                         <dd class="mt-2">
-                            <Tag :value="user.local_status || 'unknown'" :severity="statusSeverity(user.local_status)" />
+                            <Tag :value="localStatusLabel" :severity="statusSeverity(user.local_status)" />
                         </dd>
                     </div>
                     <div>
-                        <dt class="text-sm font-semibold text-slate-900">Lokalis ID</dt>
+                        <dt class="text-sm font-semibold text-slate-900">{{ trans('users.local_id') }}</dt>
                         <dd class="mt-1 text-sm text-slate-600">{{ user.id }}</dd>
                     </div>
                     <div>
-                        <dt class="text-sm font-semibold text-slate-900">Letrehozva</dt>
+                        <dt class="text-sm font-semibold text-slate-900">{{ trans('table.columns.created_at') }}</dt>
                         <dd class="mt-1 text-sm text-slate-600">{{ formatDate(user.created_at) }}</dd>
                     </div>
                     <div>
-                        <dt class="text-sm font-semibold text-slate-900">Frissitve</dt>
+                        <dt class="text-sm font-semibold text-slate-900">{{ trans('users.updated_at') }}</dt>
                         <dd class="mt-1 text-sm text-slate-600">{{ formatDate(user.updated_at) }}</dd>
                     </div>
                     <div class="md:col-span-2">
-                        <dt class="text-sm font-semibold text-slate-900">Megjegyzes</dt>
-                        <dd class="mt-1 whitespace-pre-line text-sm text-slate-600">{{ user.notes || 'Nincs rogzitett helyi megjegyzes.' }}</dd>
+                        <dt class="text-sm font-semibold text-slate-900">{{ trans('users.notes') }}</dt>
+                        <dd class="mt-1 whitespace-pre-line text-sm text-slate-600">{{ user.notes || trans('users.no_notes') }}</dd>
                     </div>
                 </dl>
             </section>

@@ -1,6 +1,7 @@
 <script setup>
 import { getProfile, ProfileApiError, updatePassword, updateProfile } from '@/Services/profileApi';
 import { useAuth } from '@/Composables/useAuth';
+import { trans } from 'laravel-vue-i18n';
 import PageHeader from '@/Components/PageHeader.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import ProfileIdentitySection from './Partials/ProfileIdentitySection.vue';
@@ -63,7 +64,7 @@ const loadProfile = async () => {
     } catch (error) {
         loadingError.value = error instanceof ProfileApiError
             ? error.message
-            : 'Failed to load profile from the SSO server.';
+            : trans('profile.load_failed');
     } finally {
         loading.value = false;
     }
@@ -73,7 +74,7 @@ const validateProfile = () => {
     const errors = {};
 
     if (!profileForm.name.trim()) {
-        errors.name = 'Name is required.';
+        errors.name = trans('profile.validation.name_required');
     }
 
     profileForm.errors = errors;
@@ -85,19 +86,19 @@ const validatePassword = () => {
     const errors = {};
 
     if (!passwordForm.current_password) {
-        errors.current_password = 'Current password is required.';
+        errors.current_password = trans('profile.validation.current_password_required');
     }
 
     if (!passwordForm.password) {
-        errors.password = 'New password is required.';
+        errors.password = trans('profile.validation.password_required');
     } else if (passwordForm.password.length < 8) {
-        errors.password = 'New password must be at least 8 characters.';
+        errors.password = trans('profile.validation.password_min');
     }
 
     if (!passwordForm.password_confirmation) {
-        errors.password_confirmation = 'Password confirmation is required.';
+        errors.password_confirmation = trans('profile.validation.password_confirmation_required');
     } else if (passwordForm.password_confirmation !== passwordForm.password) {
-        errors.password_confirmation = 'Password confirmation must match.';
+        errors.password_confirmation = trans('profile.validation.password_confirmation_match');
     }
 
     passwordForm.errors = errors;
@@ -127,7 +128,7 @@ const submitProfile = async () => {
 
         toast.add({
             severity: 'success',
-            summary: 'Profile updated',
+            summary: trans('profile.updated_summary'),
             detail: envelope.message,
             life: 3000,
         });
@@ -136,8 +137,8 @@ const submitProfile = async () => {
 
         toast.add({
             severity: 'error',
-            summary: 'Profile update failed',
-            detail: error instanceof ProfileApiError ? error.message : 'Profile update failed.',
+            summary: trans('profile.update_failed_summary'),
+            detail: error instanceof ProfileApiError ? error.message : trans('profile.load_failed'),
             life: 4000,
         });
     } finally {
@@ -171,7 +172,7 @@ const submitPassword = async () => {
 
         toast.add({
             severity: 'success',
-            summary: 'Password updated',
+            summary: trans('profile.password_updated_summary'),
             detail: envelope.message,
             life: 3000,
         });
@@ -180,8 +181,8 @@ const submitPassword = async () => {
 
         toast.add({
             severity: 'error',
-            summary: 'Password update failed',
-            detail: error instanceof ProfileApiError ? error.message : 'Password update failed.',
+            summary: trans('profile.password_update_failed_summary'),
+            detail: error instanceof ProfileApiError ? error.message : trans('profile.password_update_failed_summary'),
             life: 4000,
         });
     } finally {
@@ -195,26 +196,28 @@ onMounted(() => {
 </script>
 
 <template>
-    <Head title="Profile" />
+    <Head :title="trans('profile.title')" />
 
     <AuthenticatedLayout>
         <template #header>
             <PageHeader
-                title="Profile"
-                description="A teljes profile UX itt, a vegso identity authority pedig tovabbra is az sso_server oldalon marad."
+                :title="trans('profile.title')"
+                :description="trans('profile.description')"
             />
         </template>
 
         <div class="space-y-6">
             <Message severity="info">
-                This page is a client-side self-service surface only. Identity validation, persistence, password hashing, and audit logging remain on the SSO server.
+                {{ trans('profile.info_banner') }}
             </Message>
 
             <section v-if="loading" class="shell-card flex items-center gap-4 p-6">
                 <ProgressSpinner style="width: 2rem; height: 2rem" stroke-width="6" />
                 <div>
-                    <h2 class="text-base font-semibold text-slate-950">Loading profile</h2>
-                    <p class="mt-1 text-sm text-slate-600">Fetching the canonical self-service profile from the SSO server.</p>
+                    <h2 class="text-base font-semibold text-slate-950">
+                        {{ trans('profile.loading_title') }}
+                    </h2>
+                    <p class="mt-1 text-sm text-slate-600">{{ trans('profile.loading_description') }}</p>
                 </div>
             </section>
 

@@ -16,7 +16,8 @@ import {
     listPermissions,
     updatePermission,
 } from "@/Services/permissionService";
-import { Head } from "@inertiajs/vue3";
+import { Head, usePage } from "@inertiajs/vue3";
+import { trans } from "laravel-vue-i18n";
 import Button from "primevue/button";
 import Column from "primevue/column";
 import ConfirmDialog from "primevue/confirmdialog";
@@ -24,7 +25,7 @@ import InputText from "primevue/inputtext";
 import Tag from "primevue/tag";
 import { useConfirm } from "primevue/useconfirm";
 import { useToast } from "primevue/usetoast";
-import { onMounted, reactive, ref, watch } from "vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
 import { IconField, InputIcon } from "primevue";
 
 import CreatePermissionDialog from "./Partials/CreatePermissionDialog.vue";
@@ -37,6 +38,13 @@ const props = defineProps({
 
 const toast = useToast();
 const confirm = useConfirm();
+const page = usePage();
+const currentLocale = computed(
+    () =>
+        page.props.locale?.current ||
+        document.documentElement.getAttribute("lang") ||
+        "hu"
+);
 
 const items = ref([]);
 const loading = ref(false);
@@ -102,7 +110,7 @@ async function loadPermissions() {
         items.value = envelope.data.items ?? [];
         applyMeta(envelope.meta.pagination ?? {});
     } catch (error) {
-        handleApiError(error, "A permission lista betoltese sikertelen volt.");
+        handleApiError(error, trans("permissions.loading_error"));
     } finally {
         loading.value = false;
     }
@@ -135,12 +143,12 @@ async function submitCreate() {
     clearFormErrors();
     try {
         await createPermission(props.permissionsApi, form);
-        toast.add({ severity: "success", summary: "Sikeres muvelet", detail: "A permission letrehozasa sikeres volt.", life: 3000 });
+        toast.add({ severity: "success", summary: trans("common.operation_successful"), detail: trans("permissions.creation_success"), life: 3000 });
         closeCreateDialog();
         resetPagination();
         await loadPermissions();
     } catch (error) {
-        handleMutationError(error, "A permission letrehozasa sikertelen volt.");
+        handleMutationError(error, trans("permissions.creation_error"));
     } finally {
         submitting.value = false;
     }
@@ -153,11 +161,11 @@ async function submitUpdate() {
     clearFormErrors();
     try {
         await updatePermission(props.permissionsApi, editingPermission.value.id, form);
-        toast.add({ severity: "success", summary: "Sikeres muvelet", detail: "A permission frissitese sikeres volt.", life: 3000 });
+        toast.add({ severity: "success", summary: trans("common.operation_successful"), detail: trans("permissions.updating_success"), life: 3000 });
         closeEditDialog();
         await loadPermissions();
     } catch (error) {
-        handleMutationError(error, "A permission modositasa sikertelen volt.");
+        handleMutationError(error, trans("permissions.updating_error"));
     } finally {
         submitting.value = false;
     }
@@ -165,20 +173,20 @@ async function submitUpdate() {
 
 function confirmDelete(permission) {
     if (permission.is_protected) {
-        toast.add({ severity: "error", summary: "Muvelet tiltva", detail: "A vedett rendszer-jogosultsag nem torolheto.", life: 4000 });
+        toast.add({ severity: "error", summary: trans("permissions.protected_action_summary"), detail: trans("permissions.protected_delete_blocked"), life: 4000 });
         return;
     }
 
     confirm.require({
-        header: "Torles megerositese",
-        message: `Biztosan torolni szeretned a(z) ${permission.name} permissiont?`,
-        acceptLabel: "Torles",
-        rejectLabel: "Megse",
+        header: trans("common.deletion_confirmation"),
+        message: trans("permissions.deletion_confirm", { name: permission.name }),
+        acceptLabel: trans("actions.delete"),
+        rejectLabel: trans("common.cancel"),
         acceptClass: "p-button-danger",
         accept: async () => {
             try {
                 await deletePermission(props.permissionsApi, permission.id);
-                toast.add({ severity: "success", summary: "Sikeres muvelet", detail: "A permission torlese sikeres volt.", life: 3000 });
+                toast.add({ severity: "success", summary: trans("common.operation_successful"), detail: trans("permissions.deletion_success"), life: 3000 });
 
                 if (items.value.length === 1 && tableState.page > 1) {
                     tableState.page -= 1;
@@ -186,7 +194,7 @@ function confirmDelete(permission) {
 
                 await loadPermissions();
             } catch (error) {
-                handleApiError(error, "A permission torlese sikertelen volt.");
+                handleApiError(error, trans("permissions.deletion_error"));
             }
         },
     });
@@ -194,14 +202,14 @@ function confirmDelete(permission) {
 
 function permissionActionItems(permission) {
     return [
-        props.permissions.update && permission.can?.update !== false ? { label: "Szerkesztes", icon: "pi pi-pencil", isPrimary: true, command: () => openEditDialog(permission) } : null,
-        props.permissions.delete && permission.can?.delete !== false && !permission.is_protected ? { label: "Torles", icon: "pi pi-trash", isDangerous: true, command: () => confirmDelete(permission) } : null,
+        props.permissions.update && permission.can?.update !== false ? { label: trans("actions.edit"), icon: "pi pi-pencil", isPrimary: true, command: () => openEditDialog(permission) } : null,
+        props.permissions.delete && permission.can?.delete !== false && !permission.is_protected ? { label: trans("actions.delete"), icon: "pi pi-trash", isDangerous: true, command: () => confirmDelete(permission) } : null,
     ];
 }
 
 async function refreshPermissions() {
     await loadPermissions();
-    toast.add({ severity: "success", summary: "Sikeres muvelet", detail: "A permission lista frissult.", life: 2500 });
+    toast.add({ severity: "success", summary: trans("common.operation_successful"), detail: trans("permissions.list_updated"), life: 2500 });
 }
 
 function handleSearchInput(value) {
@@ -238,7 +246,7 @@ function handleApiError(error, fallbackMessage) {
 
     toast.add({
         severity: "error",
-        summary: "Hiba tortent",
+        summary: trans("common.error_occured"),
         detail: error instanceof PermissionApiError ? error.message : fallbackMessage,
         life: 4000,
     });
@@ -256,20 +264,20 @@ function handleMutationError(error, fallbackMessage) {
 function formatDate(value) {
     if (!value) return "-";
     const date = new Date(value.replace(" ", "T"));
-    return Number.isNaN(date.getTime()) ? value : date.toLocaleString("hu-HU");
+    return Number.isNaN(date.getTime()) ? value : date.toLocaleString(currentLocale.value);
 }
 
 onMounted(loadPermissions);
 </script>
 
 <template>
-    <Head title="Permissions" />
+    <Head :title="trans('navigation.permissions.label')" />
 
     <AuthenticatedLayout>
         <ConfirmDialog />
 
         <div class="admin-table-page">
-            <PageHeader title="Permissions" description="A helyi jogosultsag-katalogus teljes adminisztracioja, lokalis role-hozzarendelesekhez." />
+            <PageHeader :title="trans('navigation.permissions.label')" :description="trans('navigation.permissions.description')" />
 
             <AdminTableCard>
                 <div class="admin-table-shell">
@@ -277,8 +285,8 @@ onMounted(loadPermissions);
                         <BaseDataTable
                             :value="items"
                             :loading="loading"
-                            loading-message="Permissionok betoltese folyamatban..."
-                            empty-message="Nincs megjelenitheto permission."
+                            :loading-message="trans('permissions.loading_message')"
+                            :empty-message="trans('permissions.empty_message')"
                             removable-sort
                             data-key="id"
                             :rows="tableState.perPage"
@@ -294,14 +302,15 @@ onMounted(loadPermissions);
                                 <AdminTableToolbar
                                     searchable
                                     :search-value="filters.search"
-                                    search-placeholder="Kereses permission nev vagy guard alapjan"
+                                    :search-placeholder="trans('permissions.search_placeholder')"
                                     :canCreate="permissions.create"
-                                    createLabel="Uj permission"
+                                    :createLabel="trans('permissions.new')"
                                     :canBulkDelete="false"
                                     :selectedCount="0"
                                     :selectableCount="0"
                                     :busy="loading || submitting"
-                                    @update:searchValue="filters.search = $event"
+                                    @update:searchValue="handleSearchInput"
+                                    @submit-search="submitSearch"
                                     @create="openCreateDialog"
                                     @refresh="refreshPermissions"
                                 />
@@ -309,12 +318,12 @@ onMounted(loadPermissions);
 
                             <template #empty>
                                 <div class="px-6 py-10">
-                                    <EmptyStatePanel title="Nincs megjelenitheto permission" description="A jelenlegi szurok mellett nincs talalat. Modositsd a keresest vagy hozz letre uj permissiont." :tags="['Permissions', 'Local RBAC']" />
+                                    <EmptyStatePanel :title="trans('permissions.filter_empty_title')" :description="trans('permissions.filter_empty_detail')" :tags="[trans('navigation.permissions.label'), trans('permissions.tag_local_rbac')]" />
                                 </div>
                             </template>
 
-                            <Column field="id" header="ID" sortable />
-                            <Column field="name" header="Permission" sortable>
+                            <Column field="id" :header="trans('table.columns.id')" sortable />
+                            <Column field="name" :header="trans('permissions.permission_name')" sortable>
                                 <template #body="{ data }">
                                     <div class="flex flex-wrap items-center gap-2">
                                         <span class="font-medium text-slate-900">{{ data.name }}</span>
@@ -322,18 +331,18 @@ onMounted(loadPermissions);
                                     </div>
                                 </template>
                             </Column>
-                            <Column field="guard_name" header="Guard" sortable />
-                            <Column field="roles_count" header="Roles" sortable>
+                            <Column field="guard_name" :header="trans('permissions.guard_name')" sortable />
+                            <Column field="roles_count" :header="trans('permissions.roles_count')" sortable>
                                 <template #body="{ data }">
                                     <Tag :value="String(data.roles_count ?? 0)" severity="info" />
                                 </template>
                             </Column>
-                            <Column field="created_at" header="Letrehozva" sortable>
+                            <Column field="created_at" :header="trans('table.columns.created_at')" sortable>
                                 <template #body="{ data }">
                                     {{ formatDate(data.created_at) }}
                                 </template>
                             </Column>
-                            <Column header="Muveletek" :style="{ width: '11rem' }">
+                            <Column :header="trans('table.columns.actions')" :style="{ width: '11rem' }">
                                 <template #body="{ data }">
                                     <RowActionMenu :items="permissionActionItems(data)" />
                                 </template>
@@ -346,19 +355,21 @@ onMounted(loadPermissions);
                             <IconField class="w-full">
                                 <InputIcon class="pi pi-search" />
                                 <InputText
-                                    v-model="filters.search"
+                                    :modelValue="filters.search"
                                     class="h-11 w-full"
-                                    placeholder="Kereses permission nev vagy guard alapjan"
+                                    :placeholder="trans('permissions.search_placeholder')"
+                                    @update:modelValue="handleSearchInput"
+                                    @keyup.enter="submitSearch"
                                 />
                             </IconField>
                         </div>
 
                         <div class="flex flex-none flex-wrap items-center justify-end gap-3">
-                            <Button label="Frissites" icon="pi pi-refresh" severity="secondary" outlined :loading="loading || submitting" :disabled="loading || submitting" @click="refreshPermissions" />
-                            <Button v-if="permissions.create" label="Uj permission" icon="pi pi-plus" severity="primary" :disabled="loading || submitting" @click="openCreateDialog" />
+                            <Button :label="trans('common.refresh')" icon="pi pi-refresh" severity="secondary" outlined :loading="loading || submitting" :disabled="loading || submitting" @click="refreshPermissions" />
+                            <Button v-if="permissions.create" :label="trans('permissions.new')" icon="pi pi-plus" severity="primary" :disabled="loading || submitting" @click="openCreateDialog" />
                         </div>
 
-                        <div v-if="loading" class="rounded-2xl border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-500">Betoltes folyamatban...</div>
+                        <div v-if="loading" class="rounded-2xl border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-500">{{ trans("permissions.loading_message") }}</div>
 
                         <template v-else-if="items.length > 0">
                             <article v-for="permission in items" :key="permission.id" class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -370,24 +381,24 @@ onMounted(loadPermissions);
                                         </div>
                                         <p class="mt-1 text-sm text-slate-500">{{ permission.guard_name }}</p>
                                     </div>
-                                    <Tag :value="`${permission.roles_count ?? 0} role`" severity="info" />
+                                    <Tag :value="trans('permissions.roles_count_badge', { count: permission.roles_count ?? 0 })" severity="info" />
                                 </div>
 
                                 <dl class="mt-4 grid gap-3 text-sm text-slate-600">
                                     <div>
-                                        <dt class="font-semibold text-slate-900">Letrehozva</dt>
+                                        <dt class="font-semibold text-slate-900">{{ trans("table.columns.created_at") }}</dt>
                                         <dd>{{ formatDate(permission.created_at) }}</dd>
                                     </div>
                                 </dl>
 
                                 <div class="mt-5 flex gap-3">
-                                    <Button v-if="permissions.update && permission.can?.update !== false" label="Szerkesztes" severity="secondary" text @click="openEditDialog(permission)" />
-                                    <Button v-if="permissions.delete && permission.can?.delete !== false && !permission.is_protected" label="Torles" severity="danger" text @click="confirmDelete(permission)" />
+                                    <Button v-if="permissions.update && permission.can?.update !== false" :label="trans('actions.edit')" severity="secondary" text @click="openEditDialog(permission)" />
+                                    <Button v-if="permissions.delete && permission.can?.delete !== false && !permission.is_protected" :label="trans('actions.delete')" severity="danger" text @click="confirmDelete(permission)" />
                                 </div>
                             </article>
                         </template>
 
-                        <EmptyStatePanel v-else title="Nincs megjelenitheto permission" description="A jelenlegi szurok mellett nincs talalat. Modositsd a keresest vagy hozz letre uj permissiont." :tags="['Permissions', 'Local RBAC']" />
+                        <EmptyStatePanel v-else :title="trans('permissions.filter_empty_title')" :description="trans('permissions.filter_empty_detail')" :tags="[trans('navigation.permissions.label'), trans('permissions.tag_local_rbac')]" />
                     </div>
                 </div>
 
@@ -397,7 +408,7 @@ onMounted(loadPermissions);
                         :per-page="tableState.perPage"
                         :total="tableState.totalRecords"
                         :last-page="lastPage"
-                        item-label="permission"
+                        :item-label="trans('table.items')"
                     />
                 </template>
             </AdminTableCard>

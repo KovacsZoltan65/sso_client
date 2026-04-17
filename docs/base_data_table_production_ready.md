@@ -139,9 +139,12 @@ const {
     selectableCount,
     clearSelection,
     setSelectedRows,
-} = useAdminTableSelection(computed(() => rows.value), {
-    isRowSelectable: (row) => row?.canDelete !== false,
-});
+} = useAdminTableSelection(
+    computed(() => rows.value),
+    {
+        isRowSelectable: (row) => row?.canDelete !== false,
+    },
+);
 
 async function fetchUsers(params) {
     const query = new URLSearchParams(params).toString();
@@ -198,9 +201,8 @@ async function loadRows() {
     } catch (error) {
         rows.value = [];
         applyMeta({});
-        loadError.value = error instanceof Error
-            ? error.message
-            : "Unknown loading error.";
+        loadError.value =
+            error instanceof Error ? error.message : "Unknown loading error.";
     } finally {
         loading.value = false;
     }
@@ -243,7 +245,7 @@ async function handleBulkDelete() {
     }
 
     const confirmed = window.confirm(
-        `Are you sure you want to delete ${selectedIds.value.length} item(s)?`
+        `Are you sure you want to delete ${selectedIds.value.length} item(s)?`,
     );
 
     if (!confirmed) {
@@ -259,9 +261,7 @@ async function handleBulkDelete() {
         window.alert("Bulk delete finished successfully.");
     } catch (error) {
         window.alert(
-            error instanceof Error
-                ? error.message
-                : "Bulk delete failed."
+            error instanceof Error ? error.message : "Bulk delete failed.",
         );
     } finally {
         busyBulkAction.value = false;
@@ -312,7 +312,7 @@ onMounted(() => {
                 description="Manage users from a centralized admin table."
                 searchable
                 :search-value="filters.search"
-                search-placeholder="Search users"
+                :search-placeholder="trans('actions.search_users')"
                 :canBulkDelete="true"
                 :selectedCount="selectedCount"
                 :selectableCount="selectableCount"
@@ -327,25 +327,20 @@ onMounted(() => {
                         :options="statusOptions"
                         optionLabel="label"
                         optionValue="value"
-                        placeholder="Status"
+                        :placeholder="trans('actions.placeholder.tatus')"
                         class="w-56"
                         @update:modelValue="onStatusChange"
                     />
                 </template>
 
                 <template #primary>
-                    <Button
-                        label="Create User"
-                        icon="pi pi-plus"
-                    />
+                    <Button label="Create User" icon="pi pi-plus" />
                 </template>
             </AdminTableToolbar>
         </template>
 
         <template #loading>
-            <div class="p-6 text-center text-slate-500">
-                Loading users...
-            </div>
+            <div class="p-6 text-center text-slate-500">Loading users...</div>
         </template>
 
         <template #empty>
@@ -368,7 +363,10 @@ onMounted(() => {
         </Column>
     </BaseDataTable>
 
-    <div v-if="loadError" class="mt-4 rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">
+    <div
+        v-if="loadError"
+        class="mt-4 rounded-lg border border-red-200 bg-red-50 p-4 text-red-700"
+    >
         {{ loadError }}
     </div>
 
@@ -513,7 +511,7 @@ Mit ad?
 ### 5.6. `isRowSelectable`
 
 ```js
-isRowSelectable: (row) => row?.canDelete !== false
+isRowSelectable: (row) => row?.canDelete !== false;
 ```
 
 Ez UX szintű védelem.
@@ -679,11 +677,11 @@ Mit csinál?
 2. confirmot kér
 3. elindítja a bulk műveletet
 4. siker esetén:
-   - selection reset
-   - reload
-   - success visszajelzés
+    - selection reset
+    - reload
+    - success visszajelzés
 5. hiba esetén:
-   - hibaüzenet
+    - hibaüzenet
 
 A példában `window.confirm` és `window.alert` van, mert így könnyen érthető.
 A valódi projektben ez gyakran:
@@ -1042,4 +1040,3 @@ Ha ezt a mintát követed, akkor a listaoldalad:
 
 Röviden:
 nem csak működni fog, hanem normálisan fog működni.
-

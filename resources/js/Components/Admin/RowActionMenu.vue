@@ -1,6 +1,7 @@
 <script setup>
 import Button from 'primevue/button';
 import Menu from 'primevue/menu';
+import { trans } from 'laravel-vue-i18n';
 import { computed, ref } from 'vue';
 
 const props = defineProps({
@@ -102,7 +103,7 @@ const runPrimaryAction = (event) => {
             severity="secondary"
             text
             rounded
-            aria-label="Row actions"
+            :aria-label="trans('table.row_actions')"
             :disabled="disabled"
             @click="toggle"
         />

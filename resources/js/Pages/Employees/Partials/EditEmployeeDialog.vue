@@ -1,5 +1,6 @@
 <script setup>
 import Dialog from "primevue/dialog";
+import { trans } from "laravel-vue-i18n";
 import EmployeeForm from "./EmployeeForm.vue";
 
 const props = defineProps({
@@ -23,7 +24,7 @@ function closeDialog() {
         modal
         dismissable-mask
         :style="{ width: 'min(42rem, 95vw)' }"
-        header="Dolgozó szerkesztése"
+        :header="trans('employees.edit_dialog_title')"
         @update:visible="emit('update:visible', $event)"
         @hide="closeDialog"
     >
@@ -32,7 +33,7 @@ function closeDialog() {
             :companies="companies"
             :errors="errors"
             :submitting="submitting"
-            submit-label="Mentes"
+            :submit-label="trans('common.save')"
             @submit="emit('submit')"
             @cancel="closeDialog"
         />

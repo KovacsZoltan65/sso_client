@@ -6,17 +6,18 @@ import AdminTableSummary from '@/Components/Admin/AdminTableSummary.vue';
 import AdminTableToolbar from '@/Components/Admin/AdminTableToolbar.vue';
 import RowActionMenu from '@/Components/Admin/RowActionMenu.vue';
 import PageHeader from '@/Components/PageHeader.vue';
+import { trans } from 'laravel-vue-i18n';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { useAdminTableState } from '@/Composables/useAdminTableState';
 import AuditLogViewDialog from '@/Pages/AuditLogs/Partials/AuditLogViewDialog.vue';
 import { AuditLogApiError, fetchAuditLogs, showAuditLog } from '@/Services/auditLogService';
-import { Head } from '@inertiajs/vue3';
+import { Head, usePage } from '@inertiajs/vue3';
 import Button from 'primevue/button';
 import Column from 'primevue/column';
 import InputText from 'primevue/inputtext';
 import Tag from 'primevue/tag';
 import { useToast } from 'primevue/usetoast';
-import { onMounted, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 
 const props = defineProps({
     auditLogsApi: { type: Object, required: true },
@@ -24,6 +25,7 @@ const props = defineProps({
 });
 
 const toast = useToast();
+const page = usePage();
 
 const items = ref([]);
 const loading = ref(false);
@@ -50,6 +52,7 @@ const {
 });
 
 let searchDebounceId = null;
+const currentLocale = computed(() => page.props.locale?.current ?? 'hu');
 
 function getRequestParams() {
     return buildFetchParams({
@@ -67,7 +70,7 @@ async function loadAuditLogs() {
         items.value = envelope.data.items ?? [];
         applyMeta(envelope.meta.pagination ?? {});
     } catch (error) {
-        handleApiError(error, 'Az audit logok betoltese sikertelen volt.');
+        handleApiError(error, trans('audit_logs.loading_error'));
     } finally {
         loading.value = false;
     }
@@ -82,7 +85,7 @@ async function openDetailDialog(entry) {
         selectedAuditLog.value = envelope.data.audit_log ?? null;
         showDetailDialog.value = true;
     } catch (error) {
-        handleApiError(error, 'Az audit log reszleteinek betoltese sikertelen volt.');
+        handleApiError(error, trans('audit_logs.details_loading_error'));
     } finally {
         detailLoading.value = false;
     }
@@ -107,8 +110,8 @@ async function refreshAuditLogs() {
 
     toast.add({
         severity: 'success',
-        summary: 'Sikeres muvelet',
-        detail: 'Az audit log lista frissult.',
+        summary: trans('common.success'),
+        detail: trans('audit_logs.refresh_detail'),
         life: 2500,
     });
 }
@@ -132,7 +135,7 @@ function handleApiError(error, fallbackMessage) {
 
     toast.add({
         severity: 'error',
-        summary: 'Hiba tortent',
+        summary: trans('common.error'),
         detail: error instanceof AuditLogApiError ? error.message : fallbackMessage,
         life: 4000,
     });
@@ -145,12 +148,12 @@ function formatDate(value) {
 
     const date = new Date(value.replace(' ', 'T'));
 
-    return Number.isNaN(date.getTime()) ? value : date.toLocaleString('hu-HU');
+    return Number.isNaN(date.getTime()) ? value : date.toLocaleString(currentLocale.value);
 }
 
 function eventToken(value) {
     if (!value) {
-        return 'ismeretlen';
+        return trans('audit_logs.unknown_event');
     }
 
     const token = String(value).split('.').pop() ?? String(value);
@@ -181,13 +184,13 @@ function eventSeverity(value) {
 }
 
 function userLabel(entry) {
-    return entry.causer?.name || entry.causer?.email || entry.causer?.display || 'System';
+    return entry.causer?.name || entry.causer?.email || entry.causer?.display || trans('audit_logs.system_user');
 }
 
 function auditLogActionItems(entry) {
     return [
         {
-            label: 'Reszletek',
+            label: trans('common.details'),
             icon: 'pi pi-eye',
             isPrimary: true,
             command: () => openDetailDialog(entry),
@@ -213,13 +216,13 @@ onMounted(loadAuditLogs);
 </script>
 
 <template>
-    <Head title="Audit Logs" />
+    <Head :title="trans('navigation.audit_logs.label')" />
 
     <AuthenticatedLayout>
         <div class="admin-table-page">
             <PageHeader
-                title="Audit Logs"
-                description="Olvashato audit naplo szerveroldali lapozassal, keresessel es rendezesel a helyi admin es SSO folyamatok kovetesere."
+                :title="trans('navigation.audit_logs.label')"
+                :description="trans('audit_logs.description')"
             />
 
             <AdminTableCard>
@@ -228,8 +231,8 @@ onMounted(loadAuditLogs);
                         <BaseDataTable
                             :value="items"
                             :loading="loading"
-                            loading-message="Audit logok betoltese folyamatban..."
-                            empty-message="Nincs megjelenitheto audit bejegyzes."
+                            :loading-message="trans('audit_logs.loading_message')"
+                            :empty-message="trans('audit_logs.loading_empty')"
                             removable-sort
                             data-key="id"
                             :rows="tableState.perPage"
@@ -245,7 +248,7 @@ onMounted(loadAuditLogs);
                                 <AdminTableToolbar
                                     searchable
                                     :search-value="filters.global"
-                                    search-placeholder="Kereses esemeny, leiras, target vagy felhasznalo alapjan"
+                                    :search-placeholder="trans('audit_logs.search_placeholder')"
                                     :canCreate="false"
                                     :canBulkDelete="false"
                                     :selectedCount="0"
@@ -259,47 +262,47 @@ onMounted(loadAuditLogs);
                             <template #empty>
                                 <div class="px-6 py-10">
                                     <EmptyStatePanel
-                                        title="Nincs megjelenitheto audit bejegyzes"
-                                        description="A jelenlegi szurok mellett nincs talalat. Modositsd a keresest vagy frissitsd a listat."
-                                        :tags="['Audit Logs', 'Read only']"
+                                        :title="trans('audit_logs.loading_empty')"
+                                        :description="trans('audit_logs.empty_description')"
+                                        :tags="[trans('navigation.audit_logs.label'), trans('audit_logs.read_only')]"
                                     />
                                 </div>
                             </template>
 
-                            <Column field="id" header="ID" sortable />
-                            <Column field="event" header="Event" sortable>
+                            <Column field="id" :header="trans('table.columns.id')" sortable />
+                            <Column field="event" :header="trans('audit_logs.event')" sortable>
                                 <template #body="{ data }">
                                     <Tag :value="eventToken(data.event)" :severity="eventSeverity(data.event)" />
                                 </template>
                             </Column>
-                            <Column field="description" header="Description" sortable>
+                            <Column field="description" :header="trans('audit_logs.description_label')" sortable>
                                 <template #body="{ data }">
                                     <span class="block max-w-md truncate" :title="data.description">
                                         {{ data.description || '-' }}
                                     </span>
                                 </template>
                             </Column>
-                            <Column field="subject_type" header="Subject type" sortable>
+                            <Column field="subject_type" :header="trans('audit_logs.subject_type')" sortable>
                                 <template #body="{ data }">
                                     {{ data.subject_type || '-' }}
                                 </template>
                             </Column>
-                            <Column field="subject_id" header="Subject id" sortable>
+                            <Column field="subject_id" :header="trans('audit_logs.subject_id')" sortable>
                                 <template #body="{ data }">
                                     {{ data.subject_id ?? '-' }}
                                 </template>
                             </Column>
-                            <Column header="User">
+                            <Column :header="trans('common.user')">
                                 <template #body="{ data }">
                                     {{ userLabel(data) }}
                                 </template>
                             </Column>
-                            <Column field="created_at" header="Created at" sortable>
+                            <Column field="created_at" :header="trans('table.columns.created_at')" sortable>
                                 <template #body="{ data }">
                                     {{ formatDate(data.created_at) }}
                                 </template>
                             </Column>
-                            <Column header="Muveletek" :style="{ width: '11rem' }">
+                            <Column :header="trans('table.columns.actions')" :style="{ width: '11rem' }">
                                 <template #body="{ data }">
                                     <RowActionMenu :items="auditLogActionItems(data)" :disabled="detailLoading" />
                                 </template>
@@ -315,14 +318,14 @@ onMounted(loadAuditLogs);
                                     v-model="filters.global"
                                     fluid
                                     class="h-11 w-full pl-10"
-                                    placeholder="Kereses esemeny vagy leiras alapjan"
+                                    :placeholder="trans('audit_logs.mobile_search_placeholder')"
                                 />
                             </div>
                         </div>
 
                         <div class="flex flex-wrap items-center justify-end gap-3">
                             <Button
-                                label="Frissites"
+                                :label="trans('common.refresh')"
                                 icon="pi pi-refresh"
                                 severity="secondary"
                                 outlined
@@ -336,7 +339,7 @@ onMounted(loadAuditLogs);
                             v-if="loading"
                             class="rounded-2xl border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-500"
                         >
-                            Betoltes folyamatban...
+                            {{ trans('audit_logs.loading_short') }}
                         </div>
 
                         <template v-else-if="items.length > 0">
@@ -359,22 +362,22 @@ onMounted(loadAuditLogs);
 
                                 <dl class="mt-4 grid gap-3 text-sm text-slate-600">
                                     <div>
-                                        <dt class="font-semibold text-slate-900">Description</dt>
+                                        <dt class="font-semibold text-slate-900">{{ trans('audit_logs.description_label') }}</dt>
                                         <dd>{{ entry.description || '-' }}</dd>
                                     </div>
                                     <div>
-                                        <dt class="font-semibold text-slate-900">Subject</dt>
+                                        <dt class="font-semibold text-slate-900">{{ trans('audit_logs.subject') }}</dt>
                                         <dd>{{ entry.subject_type || '-' }} #{{ entry.subject_id ?? '-' }}</dd>
                                     </div>
                                     <div>
-                                        <dt class="font-semibold text-slate-900">Created at</dt>
+                                        <dt class="font-semibold text-slate-900">{{ trans('table.columns.created_at') }}</dt>
                                         <dd>{{ formatDate(entry.created_at) }}</dd>
                                     </div>
                                 </dl>
 
                                 <div class="mt-5 flex justify-end">
                                     <Button
-                                        label="Reszletek"
+                                        :label="trans('common.details')"
                                         icon="pi pi-eye"
                                         severity="secondary"
                                         text
@@ -387,9 +390,9 @@ onMounted(loadAuditLogs);
 
                         <EmptyStatePanel
                             v-else
-                            title="Nincs megjelenitheto audit bejegyzes"
-                            description="A jelenlegi szurok mellett nincs talalat. Modositsd a keresest vagy frissitsd a listat."
-                            :tags="['Audit Logs', 'Read only']"
+                            :title="trans('audit_logs.loading_empty')"
+                            :description="trans('audit_logs.empty_description')"
+                            :tags="[trans('navigation.audit_logs.label'), trans('audit_logs.read_only')]"
                         />
                     </div>
                 </div>
@@ -400,7 +403,7 @@ onMounted(loadAuditLogs);
                         :per-page="tableState.perPage"
                         :total="tableState.totalRecords"
                         :last-page="lastPage"
-                        item-label="audit bejegyzes"
+                        :item-label="trans('audit_logs.item_label')"
                     />
                 </template>
             </AdminTableCard>

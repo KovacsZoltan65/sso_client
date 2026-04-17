@@ -52,7 +52,7 @@ class CompanyController extends Controller
         $companies = $this->companyService->list($request->validated());
 
         return ApiResponse::success(
-            'Companies retrieved successfully.',
+            __('api.companies.retrieved'),
             data: [
                 'items' => collect($companies->items())
                     ->map(fn (Company $company) => $this->toArray($company))
@@ -94,7 +94,7 @@ class CompanyController extends Controller
         $company = $this->companyService->store($request->validated());
 
         return ApiResponse::success(
-            'Company created successfully.',
+            __('api.companies.created'),
             data: [
                 'company' => $this->toArray($company),
             ],
@@ -119,7 +119,7 @@ class CompanyController extends Controller
         $company = $this->companyService->update($company->id, $request->validated());
 
         return ApiResponse::success(
-            'Company updated successfully.',
+            __('api.companies.updated'),
             data: [
                 'company' => $this->toArray($company),
             ],
@@ -141,7 +141,7 @@ class CompanyController extends Controller
 
         $this->companyService->delete($company->id);
 
-        return ApiResponse::success('Company deleted successfully.');
+        return ApiResponse::success(__('api.companies.deleted'));
     }
 
     /**

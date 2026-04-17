@@ -57,9 +57,9 @@ describe('Auth/Login', () => {
         });
 
         expect(wrapper.text()).toContain('Session expired.');
-        expect(wrapper.text()).toContain('Atiranyitas a bejelentkezeshez');
-        expect(wrapper.text()).toContain('kozponti bejelentkezesre iranyitja');
-        expect(wrapper.text()).toContain('Ha nem tortent atiranyitas, kattints ide');
+        expect(wrapper.text()).toContain('Átirányítás a bejelentkezéshez');
+        expect(wrapper.text()).toContain('központi bejelentkezésre irányít');
+        expect(wrapper.text()).toContain('Ha nem történt átirányítás, kattints ide');
         expect(wrapper.text()).not.toContain('https://sso-server.test');
         expect(wrapper.text()).not.toContain('Redirect URI');
         expect(wrapper.text()).not.toContain('Scope-ok');
@@ -237,12 +237,12 @@ describe('Auth/Login', () => {
         await vi.advanceTimersByTimeAsync(600);
 
         expect(assignSpy).toHaveBeenCalledTimes(1);
-        expect(wrapper.text()).toContain('SSO atiranyitas sikertelen.');
-        expect(wrapper.text()).toContain('Ujraprobalas');
+        expect(wrapper.text()).toContain('Az SSO átirányítás sikertelen volt.');
+        expect(wrapper.text()).toContain('Újrapróbálás');
         expect(wrapper.get('button').attributes('disabled')).toBeUndefined();
         expect(toastAddMock).toHaveBeenCalledWith(expect.objectContaining({
             severity: 'error',
-            summary: 'Atiranyitas sikertelen',
+            summary: 'Az átirányítás sikertelen',
         }));
 
         assignSpy.mockImplementation(() => undefined);

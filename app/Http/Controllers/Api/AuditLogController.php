@@ -26,7 +26,7 @@ class AuditLogController extends Controller
         $auditLogs = $this->auditLogQueryService->list($request->validated());
 
         return ApiResponse::success(
-            'Audit logs retrieved successfully.',
+            __('api.audit_logs.retrieved'),
             data: [
                 'items' => collect($auditLogs->items())
                     ->map(fn (Activity $activity) => $this->toIndexArray($activity))
@@ -61,7 +61,7 @@ class AuditLogController extends Controller
         $this->authorize('view', $activity);
 
         return ApiResponse::success(
-            'Audit log retrieved successfully.',
+            __('api.audit_logs.retrieved_single'),
             data: [
                 'audit_log' => $this->toDetailArray($activity),
             ],

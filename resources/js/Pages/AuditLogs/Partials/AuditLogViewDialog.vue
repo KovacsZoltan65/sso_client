@@ -1,6 +1,8 @@
 <script setup>
 import Dialog from 'primevue/dialog';
 import Tag from 'primevue/tag';
+import { usePage } from '@inertiajs/vue3';
+import { trans } from 'laravel-vue-i18n';
 import { computed } from 'vue';
 
 const props = defineProps({
@@ -19,6 +21,8 @@ const props = defineProps({
 });
 
 defineEmits(['update:visible']);
+const page = usePage();
+const currentLocale = computed(() => page.props.locale?.current ?? 'hu');
 
 // The detail dialog prefers human-readable audit payload sections when it can
 // recognize common activitylog structures. We keep the raw JSON fallback so
@@ -32,10 +36,10 @@ const structuredPropertySections = computed(() => {
     }
 
     const sections = [
-        buildPropertySection('changes', 'Valtozasok', properties.changes),
-        buildPropertySection('attributes', 'Uj ertekek', properties.attributes),
-        buildPropertySection('new', 'Uj allapot', properties.new),
-        buildPropertySection('old', 'Korabbi ertekek', properties.old),
+        buildPropertySection('changes', trans('audit_logs.properties_changes'), properties.changes),
+        buildPropertySection('attributes', trans('audit_logs.properties_new_values'), properties.attributes),
+        buildPropertySection('new', trans('audit_logs.properties_new_state'), properties.new),
+        buildPropertySection('old', trans('audit_logs.properties_previous_values'), properties.old),
     ].filter(Boolean);
 
     return sections;
@@ -84,7 +88,7 @@ function formatPropertyValue(value) {
     }
 
     if (typeof value === 'boolean') {
-        return value ? 'true' : 'false';
+        return value ? trans('audit_logs.boolean_true') : trans('audit_logs.boolean_false');
     }
 
     return String(value);
@@ -101,12 +105,12 @@ function formatDate(value) {
 
     const date = new Date(String(value).replace(' ', 'T'));
 
-    return Number.isNaN(date.getTime()) ? value : date.toLocaleString('hu-HU');
+    return Number.isNaN(date.getTime()) ? value : date.toLocaleString(currentLocale.value);
 }
 
 function eventToken(value) {
     if (!value) {
-        return 'ismeretlen';
+        return trans('audit_logs.unknown_event');
     }
 
     const token = String(value).split('.').pop() ?? String(value);
@@ -141,7 +145,7 @@ function eventSeverity(value) {
     <Dialog
         :visible="visible"
         modal
-        header="Audit log reszletek"
+        :header="trans('audit_logs.details_dialog_title')"
         :style="{ width: 'min(960px, 96vw)' }"
         :dismissable-mask="true"
         @update:visible="$emit('update:visible', $event)"
@@ -151,37 +155,37 @@ function eventSeverity(value) {
                 v-if="loading"
                 class="rounded-2xl border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-500"
             >
-                Betoltes folyamatban...
+                {{ trans('audit_logs.loading_short') }}
             </div>
 
             <template v-else-if="auditLog">
                 <section class="grid gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-5 md:grid-cols-2">
                     <div>
-                        <div class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Azonosito</div>
+                        <div class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">{{ trans('audit_logs.identifier') }}</div>
                         <div class="mt-2 text-base font-semibold text-slate-950">#{{ auditLog.id }}</div>
                     </div>
                     <div>
-                        <div class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Event</div>
+                        <div class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">{{ trans('audit_logs.event') }}</div>
                         <div class="mt-2">
                             <Tag :value="eventToken(auditLog.event)" :severity="eventSeverity(auditLog.event)" />
                         </div>
                     </div>
                     <div>
-                        <div class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Log name</div>
+                        <div class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">{{ trans('audit_logs.log_name') }}</div>
                         <div class="mt-2 break-all text-sm text-slate-700">{{ auditLog.log_name || '-' }}</div>
                     </div>
                     <div>
-                        <div class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Created at</div>
+                        <div class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">{{ trans('table.columns.created_at') }}</div>
                         <div class="mt-2 text-sm text-slate-700">{{ formatDate(auditLog.created_at) }}</div>
                     </div>
                     <div>
-                        <div class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Updated at</div>
+                        <div class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">{{ trans('audit_logs.updated_at') }}</div>
                         <div class="mt-2 text-sm text-slate-700">{{ formatDate(auditLog.updated_at) }}</div>
                     </div>
                 </section>
 
                 <section class="rounded-2xl border border-slate-200 bg-white p-5">
-                    <div class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Description</div>
+                    <div class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">{{ trans('audit_logs.description_label') }}</div>
                     <p class="mt-3 whitespace-pre-wrap break-words text-sm leading-7 text-slate-700">
                         {{ auditLog.description || '-' }}
                     </p>
@@ -189,14 +193,14 @@ function eventSeverity(value) {
 
                 <section class="grid gap-4 md:grid-cols-2">
                     <div class="rounded-2xl border border-slate-200 bg-white p-5">
-                        <div class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Causer</div>
+                        <div class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">{{ trans('audit_logs.causer') }}</div>
                         <dl class="mt-4 grid gap-3 text-sm text-slate-700">
                             <div>
-                                <dt class="font-semibold text-slate-900">Nev</dt>
-                                <dd>{{ auditLog.causer?.name || 'System' }}</dd>
+                                <dt class="font-semibold text-slate-900">{{ trans('table.columns.name') }}</dt>
+                                <dd>{{ auditLog.causer?.name || trans('audit_logs.system_user') }}</dd>
                             </div>
                             <div>
-                                <dt class="font-semibold text-slate-900">E-mail</dt>
+                                <dt class="font-semibold text-slate-900">{{ trans('table.columns.email') }}</dt>
                                 <dd>{{ auditLog.causer?.email || '-' }}</dd>
                             </div>
                             <div>
@@ -211,7 +215,7 @@ function eventSeverity(value) {
                     </div>
 
                     <div class="rounded-2xl border border-slate-200 bg-white p-5">
-                        <div class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Subject</div>
+                        <div class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">{{ trans('audit_logs.subject') }}</div>
                         <dl class="mt-4 grid gap-3 text-sm text-slate-700">
                             <div>
                                 <dt class="font-semibold text-slate-900">Type</dt>
@@ -242,10 +246,10 @@ function eventSeverity(value) {
                         || hasContextValue(auditLog.context?.result)"
                     class="rounded-2xl border border-slate-200 bg-white p-5"
                 >
-                    <div class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Context</div>
+                    <div class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">{{ trans('audit_logs.context') }}</div>
                     <dl class="mt-4 grid gap-3 text-sm text-slate-700 md:grid-cols-2">
                         <div v-if="hasContextValue(auditLog.context?.ip_address)">
-                            <dt class="font-semibold text-slate-900">IP</dt>
+                            <dt class="font-semibold text-slate-900">{{ trans('audit_logs.ip_address') }}</dt>
                             <dd>{{ auditLog.context.ip_address }}</dd>
                         </div>
                         <div v-if="hasContextValue(auditLog.context?.route)">
@@ -257,15 +261,15 @@ function eventSeverity(value) {
                             <dd>{{ auditLog.context.status }}</dd>
                         </div>
                         <div v-if="hasContextValue(auditLog.context?.result)">
-                            <dt class="font-semibold text-slate-900">Result</dt>
+                            <dt class="font-semibold text-slate-900">{{ trans('audit_logs.result') }}</dt>
                             <dd>{{ auditLog.context.result }}</dd>
                         </div>
                         <div v-if="hasContextValue(auditLog.context?.reason)" class="md:col-span-2">
-                            <dt class="font-semibold text-slate-900">Reason</dt>
+                            <dt class="font-semibold text-slate-900">{{ trans('common.reason') }}</dt>
                             <dd class="whitespace-pre-wrap break-words">{{ auditLog.context.reason }}</dd>
                         </div>
                         <div v-if="hasContextValue(auditLog.context?.user_agent)" class="md:col-span-2">
-                            <dt class="font-semibold text-slate-900">User agent</dt>
+                            <dt class="font-semibold text-slate-900">{{ trans('audit_logs.user_agent') }}</dt>
                             <dd class="whitespace-pre-wrap break-words">{{ auditLog.context.user_agent }}</dd>
                         </div>
                     </dl>
@@ -293,7 +297,7 @@ function eventSeverity(value) {
 
                 <section class="rounded-2xl border border-slate-200 bg-white p-5">
                     <div class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                        {{ hasStructuredProperties ? 'Properties (raw JSON)' : 'Properties' }}
+                        {{ hasStructuredProperties ? trans('audit_logs.properties_raw_json') : trans('audit_logs.properties') }}
                     </div>
                     <pre class="mt-4 overflow-x-auto rounded-2xl bg-slate-950 p-4 text-xs leading-6 text-slate-100">{{ prettyProperties }}</pre>
                 </section>
@@ -303,7 +307,7 @@ function eventSeverity(value) {
                 v-else
                 class="rounded-2xl border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-500"
             >
-                Nincs megjelenitheto audit log reszlet.
+                {{ trans('audit_logs.no_details') }}
             </section>
         </div>
     </Dialog>

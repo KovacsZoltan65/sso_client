@@ -33,7 +33,7 @@ class RoleController extends Controller
         $roles = $this->roleService->list($request->validated());
 
         return ApiResponse::success(
-            'Roles retrieved successfully.',
+            __('api.roles.retrieved'),
             data: [
                 'items' => collect($roles->items())
                     ->map(fn (Role $role) => $this->toArray($role, $request))
@@ -70,7 +70,7 @@ class RoleController extends Controller
         $role = $this->roleService->store($request->validated());
 
         return ApiResponse::success(
-            'Role created successfully.',
+            __('api.roles.created'),
             data: [
                 'role' => $this->toArray($role->loadMissing('permissions:id,name'), $request),
             ],
@@ -91,7 +91,7 @@ class RoleController extends Controller
         $role = $this->roleService->update((int) $role->id, $request->validated());
 
         return ApiResponse::success(
-            'Role updated successfully.',
+            __('api.roles.updated'),
             data: [
                 'role' => $this->toArray($role->loadMissing('permissions:id,name'), $request),
             ],
@@ -110,7 +110,7 @@ class RoleController extends Controller
 
         $this->roleService->delete((int) $role->id);
 
-        return ApiResponse::success('Role deleted successfully.');
+        return ApiResponse::success(__('api.roles.deleted'));
     }
 
     /**

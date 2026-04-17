@@ -7,6 +7,7 @@ import AdminTableToolbar from "@/Components/Admin/AdminTableToolbar.vue";
 import PageHeader from "@/Components/PageHeader.vue";
 import RowActionMenu from "@/Components/Admin/RowActionMenu.vue";
 import { useAdminSearchBehavior } from "@/Composables/useAdminSearchBehavior";
+import { trans } from "laravel-vue-i18n";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import { useAdminTableState } from "@/Composables/useAdminTableState";
 import {
@@ -16,7 +17,7 @@ import {
     listCompanies,
     updateCompany,
 } from "@/Services/companyService";
-import { Head } from "@inertiajs/vue3";
+import { Head, usePage } from "@inertiajs/vue3";
 import Button from "primevue/button";
 import Column from "primevue/column";
 import ConfirmDialog from "primevue/confirmdialog";
@@ -25,7 +26,7 @@ import Select from "primevue/select";
 import Tag from "primevue/tag";
 import { useConfirm } from "primevue/useconfirm";
 import { useToast } from "primevue/usetoast";
-import { onMounted, reactive, ref, watch } from "vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
 import CreateCompanyDialog from "./Partials/CreateCompanyDialog.vue";
 import EditCompanyDialog from "./Partials/EditCompanyDialog.vue";
 import { IconField, InputIcon } from "primevue";
@@ -34,8 +35,19 @@ const props = defineProps({
     companiesApi: { type: Object, required: true },
     permissions: { type: Object, required: true },
     searchValue: { type: String, default: "" },
-    searchPlaceholder: { type: String, default: "Kereses nev, kod vagy e-mail alapjan" },
+    searchPlaceholder: { type: String, default: "" },
 });
+
+const resolvedSearchPlaceholder = computed(
+    () => props.searchPlaceholder || trans("companies.search_placeholder")
+);
+const page = usePage();
+const currentLocale = computed(
+    () =>
+        page.props.locale?.current ||
+        document.documentElement.getAttribute("lang") ||
+        "hu"
+);
 
 const toast = useToast();
 const confirm = useConfirm();
@@ -70,9 +82,9 @@ const form = reactive(defaultForm());
 const formErrors = reactive({});
 
 const statusOptions = [
-    { label: "Minden statusz", value: null },
-    { label: "Aktiv", value: true },
-    { label: "Inaktiv", value: false },
+    { label: trans("common.all_statuses"), value: null },
+    { label: trans("common.active"), value: true },
+    { label: trans("common.inactive"), value: false },
 ];
 
 const compactSelectPt = {
@@ -134,7 +146,7 @@ async function loadCompanies() {
         companies.value = envelope.data.items ?? [];
         applyMeta(envelope.meta.pagination ?? {});
     } catch (error) {
-        handleApiError(error, "A cegek betoltese sikertelen volt.");
+        handleApiError(error, trans("companies.loading_error"));
     } finally {
         loading.value = false;
     }
@@ -170,15 +182,15 @@ async function submitCreate() {
         await createCompany(props.companiesApi, form);
         toast.add({
             severity: "success",
-            summary: "Sikeres muvelet",
-            detail: "A ceg letrehozasa sikeres volt.",
+            summary: trans("common.operation_successful"),
+            detail: trans("companies.creation_success"),
             life: 3000,
         });
         closeCreateDialog();
         resetPagination();
         await loadCompanies();
     } catch (error) {
-        handleMutationError(error, "A ceg letrehozasa sikertelen volt.");
+        handleMutationError(error, "");
     } finally {
         submitting.value = false;
     }
@@ -196,14 +208,14 @@ async function submitUpdate() {
         await updateCompany(props.companiesApi, editingCompany.value.id, form);
         toast.add({
             severity: "success",
-            summary: "Sikeres muvelet",
-            detail: "A ceg adatai frissultek.",
+            summary: trans("common.operation_successful"),
+            detail: trans("companies.updating_success"),
             life: 3000,
         });
         closeEditDialog();
         await loadCompanies();
     } catch (error) {
-        handleMutationError(error, "A ceg modositasa sikertelen volt.");
+        handleMutationError(error, trans("companies.updating_error"));
     } finally {
         submitting.value = false;
     }
@@ -211,18 +223,18 @@ async function submitUpdate() {
 
 function confirmDelete(company) {
     confirm.require({
-        header: "Torles megerositese",
-        message: `Biztosan torolni szeretned a(z) ${company.name} ceget?`,
-        acceptLabel: "Torles",
-        rejectLabel: "Megse",
+        header: trans("common.deletion_confirmation"),
+        message: trans("companies.deletion_confirm", { name: company.name }),
+        acceptLabel: trans("actions.delete"),
+        rejectLabel: trans("common.cancel"),
         acceptClass: "p-button-danger",
         accept: async () => {
             try {
                 await deleteCompany(props.companiesApi, company.id);
                 toast.add({
                     severity: "success",
-                    summary: "Sikeres muvelet",
-                    detail: "A ceg torlese sikeres volt.",
+                    summary: trans("common.operation_successful"),
+                    detail: trans("companies.deletion_success"),
                     life: 3000,
                 });
 
@@ -232,7 +244,7 @@ function confirmDelete(company) {
 
                 await loadCompanies();
             } catch (error) {
-                handleApiError(error, "A ceg torlese sikertelen volt.");
+                handleApiError(error, trans("companies.deletion_error"));
             }
         },
     });
@@ -242,7 +254,7 @@ function companyActionItems(company) {
     return [
         props.permissions.update
             ? {
-                  label: "Szerkesztes",
+                  label: trans("actions.edit"),
                   icon: "pi pi-pencil",
                   isPrimary: true,
                   command: () => openEditDialog(company),
@@ -250,7 +262,7 @@ function companyActionItems(company) {
             : null,
         props.permissions.delete
             ? {
-                  label: "Torles",
+                  label: trans("actions.delete"),
                   icon: "pi pi-trash",
                   isDangerous: true,
                   command: () => confirmDelete(company),
@@ -264,8 +276,8 @@ async function refreshCompanies() {
 
     toast.add({
         severity: "success",
-        summary: "Sikeres muvelet",
-        detail: "A ceglista frissult.",
+        summary: trans("common.operation_successful"),
+        detail: trans("companies.list_updated"),
         life: 2500,
     });
 }
@@ -312,7 +324,7 @@ function handleApiError(error, fallbackMessage) {
 
     toast.add({
         severity: "error",
-        summary: "Hiba tortent",
+        summary: trans("common.error_occured"),
         detail: error instanceof CompanyApiError ? error.message : fallbackMessage,
         life: 4000,
     });
@@ -328,7 +340,7 @@ function handleMutationError(error, fallbackMessage) {
 }
 
 function statusLabel(isActive) {
-    return isActive ? "Aktiv" : "Inaktiv";
+    return isActive ? trans("common.active") : trans("common.inactive");
 }
 
 function statusSeverity(isActive) {
@@ -342,7 +354,9 @@ function formatDate(value) {
 
     const date = new Date(value.replace(" ", "T"));
 
-    return Number.isNaN(date.getTime()) ? value : date.toLocaleString("hu-HU");
+    return Number.isNaN(date.getTime())
+        ? value
+        : date.toLocaleString(currentLocale.value);
 }
 
 watch(
@@ -356,15 +370,15 @@ onMounted(loadCompanies);
 </script>
 
 <template>
-    <Head title="Companies" />
+    <Head :title="trans('navigation.companies.label')" />
 
     <AuthenticatedLayout>
         <ConfirmDialog />
 
         <div class="admin-table-page">
             <PageHeader
-                title="Companies"
-                description="A helyi cegtorzs teljes adminisztracioja keresessel, szuressel es jogosultsagkezelessel."
+                :title="trans('navigation.companies.label')"
+                :description="trans('navigation.companies.description')"
             />
 
             <AdminTableCard>
@@ -373,8 +387,8 @@ onMounted(loadCompanies);
                         <BaseDataTable
                             :value="companies"
                             :loading="loading"
-                            loading-message="Cegek betoltese folyamatban..."
-                            empty-message="Nincs megjelenitheto ceg."
+                            :loading-message="trans('companies.loading_message')"
+                            :empty-message="trans('companies.empty_message')"
                             removable-sort
                             data-key="id"
                             :rows="tableState.perPage"
@@ -390,9 +404,9 @@ onMounted(loadCompanies);
                                 <AdminTableToolbar
                                     searchable
                                     :search-value="filters.search"
-                                    :search-placeholder="searchPlaceholder"
+                                    :search-placeholder="resolvedSearchPlaceholder"
                                     :canCreate="permissions.create"
-                                    createLabel="Uj ceg"
+                                    :createLabel="trans('companies.new')"
                                     :canBulkDelete="false"
                                     :selectedCount="0"
                                     :selectableCount="0"
@@ -409,7 +423,7 @@ onMounted(loadCompanies);
                                             class="w-full sm:w-56"
                                             option-label="label"
                                             option-value="value"
-                                            placeholder="Statusz"
+                                            :placeholder="trans('common.status')"
                                             show-clear
                                             @change="handleStatusFilterChange"
                                         />
@@ -420,23 +434,47 @@ onMounted(loadCompanies);
                             <template #empty>
                                 <div class="px-6 py-10">
                                     <EmptyStatePanel
-                                        title="Nincs megjelenitheto ceg"
-                                        description="A jelenlegi szurok mellett nincs talalat. Modositsd a keresest vagy hozz letre uj ceget."
-                                        :tags="['Companies', 'Admin CRUD']"
+                                        :title="trans('companies.filter_empty_title')"
+                                        :description="
+                                            trans('companies.filter_empty_detail')
+                                        "
+                                        :tags="[
+                                            trans('navigation.companies.label'),
+                                            trans('companies.tag_admin_crud'),
+                                        ]"
                                     />
                                 </div>
                             </template>
 
                             <!-- Name -->
-                            <Column field="name" header="Cegnev" sortable />
+                            <Column
+                                field="name"
+                                :header="trans('table.columns.name')"
+                                sortable
+                            />
                             <!-- Code -->
-                            <Column field="code" header="Kod" sortable />
+                            <Column
+                                field="code"
+                                :header="trans('table.columns.code')"
+                                sortable
+                            />
                             <!-- Email -->
-                            <Column field="email" header="E-mail" sortable />
+                            <Column
+                                field="email"
+                                :header="trans('table.columns.email')"
+                                sortable
+                            />
                             <!-- Phone -->
-                            <Column field="phone" header="Telefonszam" />
+                            <Column
+                                field="phone"
+                                :header="trans('table.columns.phone')"
+                            />
                             <!-- Is Active -->
-                            <Column field="is_active" header="Statusz" sortable>
+                            <Column
+                                field="is_active"
+                                :header="trans('table.columns.status')"
+                                sortable
+                            >
                                 <template #body="{ data }">
                                     <Tag
                                         :value="statusLabel(data.is_active)"
@@ -444,14 +482,23 @@ onMounted(loadCompanies);
                                     />
                                 </template>
                             </Column>
+
                             <!-- Created At -->
-                            <Column field="created_at" header="Letrehozva" sortable>
+                            <Column
+                                field="created_at"
+                                :header="trans('table.columns.created_at')"
+                                sortable
+                            >
                                 <template #body="{ data }">
                                     {{ formatDate(data.created_at) }}
                                 </template>
                             </Column>
+
                             <!-- Műveletek -->
-                            <Column header="Muveletek" :style="{ width: '11rem' }">
+                            <Column
+                                :header="trans('common.actions')"
+                                :style="{ width: '11rem' }"
+                            >
                                 <template #body="{ data }">
                                     <RowActionMenu :items="companyActionItems(data)" />
                                 </template>
@@ -459,13 +506,15 @@ onMounted(loadCompanies);
                         </BaseDataTable>
                     </div>
 
-                    <div class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-6 lg:hidden">
+                    <div
+                        class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-6 lg:hidden"
+                    >
                         <div class="grid flex-none gap-3">
                             <IconField class="w-full">
                                 <InputIcon class="pi pi-search" />
                                 <InputText
                                     :modelValue="filters.search"
-                                    :placeholder="searchPlaceholder"
+                                    :placeholder="resolvedSearchPlaceholder"
                                     class="h-11 w-full"
                                     @update:modelValue="handleSearchInput"
                                     @keyup.enter="submitSearch"
@@ -479,15 +528,18 @@ onMounted(loadCompanies);
                                 class="w-full"
                                 option-label="label"
                                 option-value="value"
-                                placeholder="Statusz"
+                                :placeholder="trans('common.status')"
                                 show-clear
                                 @change="handleStatusFilterChange"
                             />
                         </div>
 
-                        <div class="flex flex-none flex-wrap items-center justify-end gap-3">
+                        <div
+                            class="flex flex-none flex-wrap items-center justify-end gap-3"
+                        >
+                            <!-- Frissítés -->
                             <Button
-                                label="Frissites"
+                                :label="trans('common.refresh')"
                                 icon="pi pi-refresh"
                                 severity="secondary"
                                 outlined
@@ -495,9 +547,11 @@ onMounted(loadCompanies);
                                 :disabled="loading || submitting"
                                 @click="refreshCompanies"
                             />
+
+                            <!-- Új -->
                             <Button
                                 v-if="permissions.create"
-                                label="Uj ceg"
+                                :label="trans('companies.new')"
                                 icon="pi pi-plus"
                                 severity="primary"
                                 :disabled="loading || submitting"
@@ -509,7 +563,7 @@ onMounted(loadCompanies);
                             v-if="loading"
                             class="rounded-2xl border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-500"
                         >
-                            Betoltes folyamatban...
+                            {{ trans("companies.loading_message") }}
                         </div>
 
                         <template v-else-if="companies.length > 0">
@@ -536,35 +590,38 @@ onMounted(loadCompanies);
                                 <dl class="mt-4 grid gap-3 text-sm text-slate-600">
                                     <div>
                                         <dt class="font-semibold text-slate-900">
-                                            E-mail
+                                            {{ trans("table.columns.email") }}
                                         </dt>
                                         <dd>{{ company.email || "-" }}</dd>
                                     </div>
                                     <div>
                                         <dt class="font-semibold text-slate-900">
-                                            Telefonszam
+                                            {{ trans("table.columns.phone") }}
                                         </dt>
                                         <dd>{{ company.phone || "-" }}</dd>
                                     </div>
                                     <div>
                                         <dt class="font-semibold text-slate-900">
-                                            Letrehozva
+                                            {{ trans("table.columns.created_at") }}
                                         </dt>
                                         <dd>{{ formatDate(company.created_at) }}</dd>
                                     </div>
                                 </dl>
 
                                 <div class="mt-5 flex gap-3">
+                                    <!-- Szerkesztés -->
                                     <Button
                                         v-if="permissions.update"
-                                        label="Szerkesztes"
+                                        :label="trans('actions.edit')"
                                         severity="secondary"
                                         text
                                         @click="openEditDialog(company)"
                                     />
+
+                                    <!-- Törlés -->
                                     <Button
                                         v-if="permissions.delete"
-                                        label="Torles"
+                                        :label="trans('actions.delete')"
                                         severity="danger"
                                         text
                                         @click="confirmDelete(company)"
@@ -575,9 +632,12 @@ onMounted(loadCompanies);
 
                         <EmptyStatePanel
                             v-else
-                            title="Nincs megjelenitheto ceg"
-                            description="A jelenlegi szurok mellett nincs talalat. Modositsd a keresest vagy hozz letre uj ceget."
-                            :tags="['Companies', 'Admin CRUD']"
+                            :title="trans('companies.loading_empty')"
+                            :description="trans('companies.filter_empty_detail')"
+                            :tags="[
+                                trans('navigation.companies.label'),
+                                trans('companies.tag_admin_crud'),
+                            ]"
                         />
                     </div>
                 </div>
@@ -588,12 +648,13 @@ onMounted(loadCompanies);
                         :per-page="tableState.perPage"
                         :total="tableState.totalRecords"
                         :last-page="lastPage"
-                        item-label="ceg"
+                        :item-label="trans('company')"
                     />
                 </template>
             </AdminTableCard>
         </div>
 
+        <!-- Új -->
         <CreateCompanyDialog
             :visible="showCreateDialog"
             :form="form"
@@ -604,6 +665,8 @@ onMounted(loadCompanies);
             "
             @submit="submitCreate"
         />
+
+        <!-- Szerkesztés -->
         <EditCompanyDialog
             :visible="showEditDialog"
             :form="form"

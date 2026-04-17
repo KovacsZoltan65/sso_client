@@ -31,8 +31,8 @@ describe('useNavigation', () => {
         const wrapper = mount(NavigationProbe);
 
         expect(wrapper.text()).toContain('Dashboard');
-        expect(wrapper.text()).toContain('Profile');
-        expect(wrapper.text()).toContain('My Account');
+        expect(wrapper.text()).toContain('Profil');
+        expect(wrapper.text()).toContain('Fiókom');
     });
 
     it('filters permission-gated items based on the authenticated user permissions', () => {
@@ -50,11 +50,11 @@ describe('useNavigation', () => {
 
         const wrapper = mount(NavigationProbe);
 
-        expect(wrapper.text()).toContain('Companies');
-        expect(wrapper.text()).toContain('Users');
-        expect(wrapper.text()).toContain('Connection Health');
-        expect(wrapper.text()).not.toContain('Roles');
-        expect(wrapper.text()).not.toContain('Permissions');
-        expect(wrapper.text()).not.toContain('Audit Logs');
+        expect(wrapper.text()).toContain('Cégek');
+        expect(wrapper.text()).toContain('Felhasználók');
+        expect(wrapper.text()).toContain('Kapcsolat állapota');
+        expect(wrapper.text()).not.toContain('Szerepkörök');
+        expect(wrapper.text()).not.toContain('Jogosultságok');
+        expect(wrapper.text()).not.toContain('Audit naplók');
     });
 });

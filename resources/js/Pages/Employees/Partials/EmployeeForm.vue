@@ -1,5 +1,6 @@
 <script setup>
 import InputError from "@/Components/InputError.vue";
+import { trans } from "laravel-vue-i18n";
 import Button from "primevue/button";
 import Checkbox from "primevue/checkbox";
 import InputText from "primevue/inputtext";
@@ -35,14 +36,14 @@ defineEmits(["submit", "cancel"]);
     <form class="space-y-5" @submit.prevent="$emit('submit')">
         <div class="grid gap-5 md:grid-cols-2">
             <div class="space-y-2">
-                <label class="text-sm font-semibold text-slate-900" for="employee-company-id">Ceg</label>
+                <label class="text-sm font-semibold text-slate-900" for="employee-company-id">{{ trans("table.columns.company") }}</label>
                 <Select
                     id="employee-company-id"
                     v-model="form.company_id"
                     :options="companies"
                     optionLabel="name"
                     optionValue="id"
-                    placeholder="Valassz ceget"
+                    :placeholder="trans('employees.select_company_placeholder')"
                     class="w-full"
                     :invalid="Boolean(errors.company_id?.length)"
                 />
@@ -50,7 +51,7 @@ defineEmits(["submit", "cancel"]);
             </div>
 
             <div class="space-y-2">
-                <label class="text-sm font-semibold text-slate-900" for="employee-number">Azonosito</label>
+                <label class="text-sm font-semibold text-slate-900" for="employee-number">{{ trans("table.columns.employee_number") }}</label>
                 <InputText
                     id="employee-number"
                     v-model="form.employee_number"
@@ -62,7 +63,7 @@ defineEmits(["submit", "cancel"]);
             </div>
 
             <div class="space-y-2">
-                <label class="text-sm font-semibold text-slate-900" for="employee-name">Nev</label>
+                <label class="text-sm font-semibold text-slate-900" for="employee-name">{{ trans("table.columns.name") }}</label>
                 <InputText
                     id="employee-name"
                     v-model="form.name"
@@ -74,7 +75,7 @@ defineEmits(["submit", "cancel"]);
             </div>
 
             <div class="space-y-2">
-                <label class="text-sm font-semibold text-slate-900" for="employee-email">E-mail</label>
+                <label class="text-sm font-semibold text-slate-900" for="employee-email">{{ trans("table.columns.email") }}</label>
                 <InputText
                     id="employee-email"
                     v-model="form.email"
@@ -86,7 +87,7 @@ defineEmits(["submit", "cancel"]);
             </div>
 
             <div class="space-y-2">
-                <label class="text-sm font-semibold text-slate-900" for="employee-phone">Telefonszam</label>
+                <label class="text-sm font-semibold text-slate-900" for="employee-phone">{{ trans("table.columns.phone") }}</label>
                 <InputText
                     id="employee-phone"
                     v-model="form.phone"
@@ -98,7 +99,7 @@ defineEmits(["submit", "cancel"]);
             </div>
 
             <div class="space-y-2">
-                <label class="text-sm font-semibold text-slate-900" for="employee-position">Pozicio</label>
+                <label class="text-sm font-semibold text-slate-900" for="employee-position">{{ trans("table.columns.position") }}</label>
                 <InputText
                     id="employee-position"
                     v-model="form.position"
@@ -117,7 +118,7 @@ defineEmits(["submit", "cancel"]);
                     binary
                     inputId="employee-is-active"
                 />
-                <label for="employee-is-active" class="text-sm font-medium text-slate-800">Aktiv</label>
+                <label for="employee-is-active" class="text-sm font-medium text-slate-800">{{ trans("employees.form.is_active") }}</label>
             </div>
         </div>
         <InputError :message="errors.is_active?.[0]" />
@@ -125,7 +126,7 @@ defineEmits(["submit", "cancel"]);
         <div class="flex justify-end gap-3 border-t border-slate-200 pt-4">
             <Button
                 type="button"
-                label="Megse"
+                :label="trans('common.cancel')"
                 severity="secondary"
                 text
                 :disabled="submitting"

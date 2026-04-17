@@ -56,7 +56,7 @@ class SsoAuthController extends Controller
         }
 
         return redirect()->intended(route('dashboard', absolute: false))
-            ->with('success', 'Sikeres SSO bejelentkezes.');
+            ->with('success', __('auth.sso_login_success'));
     }
 
     /**
@@ -68,7 +68,7 @@ class SsoAuthController extends Controller
 
         return redirect()
             ->route('login')
-            ->with('success', 'Sikeres kijelentkezes.');
+            ->with('success', __('auth.logout_success'));
     }
 
     /**
@@ -86,7 +86,7 @@ class SsoAuthController extends Controller
 
         return redirect()
             ->route('login')
-            ->with('success', 'Sikeres kijelentkezes.');
+            ->with('success', __('auth.logout_success'));
     }
 
     public function frontChannelLogout(Request $request): Response

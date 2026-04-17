@@ -7,6 +7,7 @@ import AdminTableToolbar from "@/Components/Admin/AdminTableToolbar.vue";
 import PageHeader from "@/Components/PageHeader.vue";
 import RowActionMenu from "@/Components/Admin/RowActionMenu.vue";
 import { useAdminSearchBehavior } from "@/Composables/useAdminSearchBehavior";
+import { trans } from "laravel-vue-i18n";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import { useAdminTableState } from "@/Composables/useAdminTableState";
 import {
@@ -16,7 +17,7 @@ import {
     listEmployees,
     updateEmployee,
 } from "@/Services/employeeService";
-import { Head } from "@inertiajs/vue3";
+import { Head, usePage } from "@inertiajs/vue3";
 import Button from "primevue/button";
 import Column from "primevue/column";
 import ConfirmDialog from "primevue/confirmdialog";
@@ -25,7 +26,7 @@ import Select from "primevue/select";
 import Tag from "primevue/tag";
 import { useConfirm } from "primevue/useconfirm";
 import { useToast } from "primevue/usetoast";
-import { onMounted, reactive, ref, watch } from "vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
 
 import CreateEmployeeDialog from "./Partials/CreateEmployeeDialog.vue";
 import EditEmployeeDialog from "./Partials/EditEmployeeDialog.vue";
@@ -38,12 +39,19 @@ const props = defineProps({
     searchValue: { type: String, default: "" },
     searchPlaceholder: {
         type: String,
-        default: "Kereses nev, e-mail, pozicio vagy azonosito alapjan",
+        default: "",
     },
 });
 
 const toast = useToast();
 const confirm = useConfirm();
+const page = usePage();
+const currentLocale = computed(
+    () =>
+        page.props.locale?.current ||
+        document.documentElement.getAttribute("lang") ||
+        "hu"
+);
 
 const employees = ref([]);
 const loading = ref(false);
@@ -83,9 +91,9 @@ const form = reactive(defaultForm());
 const formErrors = reactive({});
 
 const statusOptions = [
-    { label: "Minden statusz", value: null },
-    { label: "Aktiv", value: true },
-    { label: "Inaktiv", value: false },
+    { label: trans("common.all_statuses"), value: null },
+    { label: trans("common.active"), value: true },
+    { label: trans("common.inactive"), value: false },
 ];
 
 const compactSelectPt = {
@@ -94,6 +102,9 @@ const compactSelectPt = {
     dropdown: { class: "w-11" },
 };
 const searchBehavior = useAdminSearchBehavior();
+const resolvedSearchPlaceholder = computed(
+    () => props.searchPlaceholder || trans("employees.search_placeholder")
+);
 
 function defaultForm() {
     return {
@@ -150,7 +161,7 @@ async function loadEmployees() {
         employees.value = envelope.data.items ?? [];
         applyMeta(envelope.meta.pagination ?? {});
     } catch (error) {
-        handleApiError(error, "Az alkalmazottak betoltese sikertelen volt.");
+        handleApiError(error, trans("employees.loading_error"));
     } finally {
         loading.value = false;
     }
@@ -186,15 +197,15 @@ async function submitCreate() {
         await createEmployee(props.employeesApi, form);
         toast.add({
             severity: "success",
-            summary: "Sikeres muvelet",
-            detail: "Az alkalmazott letrehozasa sikeres volt.",
+            summary: trans("common.operation_successful"),
+            detail: trans("employees.creation_success"),
             life: 3000,
         });
         closeCreateDialog();
         resetPagination();
         await loadEmployees();
     } catch (error) {
-        handleMutationError(error, "Az alkalmazott letrehozasa sikertelen volt.");
+        handleMutationError(error, trans("employees.creation_error"));
     } finally {
         submitting.value = false;
     }
@@ -212,14 +223,14 @@ async function submitUpdate() {
         await updateEmployee(props.employeesApi, editingEmployee.value.id, form);
         toast.add({
             severity: "success",
-            summary: "Sikeres muvelet",
-            detail: "Az alkalmazott adatai frissultek.",
+            summary: trans("common.operation_successful"),
+            detail: trans("employees.updating_success"),
             life: 3000,
         });
         closeEditDialog();
         await loadEmployees();
     } catch (error) {
-        handleMutationError(error, "Az alkalmazott modositasa sikertelen volt.");
+        handleMutationError(error, trans("employees.updating_error"));
     } finally {
         submitting.value = false;
     }
@@ -227,18 +238,18 @@ async function submitUpdate() {
 
 function confirmDelete(employee) {
     confirm.require({
-        header: "Torles megerositese",
-        message: `Biztosan torolni szeretned a(z) ${employee.name} alkalmazottat?`,
-        acceptLabel: "Torles",
-        rejectLabel: "Megse",
+        header: trans("common.deletion_confirmation"),
+        message: trans("employees.deletion_confirm", { name: employee.name }),
+        acceptLabel: trans("actions.delete"),
+        rejectLabel: trans("common.cancel"),
         acceptClass: "p-button-danger",
         accept: async () => {
             try {
                 await deleteEmployee(props.employeesApi, employee.id);
                 toast.add({
                     severity: "success",
-                    summary: "Sikeres muvelet",
-                    detail: "Az alkalmazott torlese sikeres volt.",
+                    summary: trans("common.operation_successful"),
+                    detail: trans("employees.deletion_success"),
                     life: 3000,
                 });
 
@@ -248,7 +259,7 @@ function confirmDelete(employee) {
 
                 await loadEmployees();
             } catch (error) {
-                handleApiError(error, "Az alkalmazott torlese sikertelen volt.");
+                handleApiError(error, trans("employees.deletion_error"));
             }
         },
     });
@@ -258,7 +269,7 @@ function employeeActionItems(employee) {
     return [
         props.permissions.update
             ? {
-                  label: "Szerkesztes",
+                  label: trans("actions.edit"),
                   icon: "pi pi-pencil",
                   isPrimary: true,
                   command: () => openEditDialog(employee),
@@ -266,7 +277,7 @@ function employeeActionItems(employee) {
             : null,
         props.permissions.delete
             ? {
-                  label: "Torles",
+                  label: trans("actions.delete"),
                   icon: "pi pi-trash",
                   isDangerous: true,
                   command: () => confirmDelete(employee),
@@ -280,8 +291,8 @@ async function refreshEmployees() {
 
     toast.add({
         severity: "success",
-        summary: "Sikeres muvelet",
-        detail: "Az alkalmazott lista frissult.",
+        summary: trans("common.operation_successful"),
+        detail: trans("employees.list_updated"),
         life: 2500,
     });
 }
@@ -335,7 +346,7 @@ function handleApiError(error, fallbackMessage) {
 
     toast.add({
         severity: "error",
-        summary: "Hiba tortent",
+        summary: trans("common.error_occured"),
         detail: error instanceof EmployeeApiError ? error.message : fallbackMessage,
         life: 4000,
     });
@@ -351,7 +362,7 @@ function handleMutationError(error, fallbackMessage) {
 }
 
 function statusLabel(isActive) {
-    return isActive ? "Aktiv" : "Inaktiv";
+    return isActive ? trans("common.active") : trans("common.inactive");
 }
 
 function statusSeverity(isActive) {
@@ -365,7 +376,9 @@ function formatDate(value) {
 
     const date = new Date(value.replace(" ", "T"));
 
-    return Number.isNaN(date.getTime()) ? value : date.toLocaleString("hu-HU");
+    return Number.isNaN(date.getTime())
+        ? value
+        : date.toLocaleString(currentLocale.value);
 }
 
 watch(
@@ -386,15 +399,15 @@ onMounted(loadEmployees);
 </script>
 
 <template>
-    <Head title="Employees" />
+    <Head :title="trans('navigation.employees.label')" />
 
     <AuthenticatedLayout>
         <ConfirmDialog />
 
         <div class="admin-table-page">
             <PageHeader
-                title="Employees"
-                description="A helyi alkalmazott torzs teljes adminisztracioja keresessel, szuressel es jogosultsagkezelessel."
+                :title="trans('navigation.employees.label')"
+                :description="trans('navigation.employees.description')"
             />
 
             <AdminTableCard>
@@ -403,8 +416,8 @@ onMounted(loadEmployees);
                         <BaseDataTable
                             :value="employees"
                             :loading="loading"
-                            loading-message="Alkalmazottak betoltese folyamatban..."
-                            empty-message="Nincs megjelenitheto alkalmazott."
+                            :loading-message="trans('employees.loading_message')"
+                            :empty-message="trans('employees.empty_message')"
                             removable-sort
                             data-key="id"
                             :rows="tableState.perPage"
@@ -421,36 +434,37 @@ onMounted(loadEmployees);
                                     searchable
                                     :search-value="filters.search"
                                     searchContainerClass="w-full lg:flex-1 lg:min-w-0"
-                                    :search-placeholder="searchPlaceholder"
+                                    :search-placeholder="resolvedSearchPlaceholder"
                                     :canCreate="permissions.create"
-                                    createLabel="Uj alkalmazott"
+                                    :createLabel="trans('employees.new')"
                                     :canBulkDelete="false"
                                     :selectedCount="0"
                                     :selectableCount="0"
                                     :busy="loading || submitting"
-                                    @update:searchValue="filters.search = $event"
+                                    @update:searchValue="handleSearchInput"
+                                    @submit-search="submitSearch"
                                     @create="openCreateDialog"
                                     @refresh="refreshEmployees"
                                 >
                                     <template #filters>
-                                        <!-- Cégek szűrő -->
                                         <Select
                                             v-model="filters.company_id"
                                             :options="companies"
                                             option-label="name"
                                             option-value="id"
-                                            placeholder="Ceg"
+                                            :placeholder="
+                                                trans('employees.company_placeholder')
+                                            "
                                             show-clear
                                             class="w-full sm:w-56"
                                         />
 
-                                        <!-- Státusz szűrő -->
                                         <Select
                                             v-model="filters.is_active"
                                             :options="statusOptions"
                                             option-label="label"
                                             option-value="value"
-                                            placeholder="Statusz"
+                                            :placeholder="trans('common.status')"
                                             show-clear
                                             class="w-full sm:w-56"
                                         />
@@ -461,20 +475,52 @@ onMounted(loadEmployees);
                             <template #empty>
                                 <div class="px-6 py-10">
                                     <EmptyStatePanel
-                                        title="Nincs megjelenitheto alkalmazott"
-                                        description="A jelenlegi szurok mellett nincs talalat. Modositsd a keresest vagy hozz letre uj alkalmazottat."
-                                        :tags="['Employees', 'Admin CRUD']"
+                                        :title="trans('employees.filter_empty_title')"
+                                        :description="
+                                            trans('employees.filter_empty_detail')
+                                        "
+                                        :tags="[
+                                            trans('navigation.employees.label'),
+                                            trans('employees.tag_admin_crud'),
+                                        ]"
                                     />
                                 </div>
                             </template>
 
-                            <Column field="employee_number" header="Azonosito" sortable />
-                            <Column field="name" header="Nev" sortable />
-                            <Column field="email" header="E-mail" sortable />
-                            <Column field="phone" header="Telefonszam" />
-                            <Column field="position" header="Pozicio" sortable />
-                            <Column field="company_name" header="Ceg" sortable />
-                            <Column field="is_active" header="Statusz" sortable>
+                            <Column
+                                field="employee_number"
+                                :header="trans('table.columns.employee_number')"
+                                sortable
+                            />
+                            <Column
+                                field="name"
+                                :header="trans('table.columns.name')"
+                                sortable
+                            />
+                            <Column
+                                field="email"
+                                :header="trans('table.columns.email')"
+                                sortable
+                            />
+                            <Column
+                                field="phone"
+                                :header="trans('table.columns.phone')"
+                            />
+                            <Column
+                                field="position"
+                                :header="trans('table.columns.position')"
+                                sortable
+                            />
+                            <Column
+                                field="company_name"
+                                :header="trans('table.columns.company')"
+                                sortable
+                            />
+                            <Column
+                                field="is_active"
+                                :header="trans('table.columns.status')"
+                                sortable
+                            >
                                 <template #body="{ data }">
                                     <Tag
                                         :value="statusLabel(data.is_active)"
@@ -482,12 +528,19 @@ onMounted(loadEmployees);
                                     />
                                 </template>
                             </Column>
-                            <Column field="created_at" header="Letrehozva" sortable>
+                            <Column
+                                field="created_at"
+                                :header="trans('table.columns.created_at')"
+                                sortable
+                            >
                                 <template #body="{ data }">
                                     {{ formatDate(data.created_at) }}
                                 </template>
                             </Column>
-                            <Column header="Muveletek" :style="{ width: '11rem' }">
+                            <Column
+                                :header="trans('table.columns.actions')"
+                                :style="{ width: '11rem' }"
+                            >
                                 <template #body="{ data }">
                                     <RowActionMenu :items="employeeActionItems(data)" />
                                 </template>
@@ -495,25 +548,18 @@ onMounted(loadEmployees);
                         </BaseDataTable>
                     </div>
 
-                    <div class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-6 lg:hidden">
+                    <div
+                        class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-6 lg:hidden"
+                    >
                         <div class="grid flex-none gap-3">
-                            <!--<div class="relative">
-                                <i
-                                    class="pi pi-search pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-sm text-slate-400"
-                                />
-                                <InputText
-                                    v-model="filters.search"
-                                    fluid
-                                    class="h-11 w-full pl-10"
-                                    placeholder="Kereses nev, e-mail, pozicio vagy azonosito alapjan"
-                                />
-                            </div>-->
                             <IconField class="w-full">
                                 <InputIcon class="pi pi-search" />
                                 <InputText
-                                    v-model="filters.search"
-                                    :placeholder="searchPlaceholder"
+                                    :modelValue="filters.search"
+                                    :placeholder="resolvedSearchPlaceholder"
                                     class="h-11 w-full"
+                                    @update:modelValue="handleSearchInput"
+                                    @keyup.enter="submitSearch"
                                 />
                             </IconField>
 
@@ -524,7 +570,7 @@ onMounted(loadEmployees);
                                 class="w-full"
                                 option-label="name"
                                 option-value="id"
-                                placeholder="Ceg"
+                                :placeholder="trans('employees.company_placeholder')"
                                 show-clear
                             />
 
@@ -535,14 +581,16 @@ onMounted(loadEmployees);
                                 class="w-full"
                                 option-label="label"
                                 option-value="value"
-                                placeholder="Statusz"
+                                :placeholder="trans('common.status')"
                                 show-clear
                             />
                         </div>
 
-                        <div class="flex flex-none flex-wrap items-center justify-end gap-3">
+                        <div
+                            class="flex flex-none flex-wrap items-center justify-end gap-3"
+                        >
                             <Button
-                                label="Frissites"
+                                :label="trans('common.refresh')"
                                 icon="pi pi-refresh"
                                 severity="secondary"
                                 outlined
@@ -552,7 +600,7 @@ onMounted(loadEmployees);
                             />
                             <Button
                                 v-if="permissions.create"
-                                label="Uj alkalmazott"
+                                :label="trans('employees.new')"
                                 icon="pi pi-plus"
                                 severity="primary"
                                 :disabled="loading || submitting"
@@ -564,7 +612,7 @@ onMounted(loadEmployees);
                             v-if="loading"
                             class="rounded-2xl border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-500"
                         >
-                            Betoltes folyamatban...
+                            {{ trans("employees.loading_message") }}
                         </div>
 
                         <template v-else-if="employees.length > 0">
@@ -590,28 +638,32 @@ onMounted(loadEmployees);
 
                                 <dl class="mt-4 grid gap-3 text-sm text-slate-600">
                                     <div>
-                                        <dt class="font-medium text-slate-900">E-mail</dt>
+                                        <dt class="font-medium text-slate-900">
+                                            {{ trans("table.columns.email") }}
+                                        </dt>
                                         <dd>{{ employee.email || "-" }}</dd>
                                     </div>
                                     <div>
                                         <dt class="font-medium text-slate-900">
-                                            Telefon
+                                            {{ trans("table.columns.phone") }}
                                         </dt>
                                         <dd>{{ employee.phone || "-" }}</dd>
                                     </div>
                                     <div>
                                         <dt class="font-medium text-slate-900">
-                                            Pozicio
+                                            {{ trans("table.columns.position") }}
                                         </dt>
                                         <dd>{{ employee.position || "-" }}</dd>
                                     </div>
                                     <div>
-                                        <dt class="font-medium text-slate-900">Ceg</dt>
+                                        <dt class="font-medium text-slate-900">
+                                            {{ trans("table.columns.company") }}
+                                        </dt>
                                         <dd>{{ employee.company_name || "-" }}</dd>
                                     </div>
                                     <div>
                                         <dt class="font-medium text-slate-900">
-                                            Letrehozva
+                                            {{ trans("table.columns.created_at") }}
                                         </dt>
                                         <dd>{{ formatDate(employee.created_at) }}</dd>
                                     </div>
@@ -630,9 +682,12 @@ onMounted(loadEmployees);
                             class="rounded-3xl border border-dashed border-slate-300 bg-slate-50 px-5 py-8"
                         >
                             <EmptyStatePanel
-                                title="Nincs megjelenitheto alkalmazott"
-                                description="A jelenlegi szurok mellett nincs talalat. Modositsd a keresest vagy hozz letre uj alkalmazottat."
-                                :tags="['Employees', 'Admin CRUD']"
+                                :title="trans('employees.filter_empty_title')"
+                                :description="trans('employees.filter_empty_detail')"
+                                :tags="[
+                                    trans('navigation.employees.label'),
+                                    trans('employees.tag_admin_crud'),
+                                ]"
                             />
                         </div>
                     </div>
@@ -644,7 +699,7 @@ onMounted(loadEmployees);
                         :per-page="tableState.perPage"
                         :total="tableState.totalRecords"
                         :last-page="lastPage"
-                        item-label="alkalmazott"
+                        :item-label="trans('employee')"
                     />
                 </template>
             </AdminTableCard>

@@ -5,6 +5,8 @@ import DataTable from 'primevue/datatable';
 import Select from 'primevue/select';
 import { toastAddMock } from '../setup';
 import { setPageProps } from '../mocks/inertia';
+import en from '../../../../lang/en.json';
+import hu from '../../../../lang/hu.json';
 
 const listUsersMock = vi.fn();
 const showUserMock = vi.fn();
@@ -86,7 +88,10 @@ function makeUser(overrides = {}) {
     };
 }
 
-function mountPage(permissions = { view: true, manage: true }) {
+function mountPage(
+    permissions = { view: true, manage: true },
+    locale = { current: 'hu', fallback: 'en', available: ['hu', 'en'] },
+) {
     setPageProps({
         auth: {
             user: {
@@ -99,6 +104,7 @@ function mountPage(permissions = { view: true, manage: true }) {
                 message: 'Rendben',
             },
         },
+        locale,
     });
 
     return mount(UsersIndex, {
@@ -191,7 +197,7 @@ describe('Users/Index', () => {
         const wrapper = mountPage();
         await flushPromises();
 
-        await findButtonByText(wrapper, 'Megtekintes').trigger('click');
+        await findButtonByText(wrapper, hu['common.view']).trigger('click');
         await flushPromises();
 
         expect(showUserMock).toHaveBeenCalledWith(usersApi, 7);
@@ -222,7 +228,7 @@ describe('Users/Index', () => {
         const wrapper = mountPage();
         await flushPromises();
 
-        await findButtonByText(wrapper, 'Szerkesztes').trigger('click');
+        await findButtonByText(wrapper, hu['actions.edit']).trigger('click');
         await flushPromises();
 
         const editDialog = wrapper.findComponent(UserEditDialog);
@@ -252,8 +258,36 @@ describe('Users/Index', () => {
         const wrapper = mountPage({ view: true, manage: false });
         await flushPromises();
 
-        expect(wrapper.text()).toContain('Megtekintes');
-        expect(wrapper.text()).not.toContain('Szerkesztes');
+        expect(wrapper.text()).toContain(hu['common.view']);
+        expect(wrapper.text()).not.toContain(hu['actions.edit']);
+    });
+
+    it('renders localized english labels for the users page and dialogs', async () => {
+        listUsersMock.mockResolvedValueOnce(makeEnvelope([makeUser()]));
+        showUserMock.mockResolvedValueOnce({
+            message: 'User retrieved successfully.',
+            data: {
+                user: makeUser({ notes: 'Fresh details' }),
+            },
+            meta: {},
+            errors: {},
+        });
+
+        const wrapper = mountPage(
+            { view: true, manage: true },
+            { current: 'en', fallback: 'hu', available: ['hu', 'en'] },
+        );
+        await flushPromises();
+
+        expect(wrapper.text()).toContain(en['navigation.users.label']);
+        expect(wrapper.text()).toContain(en['users.link_status']);
+        expect(wrapper.text()).toContain(en['users.last_authenticated_at']);
+
+        await findButtonByText(wrapper, en['common.view']).trigger('click');
+        await flushPromises();
+
+        expect(wrapper.text()).toContain(en['users.identity_fields']);
+        expect(wrapper.text()).toContain(en['users.local_client_metadata']);
     });
 
     it('uses the shared full-height scrollable datatable layout on desktop', async () => {

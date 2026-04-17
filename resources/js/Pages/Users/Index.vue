@@ -9,8 +9,9 @@ import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import UserEditDialog from "@/Pages/Users/Partials/UserEditDialog.vue";
 import UserViewDialog from "@/Pages/Users/Partials/UserViewDialog.vue";
 import { UserApiError, listUsers, showUser, updateUser } from "@/Services/userService";
-import { Head } from "@inertiajs/vue3";
+import { Head, usePage } from "@inertiajs/vue3";
 import { FilterMatchMode } from "@primevue/core/api";
+import { trans } from "laravel-vue-i18n";
 import Button from "primevue/button";
 import Column from "primevue/column";
 import InputText from "primevue/inputtext";
@@ -26,6 +27,13 @@ const props = defineProps({
 });
 
 const toast = useToast();
+const page = usePage();
+const currentLocale = computed(
+    () =>
+        page.props.locale?.current ||
+        document.documentElement.getAttribute("lang") ||
+        "hu"
+);
 
 const users = ref([]);
 const loading = ref(false);
@@ -53,15 +61,15 @@ const editForm = reactive(defaultEditForm());
 const formErrors = reactive({});
 
 const localStatusOptions = [
-    { label: "Minden statusz", value: null },
-    { label: "Aktiv", value: "active" },
-    { label: "Inaktiv", value: "inactive" },
+    { label: trans("common.all_statuses"), value: null },
+    { label: trans("common.active"), value: "active" },
+    { label: trans("common.inactive"), value: "inactive" },
 ];
 
 const linkOptions = [
-    { label: "Minden kapcsolat", value: null },
-    { label: "SSO kapcsolt", value: true },
-    { label: "SSO kapcsolat nelkul", value: false },
+    { label: trans("users.all_links"), value: null },
+    { label: trans("users.sso_linked"), value: true },
+    { label: trans("users.sso_unlinked"), value: false },
 ];
 
 const firstRecordIndex = computed(() => (tableState.page - 1) * tableState.perPage);
@@ -148,7 +156,7 @@ async function loadUsers() {
         tableState.page = pagination.current_page ?? tableState.page;
         tableState.perPage = pagination.per_page ?? tableState.perPage;
     } catch (error) {
-        handleApiError(error, "A felhasznalok betoltese sikertelen volt.");
+        handleApiError(error, trans("users.loading_error"));
     } finally {
         loading.value = false;
     }
@@ -161,7 +169,7 @@ async function loadUserDetails(userId) {
         const envelope = await showUser(props.usersApi, userId);
         return envelope.data.user ?? null;
     } catch (error) {
-        handleApiError(error, "A felhasznalo reszleteinek betoltese sikertelen volt.");
+        handleApiError(error, trans("users.details_loading_error"));
         return null;
     } finally {
         dialogLoading.value = false;
@@ -235,8 +243,8 @@ async function submitEdit() {
 
         toast.add({
             severity: "success",
-            summary: "Sikeres muvelet",
-            detail: "A helyi felhasznaloi metaadatok frissultek.",
+            summary: trans("common.operation_successful"),
+            detail: trans("users.updating_success"),
             life: 3000,
         });
 
@@ -248,7 +256,7 @@ async function submitEdit() {
             return;
         }
 
-        handleApiError(error, "A felhasznalo frissitese sikertelen volt.");
+        handleApiError(error, trans("users.updating_error"));
     } finally {
         submitting.value = false;
     }
@@ -281,8 +289,8 @@ async function refreshUsers() {
 
     toast.add({
         severity: "success",
-        summary: "Sikeres muvelet",
-        detail: "A felhasznalolista frissult.",
+        summary: trans("common.operation_successful"),
+        detail: trans("users.list_updated"),
         life: 2500,
     });
 }
@@ -297,7 +305,7 @@ function handleApiError(error, fallbackMessage) {
 
     toast.add({
         severity: "error",
-        summary: "Hiba tortent",
+        summary: trans("common.error_occured"),
         detail: error instanceof UserApiError ? error.message : fallbackMessage,
         life: 4000,
     });
@@ -310,11 +318,13 @@ function formatDate(value) {
 
     const date = new Date(value.replace(" ", "T"));
 
-    return Number.isNaN(date.getTime()) ? value : date.toLocaleString("hu-HU");
+    return Number.isNaN(date.getTime())
+        ? value
+        : date.toLocaleString(currentLocale.value);
 }
 
 function statusLabel(status) {
-    return status === "inactive" ? "Inaktiv" : "Aktiv";
+    return status === "inactive" ? trans("common.inactive") : trans("common.active");
 }
 
 function statusSeverity(status) {
@@ -322,7 +332,7 @@ function statusSeverity(status) {
 }
 
 function ssoLinkLabel(user) {
-    return user.sso_user_id ? "SSO kapcsolt" : "Kapcsolat nelkul";
+    return user.sso_user_id ? trans("users.sso_linked") : trans("users.sso_unlinked");
 }
 
 function ssoLinkSeverity(user) {
@@ -332,14 +342,14 @@ function ssoLinkSeverity(user) {
 function userActionItems(user) {
     return [
         {
-            label: "Megtekintes",
+            label: trans("common.view"),
             icon: "pi pi-eye",
             isPrimary: !props.permissions.manage || !user.can?.update,
             command: () => openViewDialog(user),
         },
         props.permissions.manage && user.can?.update
             ? {
-                  label: "Szerkesztes",
+                  label: trans("actions.edit"),
                   icon: "pi pi-pencil",
                   isPrimary: true,
                   command: () => openEditDialog(user),
@@ -382,12 +392,12 @@ onMounted(loadUsers);
 </script>
 
 <template>
-    <Head title="Users" />
+    <Head :title="trans('navigation.users.label')" />
 
     <AuthenticatedLayout>
         <PageHeader
-            title="Users"
-            description="SSO projection alapju felhasznalolista readonly identity mezokkel es kliens-specifikus helyi metaadatokkal."
+            :title="trans('navigation.users.label')"
+            :description="trans('navigation.users.description')"
         />
 
         <div class="admin-table-page">
@@ -398,8 +408,8 @@ onMounted(loadUsers);
                             :value="users"
                             v-model:filters="tableFilters"
                             :loading="loading"
-                            loading-message="Felhasznalok betoltese folyamatban..."
-                            empty-message="Nincs megjelenitheto felhasznalo."
+                            :loading-message="trans('users.loading_message')"
+                            :empty-message="trans('users.empty_message')"
                             scrollable
                             lazy
                             paginator
@@ -425,7 +435,7 @@ onMounted(loadUsers);
                                     :selectedCount="0"
                                     :selectableCount="0"
                                     :busy="loading || dialogLoading || submitting"
-                                    @refresh="loadUsers"
+                                    @refresh="refreshUsers"
                                 >
                                     <template #search>
                                         <IconField class="w-full">
@@ -434,7 +444,7 @@ onMounted(loadUsers);
                                             />
                                             <InputText
                                                 v-model="tableFilters.global.value"
-                                                placeholder="Global search"
+                                                :placeholder="trans('users.search_placeholder')"
                                                 class="w-full"
                                                 @update:modelValue="onGlobalFilterInput"
                                             />
@@ -446,20 +456,20 @@ onMounted(loadUsers);
                             <template #empty>
                                 <div class="px-6 py-10">
                                     <EmptyStatePanel
-                                        title="Nincs megjelenitheto felhasznalo"
-                                        description="A jelenlegi szurok mellett nincs talalat. Modositsd a keresest vagy a szuresi felteteleket."
-                                        :tags="['Users', 'SSO projection']"
+                                        :title="trans('users.filter_empty_title')"
+                                        :description="trans('users.filter_empty_detail')"
+                                        :tags="[trans('navigation.users.label'), trans('users.tag_sso_projection')]"
                                     />
                                 </div>
                             </template>
 
-                            <Column field="id" header="Local ID" sortable />
-                            <Column field="sso_user_id" header="SSO User ID" sortable />
-                            <Column field="name" header="Nev" sortable />
-                            <Column field="email" header="E-mail" sortable />
+                            <Column field="id" :header="trans('users.local_id')" sortable />
+                            <Column field="sso_user_id" :header="trans('users.sso_user_id')" sortable />
+                            <Column field="name" :header="trans('table.columns.name')" sortable />
+                            <Column field="email" :header="trans('table.columns.email')" sortable />
                             <Column
                                 field="local_status"
-                                header="Statusz"
+                                :header="trans('table.columns.status')"
                                 sortable
                                 :showFilterMatchModes="false"
                                 :showFilterOperator="false"
@@ -478,7 +488,7 @@ onMounted(loadUsers);
                                         :options="localStatusOptions"
                                         option-label="label"
                                         option-value="value"
-                                        placeholder="Minden statusz"
+                                        :placeholder="trans('common.all_statuses')"
                                         class="w-full"
                                         @change="filterCallback()"
                                     />
@@ -486,7 +496,7 @@ onMounted(loadUsers);
                             </Column>
                             <Column
                                 field="hasSsoLink"
-                                header="Kapcsolat"
+                                :header="trans('users.link_status')"
                                 :showFilterMatchModes="false"
                                 :showFilterOperator="false"
                                 :showAddButton="false"
@@ -504,7 +514,7 @@ onMounted(loadUsers);
                                         :options="linkOptions"
                                         option-label="label"
                                         option-value="value"
-                                        placeholder="Minden kapcsolat"
+                                        :placeholder="trans('users.all_links')"
                                         class="w-full"
                                         @change="filterCallback()"
                                     />
@@ -512,24 +522,24 @@ onMounted(loadUsers);
                             </Column>
                             <Column
                                 field="last_authenticated_at"
-                                header="Utolso hitelesites"
+                                :header="trans('users.last_authenticated_at')"
                                 sortable
                             >
                                 <template #body="{ data }">
                                     {{ formatDate(data.last_authenticated_at) }}
                                 </template>
                             </Column>
-                            <Column field="created_at" header="Letrehozva" sortable>
+                            <Column field="created_at" :header="trans('table.columns.created_at')" sortable>
                                 <template #body="{ data }">
                                     {{ formatDate(data.created_at) }}
                                 </template>
                             </Column>
-                            <Column field="updated_at" header="Frissitve" sortable>
+                            <Column field="updated_at" :header="trans('users.updated_at')" sortable>
                                 <template #body="{ data }">
                                     {{ formatDate(data.updated_at) }}
                                 </template>
                             </Column>
-                            <Column header="Muveletek" :style="{ width: '11rem' }">
+                            <Column :header="trans('table.columns.actions')" :style="{ width: '11rem' }">
                                 <template #body="{ data }">
                                     <RowActionMenu :items="userActionItems(data)" />
                                 </template>
@@ -544,7 +554,7 @@ onMounted(loadUsers);
                                 <InputText
                                     v-model="tableFilters.global.value"
                                     class="h-11 w-full"
-                                    placeholder="Kereses..."
+                                    :placeholder="trans('users.search_placeholder')"
                                     @update:modelValue="onGlobalFilterInput"
                                 />
                             </IconField>
@@ -556,7 +566,7 @@ onMounted(loadUsers);
                                 class="w-full"
                                 option-label="label"
                                 option-value="value"
-                                placeholder="Lokalis statusz"
+                                :placeholder="trans('users.local_status')"
                                 show-clear
                             />
 
@@ -567,14 +577,14 @@ onMounted(loadUsers);
                                 class="w-full"
                                 option-label="label"
                                 option-value="value"
-                                placeholder="SSO kapcsolat"
+                                :placeholder="trans('users.link_status')"
                                 show-clear
                             />
                         </div>
 
                         <div class="flex flex-none flex-wrap items-center justify-end gap-3">
                             <Button
-                                label="Frissites"
+                                :label="trans('common.refresh')"
                                 icon="pi pi-refresh"
                                 severity="secondary"
                                 outlined
@@ -588,7 +598,7 @@ onMounted(loadUsers);
                             v-if="loading"
                             class="rounded-2xl border border-dashed border-slate-300 px-4 py-6 text-sm text-slate-500"
                         >
-                            Betoltes folyamatban...
+                            {{ trans("users.loading_message") }}
                         </div>
 
                         <template v-else-if="users.length > 0">
@@ -615,19 +625,19 @@ onMounted(loadUsers);
                                 <dl class="mt-4 grid gap-3 text-sm text-slate-600">
                                     <div>
                                         <dt class="font-semibold text-slate-900">
-                                            Local ID
+                                            {{ trans("users.local_id") }}
                                         </dt>
                                         <dd>{{ user.id }}</dd>
                                     </div>
                                     <div>
                                         <dt class="font-semibold text-slate-900">
-                                            SSO user ID
+                                            {{ trans("users.sso_user_id") }}
                                         </dt>
                                         <dd>{{ user.sso_user_id || "-" }}</dd>
                                     </div>
                                     <div>
                                         <dt class="font-semibold text-slate-900">
-                                            Kapcsolat
+                                            {{ trans("users.link_status") }}
                                         </dt>
                                         <dd>
                                             <Tag
@@ -638,7 +648,7 @@ onMounted(loadUsers);
                                     </div>
                                     <div>
                                         <dt class="font-semibold text-slate-900">
-                                            Utolso hitelesites
+                                            {{ trans("users.last_authenticated_at") }}
                                         </dt>
                                         <dd>
                                             {{ formatDate(user.last_authenticated_at) }}
@@ -646,7 +656,7 @@ onMounted(loadUsers);
                                     </div>
                                     <div>
                                         <dt class="font-semibold text-slate-900">
-                                            Frissitve
+                                            {{ trans("users.updated_at") }}
                                         </dt>
                                         <dd>{{ formatDate(user.updated_at) }}</dd>
                                     </div>
@@ -660,9 +670,9 @@ onMounted(loadUsers);
 
                         <EmptyStatePanel
                             v-else
-                            title="Nincs megjelenitheto felhasznalo"
-                            description="A jelenlegi szurok mellett nincs talalat. Modositsd a keresest vagy a szuresi felteteleket."
-                            :tags="['Users', 'SSO projection']"
+                            :title="trans('users.filter_empty_title')"
+                            :description="trans('users.filter_empty_detail')"
+                            :tags="[trans('navigation.users.label'), trans('users.tag_sso_projection')]"
                         />
                     </div>
                 </div>
@@ -672,6 +682,7 @@ onMounted(loadUsers);
         <UserViewDialog
             :visible="showViewDialog"
             :user="selectedUser"
+            :locale="currentLocale"
             @update:visible="setViewDialogVisible"
         />
         <UserEditDialog

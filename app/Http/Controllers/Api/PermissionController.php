@@ -33,7 +33,7 @@ class PermissionController extends Controller
         $permissions = $this->permissionService->list($request->validated());
 
         return ApiResponse::success(
-            'Permissions retrieved successfully.',
+            __('api.permissions.retrieved'),
             data: [
                 'items' => collect($permissions->items())
                     ->map(fn (Permission $permission) => $this->toArray($permission, $request))
@@ -70,7 +70,7 @@ class PermissionController extends Controller
         $permission = $this->permissionService->store($request->validated());
 
         return ApiResponse::success(
-            'Permission created successfully.',
+            __('api.permissions.created'),
             data: [
                 'permission' => $this->toArray($permission, $request),
             ],
@@ -91,7 +91,7 @@ class PermissionController extends Controller
         $permission = $this->permissionService->update((int) $permission->id, $request->validated());
 
         return ApiResponse::success(
-            'Permission updated successfully.',
+            __('api.permissions.updated'),
             data: [
                 'permission' => $this->toArray($permission, $request),
             ],
@@ -110,7 +110,7 @@ class PermissionController extends Controller
 
         $this->permissionService->delete((int) $permission->id);
 
-        return ApiResponse::success('Permission deleted successfully.');
+        return ApiResponse::success(__('api.permissions.deleted'));
     }
 
     /**

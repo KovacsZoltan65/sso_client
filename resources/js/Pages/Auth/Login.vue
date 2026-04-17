@@ -1,5 +1,6 @@
 <script setup>
 import GuestLayout from '@/Layouts/GuestLayout.vue';
+import { trans } from 'laravel-vue-i18n';
 import { Head, usePage } from '@inertiajs/vue3';
 import Button from 'primevue/button';
 import ProgressSpinner from 'primevue/progressspinner';
@@ -22,13 +23,13 @@ const flashSuccess = computed(() => page.props.flash?.success ?? null);
 const flashError = computed(() => page.props.flash?.error ?? null);
 const shouldAutoRedirect = computed(() => !flashSuccess.value && !flashError.value);
 
-function handleRedirectFailure(message = 'SSO atiranyitas sikertelen.') {
+function handleRedirectFailure(message = trans('auth.login.redirect_failed')) {
     error.value = message;
     redirecting.value = false;
 
     toast.add({
         severity: 'error',
-        summary: 'Atiranyitas sikertelen',
+        summary: trans('auth.login.redirect_failed_summary'),
         detail: message,
         life: 4000,
     });
@@ -65,16 +66,16 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-    <Head title="Sign in" />
+    <Head :title="trans('auth.login.page_title')" />
 
     <GuestLayout>
         <Toast position="top-right" />
 
         <div>
-            <p class="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">Bejelentkezes</p>
-            <h1 class="mt-3 text-3xl font-semibold text-slate-950">Atiranyitas a bejelentkezeshez</h1>
+            <p class="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">{{ trans('auth.login.title') }}</p>
+            <h1 class="mt-3 text-3xl font-semibold text-slate-950">{{ trans('auth.login.redirecting_title') }}</h1>
             <p class="mt-3 text-sm leading-7 text-slate-600">
-                A folytatashoz a rendszer a kozponti bejelentkezesre iranyitja.
+                {{ trans('auth.login.description') }}
             </p>
         </div>
 
@@ -90,12 +91,12 @@ onBeforeUnmount(() => {
             <ProgressSpinner v-if="redirecting" style="width: 2.5rem; height: 2.5rem" stroke-width="6" />
 
             <p class="text-sm leading-7 text-slate-500">
-                Atiranyitas a kozponti bejelentkezeshez...
+                {{ trans('auth.login.redirecting_progress') }}
             </p>
 
             <Button
                 type="button"
-                label="Ha nem tortent atiranyitas, kattints ide"
+                :label="trans('auth.login.redirect_cta')"
                 icon="pi pi-sign-in"
                 class="w-full"
                 :disabled="redirecting"
@@ -105,7 +106,7 @@ onBeforeUnmount(() => {
             <Button
                 v-if="error"
                 type="button"
-                label="Ujraprobalas"
+                :label="trans('common.retry')"
                 icon="pi pi-refresh"
                 severity="danger"
                 class="w-full"

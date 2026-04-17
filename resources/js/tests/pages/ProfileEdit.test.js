@@ -3,6 +3,7 @@ import ProfileEditPage from '@/Pages/Profile/Edit.vue';
 import { axiosMock } from '../mocks/axios';
 import { getPage, setPageProps } from '../mocks/inertia';
 import { toastAddMock } from '../setup';
+import en from '../../../../lang/en.json';
 
 function profilePageProps() {
     return {
@@ -22,6 +23,11 @@ function profilePageProps() {
         flash: {},
         sso: {
             status: {},
+        },
+        locale: {
+            current: 'en',
+            fallback: 'hu',
+            available: ['hu', 'en'],
         },
     };
 }
@@ -197,7 +203,7 @@ describe('Profile/Edit', () => {
         const forms = wrapper.findAll('form');
         await forms[1].trigger('submit');
 
-        expect(wrapper.text()).toContain('Password confirmation must match.');
+        expect(wrapper.text()).toContain(en['profile.validation.password_confirmation_match']);
         expect(axiosMock).toHaveBeenCalledTimes(1);
     });
 
@@ -304,5 +310,60 @@ describe('Profile/Edit', () => {
 
         expect(wrapper.text()).toContain('Server error.');
         expect(wrapper.text()).not.toContain('Profile details');
+    });
+
+    it('renders localized english labels across the profile sections', async () => {
+        setPageProps(profilePageProps());
+        axiosMock.mockResolvedValueOnce({
+            data: {
+                message: 'Profile retrieved successfully.',
+                data: {
+                    name: 'Canonical User',
+                    email: 'canonical@example.test',
+                },
+                meta: {
+                    csrf_token: 'csrf-token',
+                },
+                errors: {},
+            },
+        });
+
+        const wrapper = mount(ProfileEditPage, {
+            props: {
+                authUser: {
+                    name: 'Local Session Name',
+                    email: 'session@example.test',
+                },
+                profileApi: {
+                    enabled: true,
+                    endpoints: {
+                        show: 'https://sso-server.test/api/profile',
+                        update: 'https://sso-server.test/api/profile',
+                        updatePassword: 'https://sso-server.test/api/profile/password',
+                    },
+                },
+            },
+            global: {
+                stubs: {
+                    AuthenticatedLayout: { template: '<div><slot name="header" /><slot /></div>' },
+                    PageHeader: {
+                        props: ['title', 'description'],
+                        template: '<section><h1>{{ title }}</h1><p>{{ description }}</p></section>',
+                    },
+                },
+            },
+        });
+
+        await flushPromises();
+
+        expect(wrapper.text()).toContain(en['profile.title']);
+        expect(wrapper.text()).toContain(en['profile.description']);
+        expect(wrapper.text()).toContain(en['profile.identity_title']);
+        expect(wrapper.text()).toContain(en['profile.source_of_truth']);
+        expect(wrapper.text()).toContain(en['profile.display_name']);
+        expect(wrapper.text()).toContain(en['profile.save_profile']);
+        expect(wrapper.text()).toContain(en['profile.password_title']);
+        expect(wrapper.text()).toContain(en['profile.current_password']);
+        expect(wrapper.text()).toContain(en['profile.update_password']);
     });
 });
