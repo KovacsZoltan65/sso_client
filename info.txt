@@ -1,7 +1,20 @@
 php artisan optimize:clear
 php artisan cache:clear
 
-php artisan ide-helper:models
+// ==============================
+// barryvdh/laravel-ide-helper
+// ==============================
+Telepítés:
+    composer require --dev barryvdh/laravel-ide-helper
+Konfig publikálása:
+    php artisan vendor:publish --provider="Barryvdh\LaravelIdeHelper\IdeHelperServiceProvider" --tag=config
+Helper fájlok generálása:
+    php artisan ide-helper:generate
+    php artisan ide-helper:meta
+    php artisan ide-helper:models --nowrite
+
+// ==============================
+
 
 php artisan key:generate --env=testing
 php artisan migrate:fresh --seed --env=testing

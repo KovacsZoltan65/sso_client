@@ -97,7 +97,7 @@ const props = defineProps({
     },
 });
 
-const emit = defineEmits(['page', 'sort', 'filter', 'row-click', 'update:filters']);
+const emit = defineEmits(['page', 'sort', 'filter', 'row-click', 'update:filters', 'update:selection']);
 
 const attrs = useAttrs();
 
@@ -129,6 +129,7 @@ const emitSort = (event) => emit('sort', event);
 const emitFilter = (event) => emit('filter', event);
 const emitRowClick = (event) => emit('row-click', event);
 const emitFiltersUpdate = (value) => emit('update:filters', value);
+const emitSelectionUpdate = (value) => emit('update:selection', value);
 </script>
 
 <template>
@@ -161,6 +162,7 @@ const emitFiltersUpdate = (value) => emit('update:filters', value);
             @filter="emitFilter"
             @row-click="emitRowClick"
             @update:filters="emitFiltersUpdate"
+            @update:selection="emitSelectionUpdate"
         >
             <template v-if="$slots.header || $slots.actions" #header>
                 <div class="flex flex-col gap-4">
